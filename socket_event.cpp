@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
 	EEHNS::EEHErrCode rescode;
 	eeh.EEH_init(SERVER_TYPE_TRANSFER);
 	
-	EEHNS::EClient* ec_listen = eeh.EEH_TCP_listen("192.168.43.228", 8070, 
+	EEHNS::EClient* ec_listen = eeh.EEH_TCP_listen("10.0.80.121", 8070, 
 													SERVER_TYPE_SYNCHRON, null_callback_module);
 	if (! ec_listen) {
 		ECHO(ERRO, "EEH_TCP_listen failed");
@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 	
-	EEHNS::EClient* ec_client = eeh.EEH_TCP_connect("192.168.43.228", 8061, LINKER_TYPE_POLICY);
+	EEHNS::EClient* ec_client = eeh.EEH_TCP_connect("10.0.80.121", 8061, LINKER_TYPE_POLICY);
 	if (! ec_client) {
 		ECHO(ERRO, "EEH_TCP_connect failed");
 		return -1;

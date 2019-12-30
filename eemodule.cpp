@@ -308,28 +308,24 @@ int transfer_timer_callback(void *args, void *userp)
 		return -1;
 	}
 	
-	DBUG("心跳和连接: bc=%p, m_heartbeats.size=%d, m_ilinkers.size=%d", bc, eeh->m_heartbeats.size(), eeh->m_ilinkers.size());
 	std::map<EEHNS::LINKER_TYPE, uint64_t>::iterator it_m;
 	for (it_m = eeh->m_heartbeats.begin(); it_m != eeh->m_heartbeats.end(); it_m++) {
 		if (now_time() - it_m->second > 4 * 1000) {
-			DBUG("心跳: linker_type=%3d, time=%d", it_m->first, it_m->second);
+			if (EEHNS::EpollEvHandler::m_info_process[getpid()] != 
+								EEHNS::EpollEvHandler::m_linkers_map[SERVER_TYPE_TRANSFER].first) {
+				return -1;
+			}
+			
 			bool logical_error = false;
 			std::map<EEHNS::FD_t, EEHNS::LINKER_TYPE>::iterator iter_m;
 			for (iter_m = eeh->m_ilinkers.begin(); iter_m != eeh->m_ilinkers.end(); iter_m++) {
-				DBUG("连接: linker_type=%d, fd=%d, addr=%p", iter_m->second, iter_m->first, eeh->m_clients[iter_m->first]);
 				if (iter_m->second == it_m->first) {
 					logical_error = true;
 					int fd = iter_m->first;
-					DBUG("==============================================================");
-					DBUG("==============================================================");
-					DBUG("==============================================================");
-					DBUG("==============================================================");
-					DBUG("命中 linker_type=%d, fd=%d, bc=%p", iter_m->second, fd, eeh->m_clients[fd]);
-					logical_error = false;
 				}
 			}
 			if (logical_error) {
-				ECHO(ERRO, "========================> a logical error occurs");
+				ECHO(ERRO, "============= a logical error occurs =============");
 				return -1;
 			} else {
 				DBUG("============================ 重新拉起进程 ======================= pid");
@@ -361,7 +357,7 @@ int transfer_timer_callback(void *args, void *userp)
 					EEHNS::LINKER_TYPE linker_type = it_m->first;
 					
 					signal(SIGINT, signal_release);
-					sleep(2);
+					sleep(1);
 					
 					close(fd_prcw[0]);
 					close(fd_pwcr[1]);
@@ -543,7 +539,7 @@ static int madolche_handle_message(int fd, std::string msg, void *userp)
 		bomb->service_type = bic.service_type;
 		bomb->kill = bic.kill;
 		bomb->rescode = 1;
-		bomb->receipt = "魔偶甜点 将在 2 秒内被吃掉";
+		bomb->receipt = "魔偶甜点 将在 1 秒内被吃掉";
 		
 		signal(SIGALRM, signal_release);
 		alarm(2);
@@ -788,7 +784,7 @@ static int gimmickpuppet_handle_message(int fd, std::string msg, void *userp)
 		bomb->service_type = bic.service_type;
 		bomb->kill = bic.kill;
 		bomb->rescode = 1;
-		bomb->receipt = "机关傀儡 将在 2 秒内被摧毁";
+		bomb->receipt = "机关傀儡 将在 1 秒内被摧毁";
 		
 		signal(SIGALRM, signal_release);
 		alarm(2);
@@ -803,14 +799,10 @@ static int gimmickpuppet_handle_message(int fd, std::string msg, void *userp)
 	
 	BIC_HEADER tobich(eeh->m_type, bich.origin, totype);
 	BIC_MESSAGE tobicm(&tobich, tobicp);
-	
-	DBUG("===> m_type=%d, bich.origin=%d, totype=%d", eeh->m_type, bich.origin, totype);
-	
+		
 	std::string tobicmsg;
 	tobicm.Serialize(&tobicmsg);
-	
-	// DBUG("tobicmsg(%d): %s", tobicmsg.size(), tobicmsg.c_str());
-	
+		
 	std::string tomsg;
 	if (tobicmsg.empty()) {
 		ECHO(ERRO, "msg size is 0");
@@ -1279,18 +1271,12 @@ int policy_timer_callback(void *args, void *userp)
 			type = BIC_TYPE_P2S_BOMBER;
 		} else if (type == BIC_TYPE_P2S_BOMBER) {	/** 杀 Madolche */
 			linker_type = LINKER_TYPE_MADOLCHE;
-			DBUG("xxxxxxxxxxxxxxxxxxxxx杀xxxxxxxxxxxxxxxxxxxxx");
-			DBUG("xxxxxxxxxxxxxxxxxxxxx杀xxxxxxxxxxxxxxxxxxxxx");
-			DBUG("xxxxxxxxxxxxxxxxxxxxx杀xxxxxxxxxxxxxxxxxxxxx");
-			DBUG("xxxxxxxxxxxxxxxxxxxxx杀xxxxxxxxxxxxxxxxxxxxx");
-			DBUG("xxxxxxxxxxxxxxxxxxxxx杀xxxxxxxxxxxxxxxxxxxxx");
-			DBUG("xxxxxxxxxxxxxxxxxxxxx杀xxxxxxxxxxxxxxxxxxxxx");
 			serialize_bicmsg_policy(serialize_policy_callback_BIC_BOMB, linker_type, &tobicmsg);
 			type = BIC_TYPE_P2S_SUMMON;
 		} else if (type == BIC_TYPE_P2S_SUMMON) { /** 消息环回 */
 			srand(time(nullptr));
-			// linker_type = rand() % 2 ? LINKER_TYPE_MADOLCHE : LINKER_TYPE_GIMMICKPUPPET;
-			linker_type = LINKER_TYPE_MADOLCHE;
+			linker_type = rand() % 2 ? LINKER_TYPE_MADOLCHE : LINKER_TYPE_GIMMICKPUPPET;
+			// linker_type = LINKER_TYPE_MADOLCHE;
 			serialize_bicmsg_policy(serialize_policy_callback_BIC_SUMMON, linker_type, &tobicmsg);
 		} else {
 			return -1;
