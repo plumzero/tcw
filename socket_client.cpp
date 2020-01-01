@@ -22,53 +22,53 @@
 
 int main()
 {
-	int cfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (cfd == -1) {
-		printf("CHILD: socket failed(%d): %s\n", errno, strerror(errno));
-		return -1;
-	}
-		
-	struct sockaddr_in ssai, csai;
-	char ip[32] = { 0 };
-	memset(&ssai, 0, sizeof(ssai));
-	ssai.sin_port = htons(8070);
-	ssai.sin_addr.s_addr = inet_addr("10.0.80.121");
-	ssai.sin_family = AF_INET;
-		
-	while (connect(cfd, (struct sockaddr*)&ssai, sizeof(struct sockaddr_in)) == -1 && errno != EISCONN) {
-		if (errno != EINTR) {
-			perror("connect");
-			return -1;
-		}
-	}
-	
-	int on = 1;
-	if (ioctl(cfd, FIONBIO, (const char *)&on) == -1) {
-		close(cfd);
-		return -1;
-	}
-	
-	char buf[1024];
-	int n, nbytes;
-	int count = 5;
-	
-	sleep(2);
-	
-	return 0;
-	
-	for ( ; count--; ) {
-		memset(buf, 0, sizeof(buf));
-		n = snprintf(buf, 1024, "++++++++++ hello world from TCP-CLIENT %d ++++++++++", count);
-		printf("send %d bytes: %s\n", n, buf);
-		nbytes = send(cfd, buf, n, 0);
-		if (nbytes == n) {
-			printf("send %d bytes success\n", n);
-		} else {
-			continue;
-		}
-		
-		// sleep(5);
-	}
-	
-	return 0;
+    int cfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (cfd == -1) {
+        printf("CHILD: socket failed(%d): %s\n", errno, strerror(errno));
+        return -1;
+    }
+        
+    struct sockaddr_in ssai, csai;
+    char ip[32] = { 0 };
+    memset(&ssai, 0, sizeof(ssai));
+    ssai.sin_port = htons(8070);
+    ssai.sin_addr.s_addr = inet_addr("10.0.80.121");
+    ssai.sin_family = AF_INET;
+        
+    while (connect(cfd, (struct sockaddr*)&ssai, sizeof(struct sockaddr_in)) == -1 && errno != EISCONN) {
+        if (errno != EINTR) {
+            perror("connect");
+            return -1;
+        }
+    }
+    
+    int on = 1;
+    if (ioctl(cfd, FIONBIO, (const char *)&on) == -1) {
+        close(cfd);
+        return -1;
+    }
+    
+    char buf[1024];
+    int n, nbytes;
+    int count = 5;
+    
+    sleep(2);
+    
+    return 0;
+    
+    for ( ; count--; ) {
+        memset(buf, 0, sizeof(buf));
+        n = snprintf(buf, 1024, "++++++++++ hello world from TCP-CLIENT %d ++++++++++", count);
+        printf("send %d bytes: %s\n", n, buf);
+        nbytes = send(cfd, buf, n, 0);
+        if (nbytes == n) {
+            printf("send %d bytes success\n", n);
+        } else {
+            continue;
+        }
+        
+        // sleep(5);
+    }
+    
+    return 0;
 }
