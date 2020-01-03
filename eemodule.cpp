@@ -60,23 +60,23 @@ void rebuild_child_process_service(int rfd, int wfd, EEHNS::LINKER_TYPE linker_t
     std::pair<EEHNS::EClient*, EEHNS::EClient*> ec_pipe_pair = 
                 eeh.EEH_PIPE_create(rfd, wfd, linker_type);
     if (! ec_pipe_pair.first) {
-        printf("EEH_PIPE_create failed\n");
+        ECHO(ERRO, "EEH_PIPE_create failed");
         return ;
     }
     if (! ec_pipe_pair.second) {
-        printf("EEH_PIPE_create failed\n");
+        ECHO(ERRO, "EEH_PIPE_create failed");
         return ;
     }
     dynamic_cast<EEHNS::BaseClient*>(ec_pipe_pair.first)->set_actions(EEHNS::EpollEvHandler::m_linkers_map[linker_type].second);
     dynamic_cast<EEHNS::BaseClient*>(ec_pipe_pair.second)->set_actions(EEHNS::EpollEvHandler::m_linkers_map[linker_type].second);
     rescode = eeh.EEH_add(ec_pipe_pair.first);
     if (rescode != EEHNS::EEH_OK) {
-        printf("EEH_add failed\n");
+        ECHO(ERRO, "EEH_add failed");
         return ;
     }
     rescode = eeh.EEH_add(ec_pipe_pair.second);
     if (rescode != EEHNS::EEH_OK) {
-        printf("EEH_add failed\n");
+        ECHO(ERRO, "EEH_add failed");
         return ;
     }
     
@@ -128,7 +128,7 @@ ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
     char hbuf[NEGOHSIZE];
     ssize_t nh = read(fd, hbuf, NEGOHSIZE);
     if (nh != NEGOHSIZE) {
-        ECHO(ERRO, "read(%d): %s", nh, strerror(errno));
+        ECHO(ERRO, "read(%ld): %s", nh, strerror(errno));
         return -1;
     }
 
@@ -144,7 +144,7 @@ ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
 
     ssize_t nb = read(fd, rbuf, bodysize);
     if (nb != (ssize_t)bodysize) {
-        ECHO(ERRO, "read(%d != %d): %s", nb, bodysize, strerror(errno));
+        ECHO(ERRO, "read(%ld != %lu): %s", nb, bodysize, strerror(errno));
         if (rbuf) {
             free(rbuf);
         }
@@ -250,7 +250,7 @@ ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
 
     eeh->m_linker_queues[tobc->linker_type].push(tomsg);
 
-    ECHO(INFO, "pushed msg(len=%d) to queue(linker=%d, size=%d) and forward to eclient(%p, type=%d)", 
+    ECHO(INFO, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and forward to eclient(%p, type=%d)", 
                 tomsg.size(), tobc->linker_type, eeh->m_linker_queues[tobc->linker_type].size(), tobc, tobc->type);
 
     eeh->EEH_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
@@ -278,7 +278,7 @@ ssize_t transfer_write_callback(int fd, const void *buf, size_t count, void *use
         return -1;
     }
         
-    ECHO(INFO, "do write to eclient(%p, type=%d, linker_type=%d, queue_size=%d)", 
+    ECHO(INFO, "do write to eclient(%p, type=%d, linker_type=%d, queue_size=%lu)", 
                     bc, bc->type, linker_type, eeh->m_linker_queues[linker_type].size());
 
     while (eeh->m_linker_queues[linker_type].size() > 0) {
@@ -289,144 +289,143 @@ ssize_t transfer_write_callback(int fd, const void *buf, size_t count, void *use
             return -1;
         }
         eeh->m_linker_queues[linker_type].pop();
-        ECHO(INFO, "transfered msg(len=%d) to peer end of eclient(%p, type=%d)", nt, bc, bc->type);
+        ECHO(INFO, "transfered msg(len=%lu) to peer end of eclient(%p, type=%d)", nt, bc, bc->type);
     }
     
     return 0;
 }
 
 int transfer_timer_callback(void *args, void *userp)
-{	
-	EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
-	
-	if (eeh->m_type != SERVER_TYPE_TRANSFER) {
-		return -1;
-	}
-	
-	EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>((EEHNS::EClient*)args);
-	if (! bc) {
-		return -1;
-	}
-	
-	std::map<EEHNS::LINKER_TYPE, uint64_t>::iterator it_m;
-	for (it_m = eeh->m_heartbeats.begin(); it_m != eeh->m_heartbeats.end(); it_m++) {
-		if (now_time() - it_m->second > 4 * 1000) {
-			if (EEHNS::EpollEvHandler::m_info_process[getpid()] != 
-								EEHNS::EpollEvHandler::m_linkers_map[SERVER_TYPE_TRANSFER].first) {
-				return -1;
-			}
-			
-			bool logical_error = false;
-			std::map<EEHNS::FD_t, EEHNS::LINKER_TYPE>::iterator iter_m;
-			for (iter_m = eeh->m_ilinkers.begin(); iter_m != eeh->m_ilinkers.end(); iter_m++) {
-				if (iter_m->second == it_m->first) {
-					logical_error = true;
-					int fd = iter_m->first;
-				}
-			}
-			if (logical_error) {
-				ECHO(ERRO, "============= a logical error occurs =============");
-				return -1;
-			} else {
-				DBUG("============================ 重新拉起进程 ======================= pid");
-				int fd_prcw[2];		/** parent read and child write */
-				int fd_pwcr[2];		/** parent write and child read */
-				pid_t pid;
-				
-				if (pipe(fd_prcw) < 0) {
-					ECHO(ERRO, "pipe: %s", strerror(errno));
-					return -1;
-				}
-				if (pipe(fd_pwcr) < 0) {
-					ECHO(ERRO, "pipe: %s", strerror(errno));
-					if (fd_prcw[0] > 0) close(fd_prcw[0]);
-					if (fd_prcw[1] > 0) close(fd_prcw[1]);
-					return -1;
-				}
-				
-				pid = fork();
-				if (pid < 0) {
-					if (fd_prcw[0] > 0) close(fd_prcw[0]);
-					if (fd_prcw[1] > 0) close(fd_prcw[1]);
-					if (fd_pwcr[0] > 0) close(fd_pwcr[0]);
-					if (fd_pwcr[1] > 0) close(fd_pwcr[1]);
-					ECHO(ERRO, "fork: %s", strerror(errno));
-					return -1;
-				} else if (pid == 0) {
-					ECHO(INFO, "create a new process pid=%d(ppid=%d)", getpid(), getppid());
-					EEHNS::LINKER_TYPE linker_type = it_m->first;
-					
-					signal(SIGINT, signal_release);
-					sleep(1);
-					
-					close(fd_prcw[0]);
-					close(fd_pwcr[1]);
-					
-					rebuild_child_process_service(fd_pwcr[0], fd_prcw[1], linker_type);
-				} else if (pid > 0) {
-					close(fd_prcw[1]);
-					close(fd_pwcr[0]);
-					std::pair<EEHNS::EClient*, EEHNS::EClient*> ec_pipe_pair = 
-								eeh->EEH_PIPE_create(fd_prcw[0], fd_pwcr[1], it_m->first);
-					if (! ec_pipe_pair.first) {
-						printf("EEH_PIPE_create failed\n");
-						return -1;
-					}
-					if (! ec_pipe_pair.second) {
-						printf("EEH_PIPE_create failed\n");
-						return -1;
-					}
-					dynamic_cast<EEHNS::BaseClient*>(ec_pipe_pair.first)->set_actions(transfer_callback_module);
-					dynamic_cast<EEHNS::BaseClient*>(ec_pipe_pair.second)->set_actions(transfer_callback_module);
-					EEHNS::EEHErrCode rescode;
-					rescode = eeh->EEH_add(ec_pipe_pair.first);
-					if (rescode != EEHNS::EEH_OK) {
-						printf("EEH_add failed\n");
-						return -1;
-					}
-					rescode = eeh->EEH_add(ec_pipe_pair.second);
-					if (rescode != EEHNS::EEH_OK) {
-						printf("EEH_add failed\n");
-						return -1;
-					}
-					EEHNS::EpollEvHandler::m_info_process[pid] = 
-								EEHNS::EpollEvHandler::m_linkers_map[it_m->first].first;
-				}
-			}
-		}
-	}
-	
-	if (eeh->m_olinkers.find(bc->fd) != eeh->m_olinkers.end()) {	/** guard heartbeat */
-		if (now_time() - bc->heartbeat >= 1000) {
-			bc->heartbeat = now_time();
+{   
+    EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
+    
+    if (eeh->m_type != SERVER_TYPE_TRANSFER) {
+        return -1;
+    }
+    
+    EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>((EEHNS::EClient*)args);
+    if (! bc) {
+        return -1;
+    }
+    
+    std::map<EEHNS::LINKER_TYPE, uint64_t>::iterator it_m;
+    for (it_m = eeh->m_heartbeats.begin(); it_m != eeh->m_heartbeats.end(); it_m++) {
+        if (now_time() - it_m->second > 4 * 1000) {
+            if (EEHNS::EpollEvHandler::m_info_process[getpid()] != 
+                                EEHNS::EpollEvHandler::m_linkers_map[SERVER_TYPE_TRANSFER].first) {
+                return -1;
+            }
+            
+            bool logical_error = false;
+            std::map<EEHNS::FD_t, EEHNS::LINKER_TYPE>::iterator iter_m;
+            for (iter_m = eeh->m_ilinkers.begin(); iter_m != eeh->m_ilinkers.end(); iter_m++) {
+                if (iter_m->second == it_m->first) {
+                    logical_error = true;
+                }
+            }
+            if (logical_error) {
+                ECHO(ERRO, "============= a logical error occurs =============");
+                return -1;
+            } else {
+                DBUG("============================ 重新拉起进程 ======================= pid");
+                int fd_prcw[2];     /** parent read and child write */
+                int fd_pwcr[2];     /** parent write and child read */
+                pid_t pid;
+                
+                if (pipe(fd_prcw) < 0) {
+                    ECHO(ERRO, "pipe: %s", strerror(errno));
+                    return -1;
+                }
+                if (pipe(fd_pwcr) < 0) {
+                    ECHO(ERRO, "pipe: %s", strerror(errno));
+                    if (fd_prcw[0] > 0) close(fd_prcw[0]);
+                    if (fd_prcw[1] > 0) close(fd_prcw[1]);
+                    return -1;
+                }
+                
+                pid = fork();
+                if (pid < 0) {
+                    if (fd_prcw[0] > 0) close(fd_prcw[0]);
+                    if (fd_prcw[1] > 0) close(fd_prcw[1]);
+                    if (fd_pwcr[0] > 0) close(fd_pwcr[0]);
+                    if (fd_pwcr[1] > 0) close(fd_pwcr[1]);
+                    ECHO(ERRO, "fork: %s", strerror(errno));
+                    return -1;
+                } else if (pid == 0) {
+                    ECHO(INFO, "create a new process pid=%d(ppid=%d)", getpid(), getppid());
+                    EEHNS::LINKER_TYPE linker_type = it_m->first;
+                    
+                    signal(SIGINT, signal_release);
+                    sleep(1);
+                    
+                    close(fd_prcw[0]);
+                    close(fd_pwcr[1]);
+                    
+                    rebuild_child_process_service(fd_pwcr[0], fd_prcw[1], linker_type);
+                } else if (pid > 0) {
+                    close(fd_prcw[1]);
+                    close(fd_pwcr[0]);
+                    std::pair<EEHNS::EClient*, EEHNS::EClient*> ec_pipe_pair = 
+                                eeh->EEH_PIPE_create(fd_prcw[0], fd_pwcr[1], it_m->first);
+                    if (! ec_pipe_pair.first) {
+                        ECHO(ERRO, "EEH_PIPE_create failed");
+                        return -1;
+                    }
+                    if (! ec_pipe_pair.second) {
+                        ECHO(ERRO, "EEH_PIPE_create failed");
+                        return -1;
+                    }
+                    dynamic_cast<EEHNS::BaseClient*>(ec_pipe_pair.first)->set_actions(transfer_callback_module);
+                    dynamic_cast<EEHNS::BaseClient*>(ec_pipe_pair.second)->set_actions(transfer_callback_module);
+                    EEHNS::EEHErrCode rescode;
+                    rescode = eeh->EEH_add(ec_pipe_pair.first);
+                    if (rescode != EEHNS::EEH_OK) {
+                        ECHO(ERRO, "EEH_add failed");
+                        return -1;
+                    }
+                    rescode = eeh->EEH_add(ec_pipe_pair.second);
+                    if (rescode != EEHNS::EEH_OK) {
+                        ECHO(ERRO, "EEH_add failed");
+                        return -1;
+                    }
+                    EEHNS::EpollEvHandler::m_info_process[pid] = 
+                                EEHNS::EpollEvHandler::m_linkers_map[it_m->first].first;
+                }
+            }
+        }
+    }
+    
+    if (eeh->m_olinkers.find(bc->fd) != eeh->m_olinkers.end()) {    /** guard heartbeat */
+        if (now_time() - bc->heartbeat >= 1000) {
+            bc->heartbeat = now_time();
 
-			BIC_HEADER tobich(eeh->m_type, bc->linker_type, BIC_TYPE_GUARDRAGON);
-			BIC_GUARDRAGON tobicp;
-			tobicp.biubiu = "Hello World, Transfer";
-			BIC_MESSAGE tobicm(&tobich, &tobicp);
+            BIC_HEADER tobich(eeh->m_type, bc->linker_type, BIC_TYPE_GUARDRAGON);
+            BIC_GUARDRAGON tobicp;
+            tobicp.biubiu = "Hello World, Transfer";
+            BIC_MESSAGE tobicm(&tobich, &tobicp);
 
-			std::string tobicmsg;
-			tobicm.Serialize(&tobicmsg);
+            std::string tobicmsg;
+            tobicm.Serialize(&tobicmsg);
 
-			std::string tomsg;
-			if (tobicmsg.empty()) {
-				ECHO(ERRO, "msg size is 0");
-				return -1;
-			}
-			add_header(&tomsg, tobicmsg);
+            std::string tomsg;
+            if (tobicmsg.empty()) {
+                ECHO(ERRO, "msg size is 0");
+                return -1;
+            }
+            add_header(&tomsg, tobicmsg);
 
-			eeh->m_linker_queues[bc->linker_type].push(tomsg);
+            eeh->m_linker_queues[bc->linker_type].push(tomsg);
 
-			ECHO(INFO, "pushed msg(len=%d) to queue(linker=%d, size=%d) and heartbeat to eclient(%p, type=%d)", 
-					tomsg.size(), bc->linker_type, eeh->m_linker_queues[bc->linker_type].size(), bc, bc->type);
-			
-			eeh->EEH_mod(bc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
-		}
-	} else {
+            ECHO(INFO, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and heartbeat to eclient(%p, type=%d)", 
+                    tomsg.size(), bc->linker_type, eeh->m_linker_queues[bc->linker_type].size(), bc, bc->type);
+            
+            eeh->EEH_mod(bc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
+        }
+    } else {
 
-	}
-	
-	return 0;
+    }
+    
+    return 0;
 }
 
 ee_event_actions_t transfer_callback_module = {
@@ -437,159 +436,159 @@ ee_event_actions_t transfer_callback_module = {
 
 static int madolche_handle_message(int fd, std::string msg, void *userp)
 {
-	EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
+    EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
 
-	EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[fd]);
-	if (! bc) {
-		return -1;
-	}
+    EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[fd]);
+    if (! bc) {
+        return -1;
+    }
 
-	BIC_HEADER  bich;
-	BIC_MESSAGE bicm(&bich, nullptr);
-	bicm.ExtractHeader(msg);
+    BIC_HEADER  bich;
+    BIC_MESSAGE bicm(&bich, nullptr);
+    bicm.ExtractHeader(msg);
 
-	if (bc->linker_type != bich.orient) {
-		ECHO(ERRO, "not belong here, discard the message");
-		return 0;
-	}
+    if (bc->linker_type != bich.orient) {
+        ECHO(ERRO, "not belong here, discard the message");
+        return 0;
+    }
 
-	ECHO(INFO, "received msg(len=%d, type=%d) from origin(linker=%d) to orient(linker=%d)",
-														msg.size(), bich.type, bich.origin, bich.orient);
+    ECHO(INFO, "received msg(len=%lu, type=%d) from origin(linker=%d) to orient(linker=%d)",
+                                                        msg.size(), bich.type, bich.origin, bich.orient);
 
-	BIC_BASE *tobicp = nullptr;
-	BICTYPE totype;
-	if (bich.type == BIC_TYPE_P2S_SUMMON) {
-		BIC_SUMMON bic;
-		BIC_MESSAGE bicsummon(nullptr, &bic);
-		
-		bicsummon.ExtractPayload(msg);
-		
-		DBUG("BIC_SUMMON.info:  %s", bic.info.c_str());
-		DBUG("BIC_SUMMON.sno:   %s", bic.sno.c_str());
-		DBUG("BIC_SUMMON.code:  %lu", bic.code);
-		
-		BIC_MONSTER* monster = new BIC_MONSTER();
-		monster->name = "Madolche Queen Tiaramisu";
-		monster->type = "xyz monster (Effect)";
-		monster->attribute = "Earth";
-		monster->race = "Fairy";
-		monster->level = 4;
-		monster->attack = 2200;
-		monster->defense = 2100;
-		monster->description = "魔偶甜点 后冠提拉米苏";
-		
-		tobicp = monster;
-		totype = BIC_TYPE_S2P_MONSTER;
-	} else if (bich.type == BIC_TYPE_P2S_BITRON) {
-		BIC_BITRON bic;
-		BIC_MESSAGE bicbit(nullptr, &bic);
-		
-		bicbit.ExtractPayload(msg);
-		
-		DBUG("BIC_BITRON.bitslen: %d", bic.bitslen);
-		uint32_t i;
-		for (i = 0; i < bic.bitslen; ) {
-			printf(" %02x", static_cast<int>((unsigned char)bic.bits[i]));
-			if (++i % 16 == 0) printf("\n");
-		}
-		if (i % 16 != 0) printf("\n");
-		
-		return 0;
-	} else if (bich.type == BIC_TYPE_P2S_BLOCKRON) {
-		BIC_BLOCKRON bic;
-		BIC_MESSAGE bicblock(nullptr, &bic);
-		
-		bicblock.ExtractPayload(msg);
-		
-		DBUG("BIC_BLOCKRON.fname:     %s", bic.fname.c_str());
-		DBUG("BIC_BLOCKRON.fsize:     %u", bic.fsize);
-		DBUG("BIC_BLOCKRON.offset:    %u", bic.offset);
-		DBUG("BIC_BLOCKRON.blocksize: %u", bic.blocksize);
-		
-		std::ofstream ofs;
-		std::string ofile(bic.fname + "_bak");
-		if (bic.offset == 0) {
-			ofs.open(ofile.c_str(), std::ofstream::out | std::ofstream::trunc);
-		} else {
-			ofs.open(ofile.c_str(), std::ofstream::out | std::ofstream::app);
-		}
-		
-		if (! ofs.is_open()) {
-			ECHO(ERRO, "open(\"%s\"): %s", ofile.c_str(), strerror(errno));
-			return -1;
-		}
- 		
-		ofs.write(bic.block.c_str(), bic.blocksize);
-		
-		ofs.close();
-		
-		return 0;
-	} else if (bich.type == BIC_TYPE_P2S_BOMBER) {
-		BIC_BOMBER bic;
-		BIC_MESSAGE bicbomb(nullptr, &bic);
-		
-		bicbomb.ExtractPayload(msg);
-		
-		DBUG("BIC_BOMBER.service_name: %s", bic.service_name.c_str());
-		DBUG("BIC_BOMBER.service_type: %d", bic.service_type);
-		DBUG("BIC_BOMBER.kill:         %s", bic.kill ? "true" : "false");
-		
-		BIC_BOMBER* bomb = new BIC_BOMBER();
-		bomb->service_name = bic.service_name;
-		bomb->service_type = bic.service_type;
-		bomb->kill = bic.kill;
-		bomb->rescode = 1;
-		bomb->receipt = "魔偶甜点 将在 1 秒内被吃掉";
-		
-		signal(SIGALRM, signal_release);
-		alarm(2);
-		ECHO(INFO, "pid %d would be destructed in 2 seconds", getpid());
-		
-		tobicp = bomb;
-		totype = BIC_TYPE_S2P_BOMBER;
-	} else {
-		ECHO(ERRO, "undefined or unhandled msg(%d)", (int)bich.type);
-		return -1;
-	}
-	
-	BIC_HEADER tobich(eeh->m_type, bich.origin, totype);
-	BIC_MESSAGE tobicm(&tobich, tobicp);
-	
-	std::string tobicmsg;
-	tobicm.Serialize(&tobicmsg);
-	
-	std::string tomsg;
-	if (tobicmsg.empty()) {
-		ECHO(ERRO, "msg size is 0");
-		return -1;
-	}
-	add_header(&tomsg, tobicmsg);
-	
-	if (tobicp != nullptr) {
-		delete tobicp;
-	}
-	
-	int tofd(0);
-	if (eeh->m_pipe_pairs.find(bc->linker_type) != eeh->m_pipe_pairs.end()) {
-		tofd = eeh->m_pipe_pairs[bc->linker_type].second;
-	} else {
-		ECHO(ERRO, "an exceptions occurs");
-		return -1;
-	}
-	
-	EEHNS::BaseClient *tobc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[tofd]);
-	if (! tobc) {
-		return -1;
-	}
-		
-	eeh->m_linker_queues[tobc->linker_type].push(tomsg);
+    BIC_BASE *tobicp = nullptr;
+    BICTYPE totype;
+    if (bich.type == BIC_TYPE_P2S_SUMMON) {
+        BIC_SUMMON bic;
+        BIC_MESSAGE bicsummon(nullptr, &bic);
+        
+        bicsummon.ExtractPayload(msg);
+        
+        DBUG("BIC_SUMMON.info:  %s", bic.info.c_str());
+        DBUG("BIC_SUMMON.sno:   %s", bic.sno.c_str());
+        DBUG("BIC_SUMMON.code:  %lu", bic.code);
+        
+        BIC_MONSTER* monster = new BIC_MONSTER();
+        monster->name = "Madolche Queen Tiaramisu";
+        monster->type = "xyz monster (Effect)";
+        monster->attribute = "Earth";
+        monster->race = "Fairy";
+        monster->level = 4;
+        monster->attack = 2200;
+        monster->defense = 2100;
+        monster->description = "魔偶甜点 后冠提拉米苏";
+        
+        tobicp = monster;
+        totype = BIC_TYPE_S2P_MONSTER;
+    } else if (bich.type == BIC_TYPE_P2S_BITRON) {
+        BIC_BITRON bic;
+        BIC_MESSAGE bicbit(nullptr, &bic);
+        
+        bicbit.ExtractPayload(msg);
+        
+        DBUG("BIC_BITRON.bitslen: %d", bic.bitslen);
+        uint32_t i;
+        for (i = 0; i < bic.bitslen; ) {
+            printf(" %02x", static_cast<int>((unsigned char)bic.bits[i]));
+            if (++i % 16 == 0) printf("\n");
+        }
+        if (i % 16 != 0) printf("\n");
+        
+        return 0;
+    } else if (bich.type == BIC_TYPE_P2S_BLOCKRON) {
+        BIC_BLOCKRON bic;
+        BIC_MESSAGE bicblock(nullptr, &bic);
+        
+        bicblock.ExtractPayload(msg);
+        
+        DBUG("BIC_BLOCKRON.fname:     %s", bic.fname.c_str());
+        DBUG("BIC_BLOCKRON.fsize:     %u", bic.fsize);
+        DBUG("BIC_BLOCKRON.offset:    %u", bic.offset);
+        DBUG("BIC_BLOCKRON.blocksize: %u", bic.blocksize);
+        
+        std::ofstream ofs;
+        std::string ofile(bic.fname + "_bak");
+        if (bic.offset == 0) {
+            ofs.open(ofile.c_str(), std::ofstream::out | std::ofstream::trunc);
+        } else {
+            ofs.open(ofile.c_str(), std::ofstream::out | std::ofstream::app);
+        }
+        
+        if (! ofs.is_open()) {
+            ECHO(ERRO, "open(\"%s\"): %s", ofile.c_str(), strerror(errno));
+            return -1;
+        }
+        
+        ofs.write(bic.block.c_str(), bic.blocksize);
+        
+        ofs.close();
+        
+        return 0;
+    } else if (bich.type == BIC_TYPE_P2S_BOMBER) {
+        BIC_BOMBER bic;
+        BIC_MESSAGE bicbomb(nullptr, &bic);
+        
+        bicbomb.ExtractPayload(msg);
+        
+        DBUG("BIC_BOMBER.service_name: %s", bic.service_name.c_str());
+        DBUG("BIC_BOMBER.service_type: %d", bic.service_type);
+        DBUG("BIC_BOMBER.kill:         %s", bic.kill ? "true" : "false");
+        
+        BIC_BOMBER* bomb = new BIC_BOMBER();
+        bomb->service_name = bic.service_name;
+        bomb->service_type = bic.service_type;
+        bomb->kill = bic.kill;
+        bomb->rescode = 1;
+        bomb->receipt = "魔偶甜点 将在 1 秒内被吃掉";
+        
+        signal(SIGALRM, signal_release);
+        alarm(2);
+        ECHO(INFO, "pid %d would be destructed in 2 seconds", getpid());
+        
+        tobicp = bomb;
+        totype = BIC_TYPE_S2P_BOMBER;
+    } else {
+        ECHO(ERRO, "undefined or unhandled msg(%d)", (int)bich.type);
+        return -1;
+    }
+    
+    BIC_HEADER tobich(eeh->m_type, bich.origin, totype);
+    BIC_MESSAGE tobicm(&tobich, tobicp);
+    
+    std::string tobicmsg;
+    tobicm.Serialize(&tobicmsg);
+    
+    std::string tomsg;
+    if (tobicmsg.empty()) {
+        ECHO(ERRO, "msg size is 0");
+        return -1;
+    }
+    add_header(&tomsg, tobicmsg);
+    
+    if (tobicp != nullptr) {
+        delete tobicp;
+    }
+    
+    int tofd(0);
+    if (eeh->m_pipe_pairs.find(bc->linker_type) != eeh->m_pipe_pairs.end()) {
+        tofd = eeh->m_pipe_pairs[bc->linker_type].second;
+    } else {
+        ECHO(ERRO, "an exceptions occurs");
+        return -1;
+    }
+    
+    EEHNS::BaseClient *tobc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[tofd]);
+    if (! tobc) {
+        return -1;
+    }
+        
+    eeh->m_linker_queues[tobc->linker_type].push(tomsg);
 
-	ECHO(INFO, "pushed msg(len=%d) to queue(linker=%d, size=%d) and forward to eclient(%p, type=%d)", 
-			tomsg.size(), tobc->linker_type, eeh->m_linker_queues[tobc->linker_type].size(), tobc, tobc->type);
-		
-	eeh->EEH_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
+    ECHO(INFO, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and forward to eclient(%p, type=%d)", 
+            tomsg.size(), tobc->linker_type, eeh->m_linker_queues[tobc->linker_type].size(), tobc, tobc->type);
+        
+    eeh->EEH_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
 
-	return 0;
+    return 0;
 }
 /** do nothing, read purely */
 ssize_t madolche_read_callback(int fd, void *buf, size_t size, void *userp)
@@ -606,7 +605,7 @@ ssize_t madolche_read_callback(int fd, void *buf, size_t size, void *userp)
     char hbuf[NEGOHSIZE];
     ssize_t nh = read(fd, hbuf, NEGOHSIZE);
     if (nh != NEGOHSIZE) {
-        ECHO(ERRO, "read(%d): %s", nh, strerror(errno));
+        ECHO(ERRO, "read(%ld): %s", nh, strerror(errno));
         return -1;
     }
     
@@ -621,8 +620,8 @@ ssize_t madolche_read_callback(int fd, void *buf, size_t size, void *userp)
     }
     
     ssize_t nb = read(fd, rbuf, bodysize);
-    if (nb != bodysize) {
-        ECHO(ERRO, "read: %s", strerror(errno));
+    if (nb != (ssize_t)bodysize) {
+        ECHO(ERRO, "read(%ld != %lu): %s", nb, bodysize, strerror(errno));
         if (rbuf) {
             free(rbuf);
         }
@@ -631,9 +630,9 @@ ssize_t madolche_read_callback(int fd, void *buf, size_t size, void *userp)
     
     int ret = madolche_handle_message(fd, std::string(rbuf, nb), userp);
     if (ret == 0) {
-        ECHO(INFO, "Madolche: success handled msg(len=%d) from eclient(%p, type=%d)", nb, bc, bc->type);
+        ECHO(INFO, "Madolche: success handled msg(len=%ld) from eclient(%p, type=%d)", nb, bc, bc->type);
     } else {
-        ECHO(ERRO, "Madolche: failure handled msg(len=%d) from eclient(%p, type=%d)", nb, bc, bc->type);
+        ECHO(ERRO, "Madolche: failure handled msg(len=%ld) from eclient(%p, type=%d)", nb, bc, bc->type);
     }
     
     if (rbuf) {
@@ -661,7 +660,7 @@ ssize_t madolche_write_callback(int fd, const void *buf, size_t count, void *use
         return -1;
     }
     
-    ECHO(INFO, "do write to eclient(%p, type=%d, linker_type=%d, queue_size=%d)", 
+    ECHO(INFO, "do write to eclient(%p, type=%d, linker_type=%d, queue_size=%lu)", 
                     bc, bc->type, linker_type, eeh->m_linker_queues[linker_type].size());
     
     while (eeh->m_linker_queues[linker_type].size() > 0) {
@@ -672,7 +671,7 @@ ssize_t madolche_write_callback(int fd, const void *buf, size_t count, void *use
             return -1;
         }
         eeh->m_linker_queues[linker_type].pop();
-        ECHO(INFO, "transfered msg(len=%d) to peer end of eclient(%p, type=%d)", nt, bc, bc->type);
+        ECHO(INFO, "transfered msg(len=%lu) to peer end of eclient(%p, type=%d)", nt, bc, bc->type);
     }
     
     return 0;
@@ -709,7 +708,7 @@ int madolche_timer_callback(void *args, void *userp)
 
         eeh->m_linker_queues[bc->linker_type].push(tomsg);
 
-        ECHO(INFO, "pushed msg(len=%d) to queue(linker=%d, size=%d) and heartbeat to eclient(%p, type=%d)", 
+        ECHO(INFO, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and heartbeat to eclient(%p, type=%d)", 
                 tomsg.size(), bc->linker_type, eeh->m_linker_queues[bc->linker_type].size(), bc, bc->type);
         
         eeh->EEH_mod(bc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
@@ -742,7 +741,7 @@ static int gimmickpuppet_handle_message(int fd, std::string msg, void *userp)
         return 0;
     }
 
-    ECHO(INFO, "received msg(len=%d, type=%d) from origin(linker=%d) to orient(linker=%d)",
+    ECHO(INFO, "received msg(len=%lu, type=%d) from origin(linker=%d) to orient(linker=%d)",
                                                         msg.size(), bich.type, bich.origin, bich.orient);
 
     BIC_BASE *tobicp = nullptr;
@@ -833,7 +832,7 @@ static int gimmickpuppet_handle_message(int fd, std::string msg, void *userp)
         
     eeh->m_linker_queues[tobc->linker_type].push(tomsg);
 
-    ECHO(INFO, "pushed msg(len=%d) to queue(linker=%d, size=%d) and forward to eclient(%p, type=%d)", 
+    ECHO(INFO, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and forward to eclient(%p, type=%d)", 
             tomsg.size(), tobc->linker_type, eeh->m_linker_queues[tobc->linker_type].size(), tobc, tobc->type);
         
     eeh->EEH_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
@@ -855,7 +854,7 @@ ssize_t gimmickpuppet_read_callback(int fd, void *buf, size_t size, void *userp)
     char hbuf[NEGOHSIZE];
     ssize_t nh = read(fd, hbuf, NEGOHSIZE);
     if (nh != NEGOHSIZE) {
-        ECHO(ERRO, "read(%d): %s", nh, strerror(errno));
+        ECHO(ERRO, "read(%ld != %lu): %s", nh, NEGOHSIZE, strerror(errno));
         return -1;
     }
     
@@ -870,8 +869,8 @@ ssize_t gimmickpuppet_read_callback(int fd, void *buf, size_t size, void *userp)
     }
     
     ssize_t nb = read(fd, rbuf, bodysize);
-    if (nb != bodysize) {
-        ECHO(ERRO, "read: %s", strerror(errno));
+    if (nb != (ssize_t)bodysize) {
+        ECHO(ERRO, "read(%ld != %lu): %s", nb, bodysize, strerror(errno));
         if (rbuf) {
             free(rbuf);
         }
@@ -880,9 +879,9 @@ ssize_t gimmickpuppet_read_callback(int fd, void *buf, size_t size, void *userp)
     
     int ret = gimmickpuppet_handle_message(fd, std::string(rbuf, nb), userp);
     if (ret == 0) {
-        ECHO(INFO, "GimmickPuppet: success handled msg(len=%d) from eclient(%p, type=%d)", nb, bc, bc->type);
+        ECHO(INFO, "GimmickPuppet: success handled msg(len=%ld) from eclient(%p, type=%d)", nb, bc, bc->type);
     } else {
-        ECHO(ERRO, "GimmickPuppet: failure handled msg(len=%d) from eclient(%p, type=%d)", nb, bc, bc->type);
+        ECHO(ERRO, "GimmickPuppet: failure handled msg(len=%ld) from eclient(%p, type=%d)", nb, bc, bc->type);
     }
     
     if (rbuf) {
@@ -909,7 +908,7 @@ ssize_t gimmickpuppet_write_callback(int fd, const void *buf, size_t count, void
         return -1;
     }
     
-    ECHO(INFO, "do write to eclient(%p, type=%d, linker_type=%d, queue_size=%d)", 
+    ECHO(INFO, "do write to eclient(%p, type=%d, linker_type=%d, queue_size=%lu)", 
                     bc, bc->type, linker_type, eeh->m_linker_queues[linker_type].size());
     
     while (eeh->m_linker_queues[linker_type].size() > 0) {
@@ -920,7 +919,7 @@ ssize_t gimmickpuppet_write_callback(int fd, const void *buf, size_t count, void
             return -1;
         }
         eeh->m_linker_queues[linker_type].pop();
-        ECHO(INFO, "transfered msg(len=%d) to peer end of eclient(%p, type=%d)", nt, bc, bc->type);
+        ECHO(INFO, "transfered msg(len=%lu) to peer end of eclient(%p, type=%d)", nt, bc, bc->type);
     }
     
     return 0;
@@ -957,7 +956,7 @@ int gimmickpuppet_timer_callback(void *args, void *userp)
 
         eeh->m_linker_queues[bc->linker_type].push(tomsg);
 
-        ECHO(INFO, "pushed msg(len=%d) to queue(linker=%d, size=%d) and heartbeat to eclient(%p, type=%d)", 
+        ECHO(INFO, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and heartbeat to eclient(%p, type=%d)", 
                 tomsg.size(), bc->linker_type, eeh->m_linker_queues[bc->linker_type].size(), bc, bc->type);
         
         eeh->EEH_mod(bc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
@@ -986,7 +985,7 @@ ssize_t policy_read_callback(int fd, void *buf, size_t size, void *userp)
     char hbuf[NEGOHSIZE];
     ssize_t nh = read(fd, hbuf, NEGOHSIZE);
     if (nh != NEGOHSIZE) {
-        ECHO(ERRO, "read(%d): %s", nh, strerror(errno));
+        ECHO(ERRO, "read(%ld != %lu): %s", nh, NEGOHSIZE, strerror(errno));
         return -1;
     }
     
@@ -1001,8 +1000,8 @@ ssize_t policy_read_callback(int fd, void *buf, size_t size, void *userp)
     }
     
     ssize_t nb = read(fd, rbuf, bodysize);
-    if (nb != bodysize) {
-        ECHO(ERRO, "read: %s", strerror(errno));
+    if (nb != (ssize_t)bodysize) {
+        ECHO(ERRO, "read(%ld != %lu): %s", nb, bodysize, strerror(errno));
         if (rbuf) {
             free(rbuf);
         }
@@ -1028,7 +1027,7 @@ ssize_t policy_read_callback(int fd, void *buf, size_t size, void *userp)
         return 0;
     }
     
-    ECHO(INFO, "received msg(len=%d, type=%d) from origin(linker=%d) to orient(linker=%d)",
+    ECHO(INFO, "received msg(len=%lu, type=%d) from origin(linker=%d) to orient(linker=%d)",
                                                         bicmsg.size(), bich.type, bich.origin, bich.orient);
 
     if (bich.type == BIC_TYPE_GUARDRAGON) {
@@ -1089,19 +1088,19 @@ ssize_t policy_write_callback(int fd, const void *buf, size_t count, void *userp
         return -1;
     }
     
-    ECHO(INFO, "do write to eclient(%p, type=%d, linker_type=%d, queue_size=%d)", 
+    ECHO(INFO, "do write to eclient(%p, type=%d, linker_type=%d, queue_size=%lu)", 
                     bc, bc->type, linker_type, eeh->m_linker_queues[linker_type].size());
     
     while (eeh->m_linker_queues[linker_type].size() > 0) {
         std::string msg(eeh->m_linker_queues[linker_type].front());
         size_t nt = write(fd, msg.c_str(), msg.size());
         if (nt != msg.size()) {
-            ECHO(ERRO, "write(%d != %d): %s", nt, msg.size(), strerror(errno));
+            ECHO(ERRO, "write(%lu != %lu): %s", nt, msg.size(), strerror(errno));
             return -1;
         }
         eeh->m_linker_queues[linker_type].pop();
 
-        ECHO(INFO, "handled msg(len=%d) to peer end of eclient(%p, type=%d)", nt, bc, bc->type);
+        ECHO(INFO, "handled msg(len=%lu) to peer end of eclient(%p, type=%d)", nt, bc, bc->type);
     }
     
     return 0;
@@ -1233,76 +1232,76 @@ void serialize_bicmsg_policy(serialize_cb *cb, EEHNS::LINKER_TYPE linker_type, v
 
 int policy_timer_callback(void *args, void *userp)
 {
-	EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
-	EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>((EEHNS::EClient*)args);
-	if (! bc) {
-		return -1;
-	}
-	
-	static int use = 1;		// 0
-	
-	if (use) {
-		eeh->m_info_block.use = 1;
-		std::string name("test.tar.gz");
-		eeh->m_info_block.name.resize(name.size());
-		eeh->m_info_block.name.assign(name);
-	}
-	if (eeh->m_olinkers.find(bc->fd) != eeh->m_olinkers.end()) {
-		if (now_time() - bc->heartbeat < 1 * 1000 && use == 0) {
-			return 0;
-		}
-		bc->heartbeat = now_time();
-		
-		std::string tobicmsg;
-				
-		static BICTYPE type = BIC_TYPE_P2S_SUMMON; // BIC_TYPE_NONE;
-		static EEHNS::LINKER_TYPE linker_type = LINKER_TYPE_GIMMICKPUPPET; // LINKER_TYPE_MADOLCHE;
-		if (use) {
-			type = BIC_TYPE_P2S_BLOCKRON;
-		}
+    EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
+    EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>((EEHNS::EClient*)args);
+    if (! bc) {
+        return -1;
+    }
+    
+    static int use = 1;     // 0
+    
+    if (use) {
+        eeh->m_info_block.use = 1;
+        std::string name("test.tar.gz");
+        eeh->m_info_block.name.resize(name.size());
+        eeh->m_info_block.name.assign(name);
+    }
+    if (eeh->m_olinkers.find(bc->fd) != eeh->m_olinkers.end()) {
+        if (now_time() - bc->heartbeat < 1 * 1000 && use == 0) {
+            return 0;
+        }
+        bc->heartbeat = now_time();
+        
+        std::string tobicmsg;
+                
+        static BICTYPE type = BIC_TYPE_P2S_SUMMON; // BIC_TYPE_NONE;
+        static EEHNS::LINKER_TYPE linker_type = LINKER_TYPE_GIMMICKPUPPET; // LINKER_TYPE_MADOLCHE;
+        if (use) {
+            type = BIC_TYPE_P2S_BLOCKRON;
+        }
 
-		if (type == BIC_TYPE_P2S_BITRON) {			/** 比特传输 */
-			linker_type = LINKER_TYPE_MADOLCHE;
-			serialize_bicmsg_policy(serialize_policy_callback_BIC_BITRON, linker_type, &tobicmsg);
-		} else if (type == BIC_TYPE_P2S_BLOCKRON) {	/** 大文件传输 */
-			linker_type = LINKER_TYPE_MADOLCHE;
-			eeh->m_info_block.bicmsg = &tobicmsg;
-			serialize_bicmsg_policy(serialize_policy_callback_BIC_BLOCKRON, linker_type, &eeh->m_info_block);
-			if (eeh->m_info_block.use == 0) {
-				use = 0;
-				memset(&eeh->m_info_block, 0, sizeof(eeh->m_info_block));
-			}
-			type = BIC_TYPE_P2S_BOMBER;
-		} else if (type == BIC_TYPE_P2S_BOMBER) {	/** 杀 Madolche */
-			linker_type = LINKER_TYPE_MADOLCHE;
-			serialize_bicmsg_policy(serialize_policy_callback_BIC_BOMB, linker_type, &tobicmsg);
-			type = BIC_TYPE_P2S_SUMMON;
-		} else if (type == BIC_TYPE_P2S_SUMMON) { /** 消息环回 */
-			srand(time(nullptr));
-			linker_type = rand() % 2 ? LINKER_TYPE_MADOLCHE : LINKER_TYPE_GIMMICKPUPPET;
-			// linker_type = LINKER_TYPE_MADOLCHE;
-			serialize_bicmsg_policy(serialize_policy_callback_BIC_SUMMON, linker_type, &tobicmsg);
-		} else {
-			return -1;
-		}
-		
-		std::string tomsg;
-		
-		if (tobicmsg.empty()) {
-			ECHO(ERRO, "msg size is 0");
-			return -1;
-		}
-		add_header(&tomsg, tobicmsg);
-		
-		eeh->m_linker_queues[bc->linker_type].push(tomsg);
-		
-		ECHO(INFO, "pushed msg(len=%d) to queue(linker=%d, size=%d) and send to eclient(%p, type=%d)", 
-				tomsg.size(), bc->linker_type, eeh->m_linker_queues[bc->linker_type].size(), bc, bc->type);
-		
-		eeh->EEH_mod(bc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
-	}
-	
-	return 0;
+        if (type == BIC_TYPE_P2S_BITRON) {          /** 比特传输 */
+            linker_type = LINKER_TYPE_MADOLCHE;
+            serialize_bicmsg_policy(serialize_policy_callback_BIC_BITRON, linker_type, &tobicmsg);
+        } else if (type == BIC_TYPE_P2S_BLOCKRON) { /** 大文件传输 */
+            linker_type = LINKER_TYPE_MADOLCHE;
+            eeh->m_info_block.bicmsg = &tobicmsg;
+            serialize_bicmsg_policy(serialize_policy_callback_BIC_BLOCKRON, linker_type, &eeh->m_info_block);
+            if (eeh->m_info_block.use == 0) {
+                use = 0;
+                memset(&eeh->m_info_block, 0, sizeof(eeh->m_info_block));
+            }
+            type = BIC_TYPE_P2S_BOMBER;
+        } else if (type == BIC_TYPE_P2S_BOMBER) {   /** 杀 Madolche */
+            linker_type = LINKER_TYPE_MADOLCHE;
+            serialize_bicmsg_policy(serialize_policy_callback_BIC_BOMB, linker_type, &tobicmsg);
+            type = BIC_TYPE_P2S_SUMMON;
+        } else if (type == BIC_TYPE_P2S_SUMMON) { /** 消息环回 */
+            srand(time(nullptr));
+            linker_type = rand() % 2 ? LINKER_TYPE_MADOLCHE : LINKER_TYPE_GIMMICKPUPPET;
+            // linker_type = LINKER_TYPE_MADOLCHE;
+            serialize_bicmsg_policy(serialize_policy_callback_BIC_SUMMON, linker_type, &tobicmsg);
+        } else {
+            return -1;
+        }
+        
+        std::string tomsg;
+        
+        if (tobicmsg.empty()) {
+            ECHO(ERRO, "msg size is 0");
+            return -1;
+        }
+        add_header(&tomsg, tobicmsg);
+        
+        eeh->m_linker_queues[bc->linker_type].push(tomsg);
+        
+        ECHO(INFO, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and send to eclient(%p, type=%d)", 
+                tomsg.size(), bc->linker_type, eeh->m_linker_queues[bc->linker_type].size(), bc, bc->type);
+        
+        eeh->EEH_mod(bc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
+    }
+    
+    return 0;
 }
 
 ee_event_actions_t policy_callback_module = {

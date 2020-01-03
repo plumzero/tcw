@@ -3,10 +3,14 @@
 
 namespace EEHNS
 {
+    static int s_eeh_id = 0;    /** maybe chaos */
+    
     /** BaseClient */
     BaseClient::BaseClient(EEHType t) 
-        : type(t), id(++s_eeh_id), fd(-1), action(DO_NONE), prev_option(0)
+        : fd(-1), action(DO_NONE), prev_option(0)
     {
+        type = t;
+        id = ++s_eeh_id;
         clients.clear();
         heartbeat = now_time();
         memset(&ev, 0, sizeof(ev));

@@ -21,12 +21,9 @@ typedef _linker_or_server_type      BICORIENT;      /** who would recv this mess
 class BIC_BASE
 {
 public:
-    // BIC_BASE(BICTYPE type) {  }
+    virtual ~BIC_BASE() {}
     virtual void Serialize(std::string *s) = 0;
     virtual void Structuralize(const std::string &s) = 0;
-    BIC_BASE * getObject(BICTYPE type) { return this; }
-public:
-    BICTYPE t;
 };
 
 class BIC_HEADER : public BIC_BASE
@@ -58,6 +55,47 @@ public:
 public:
     BIC_HEADER     *header;
     BIC_BASE       *payload;
+};
+
+/**************************************** 测试类 ****************************************/
+
+class BIC_TEST : public BIC_BASE
+{
+public:
+    BIC_TEST() {}
+    virtual ~BIC_TEST() {}
+    virtual void Serialize(std::string *s);
+    virtual void Structuralize(const std::string &s);
+public:
+    double                              d;
+    std::string                         str;
+    /** std::pair family */
+    std::pair<int, int>                 pair_int_int;
+    std::pair<int, std::string>         pair_int_str;
+    std::pair<std::string, int>         pair_str_int;
+    std::pair<std::string, std::string> pair_str_str;
+    std::pair<std::string, std::pair<std::string, std::string> >    pair_str_pair_str_str;
+    std::pair<std::string, std::vector<std::string> >               pair_str_vec_str;
+    std::pair<std::string, std::map<std::string, std::string> >     pair_str_map_str_str;
+    /// ... continue
+    /** std::vector family */
+    std::vector<int>                    vec_int;
+    std::vector<std::string>            vec_str;
+    std::vector<std::pair<int, int> >                               vec_pair_int_int;
+    std::vector<std::pair<std::string, std::string> >               vec_pair_str_str;
+    std::vector<std::vector<std::string> >                          vec_vec_str;
+    std::vector<std::map<std::string, std::string> >                vec_map_str_str;
+    /// ... continue
+    /** std::map family */
+    std::map<int, int>                  map_int_int;
+    std::map<int, std::string>          map_int_str;
+    std::map<std::string, int>          map_str_int;
+    std::map<std::string, std::string>  map_str_str;
+    std::map<int, std::vector<int> >                                map_int_vec_int;
+    std::map<std::string, std::pair<std::string, std::string> >     map_str_pair_str_str;
+    std::map<std::string, std::vector<std::string> >                map_str_vec_str;
+    std::map<int, std::map<int, int> >                              map_int_map_int_int;
+    /// ... continue
 };
 
 /********************************* 消息类，由程序员定义 *********************************/

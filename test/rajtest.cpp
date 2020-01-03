@@ -1,4 +1,6 @@
 
+#include "include.h"
+#include "raj.h"
 #include "bic.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,22 +13,10 @@
 #include <map>
 #include <type_traits>
 
-#define _DBUG_OUT(type, format, ...)            \
-    do {                                        \
-        fprintf(type, format, ##__VA_ARGS__);   \
-    } while (0)
-#define OUT_FD  stdout
-#define DBUG(format, ...)                                            \
-    do {                                                             \
-        _DBUG_OUT(OUT_FD, "%s %3d " format "\n",                     \
-                        "[DBUG] ", __LINE__, ##__VA_ARGS__);         \
-    } while (0)
-
-#define INFO(format, ...)                                   \
-    do {                                                    \
-        _DBUG_OUT(OUT_FD, format "\n", ##__VA_ARGS__);      \
-    } while (0)
-
+/**!
+ *  编译: g++ -g rajtest.cpp bic.cpp -o rajtest -std=c++11
+ *  执行: ./rajtest
+ */
 // pair<T, V>
 template<typename T, typename V>
 static void traverse_pair_T_V(std::pair<T, V>& data)
@@ -252,14 +242,14 @@ static void traverse_map_K_map_T_V(std::map<K, std::map<T, V> >& data)
 int main()
 {
     /******************** 开始测试 ********************/
-    INFO("======================================= serialize header ======================================");
-    BIC_HEADER bic_h(LINKER_TYPE_POLICY, LINKER_TYPE_MADOLCHE, BIC_TYPE_KNIGHTMARE);
+    DBUG("======================================= serialize header ======================================");
+    BIC_HEADER bic_h(LINKER_TYPE_POLICY, LINKER_TYPE_MADOLCHE, BIC_TYPE_GUARDRAGON);
     std::string str_header;
     bic_h.Serialize(&str_header);
-    INFO("%s", str_header.c_str());
+    DBUG("%s", str_header.c_str());
     
-    INFO("======================================= serialize body ========================================");
-    BIC_GUARDRAGON bic_a;
+    DBUG("======================================= serialize body ========================================");
+    BIC_TEST bic_a;
     bic_a.d = 123456789.987654321;
     bic_a.str.assign("hello world");
     /** std::pair<int, int> */
@@ -393,18 +383,18 @@ int main()
 
     std::string str_body;
     bic_a.Serialize(&str_body);
-    INFO("%s", str_body.c_str());
-    INFO("===================================== serialize total =====================================");
+    DBUG("%s", str_body.c_str());
+    DBUG("===================================== serialize total =====================================");
     BIC_MESSAGE bic_m(&bic_h, &bic_a);
     
     std::string str_total;
     bic_m.Serialize(&str_total);
-    INFO("%s", str_total.c_str());
+    DBUG("%s", str_total.c_str());
 
 
-    INFO("==================================== structralize header ===================================");
+    DBUG("==================================== structralize header ===================================");
     BIC_HEADER     header;
-    BIC_GUARDRAGON payload;
+    BIC_TEST payload;
     BIC_MESSAGE bic_m_c(nullptr, &payload);
     // bic_m_c.ExtractHeader(str_total);
     bic_m_c.ExtractPayload(str_total);
@@ -416,7 +406,7 @@ int main()
     std::cout << "BICTYPE: type = " << header.type << std::endl;
     std::cout << "uint64_t: birth = " << header.birth << std::endl;
     
-    INFO("===================================== structralize body ====================================");
+    DBUG("===================================== structralize body ====================================");
     std::cout << "double:       d = " << payload.d << std::endl;
     std::cout << "std::string:  str = " << payload.str << std::endl;
     std::cout << "std::pair<int, int>: " << std::endl;
@@ -464,9 +454,7 @@ int main()
     std::cout << "std::map<int, std::map<int, int>>:" << std::endl;
     traverse_map_K_map_T_V(payload.map_int_map_int_int);
 
-    INFO("===========================================================================================");
-
-    system("pause");
+    DBUG("===========================================================================================");
 
     return 0;
 }

@@ -80,6 +80,81 @@ void BIC_MESSAGE::ExtractPayload(const std::string &s)
     payload->Structuralize(sp);
 }
 
+/**************************************** 测试类 ****************************************/
+
+void BIC_TEST::Serialize(std::string *s)
+{
+    rapidjson::StringBuffer sb;
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(sb);
+
+    writer.StartObject();
+
+    RAJ_write_json(writer, "d", this->d);
+    RAJ_write_json(writer, "str", this->str);
+
+    RAJ_write_json(writer, "pair_int_int", this->pair_int_int);
+    RAJ_write_json(writer, "pair_int_str", this->pair_int_str);
+    RAJ_write_json(writer, "pair_str_int", this->pair_str_int);
+    RAJ_write_json(writer, "pair_str_str", this->pair_str_str);
+    RAJ_write_json(writer, "pair_str_pair_str_str", this->pair_str_pair_str_str);
+    RAJ_write_json(writer, "pair_str_vec_str", this->pair_str_vec_str);
+    RAJ_write_json(writer, "pair_str_map_str_str", this->pair_str_map_str_str);
+
+    RAJ_write_json(writer, "vec_int", this->vec_int);
+    RAJ_write_json(writer, "vec_str", this->vec_str);
+    RAJ_write_json(writer, "vec_pair_int_int", this->vec_pair_int_int);
+    RAJ_write_json(writer, "vec_pair_str_str", this->vec_pair_str_str);
+    RAJ_write_json(writer, "vec_vec_str", this->vec_vec_str);
+    RAJ_write_json(writer, "vec_map_str_str", this->vec_map_str_str);
+
+    RAJ_write_json(writer, "map_int_int", this->map_int_int);
+    RAJ_write_json(writer, "map_int_str", this->map_int_str);
+    RAJ_write_json(writer, "map_str_int", this->map_str_int);
+    RAJ_write_json(writer, "map_str_str", this->map_str_str);
+    RAJ_write_json(writer, "map_str_pair_str_str", this->map_str_pair_str_str);
+    RAJ_write_json(writer, "map_int_vec_int", this->map_int_vec_int);
+    RAJ_write_json(writer, "map_str_vec_str", this->map_str_vec_str);
+    RAJ_write_json(writer, "map_int_map_int_int", this->map_int_map_int_int);
+
+    writer.EndObject();
+
+    s->assign(sb.GetString(), sb.GetSize());
+}
+
+void BIC_TEST::Structuralize(const std::string &s)
+{
+    rapidjson::Document doc;
+
+    doc.Parse(s.c_str());
+    
+    RAJ_parse_json(doc, "d", this->d);
+    RAJ_parse_json(doc, "str", this->str);
+
+    RAJ_parse_json(doc, "pair_int_int", pair_int_int);
+    RAJ_parse_json(doc, "pair_int_str", this->pair_int_str);
+    RAJ_parse_json(doc, "pair_str_int", this->pair_str_int);
+    RAJ_parse_json(doc, "pair_str_str", this->pair_str_str);
+    RAJ_parse_json(doc, "pair_str_pair_str_str", this->pair_str_pair_str_str);
+    RAJ_parse_json(doc, "pair_str_vec_str", this->pair_str_vec_str);
+    RAJ_parse_json(doc, "pair_str_map_str_str", this->pair_str_map_str_str);
+
+    RAJ_parse_json(doc, "vec_int", this->vec_int);
+    RAJ_parse_json(doc, "vec_str", this->vec_str);
+    RAJ_parse_json(doc, "vec_pair_int_int", this->vec_pair_int_int);
+    RAJ_parse_json(doc, "vec_pair_str_str", this->vec_pair_str_str);
+    RAJ_parse_json(doc, "vec_vec_str", this->vec_vec_str);
+    RAJ_parse_json(doc, "vec_map_str_str", this->vec_map_str_str);
+
+    RAJ_parse_json(doc, "map_int_int", this->map_int_int);
+    RAJ_parse_json(doc, "map_int_str", this->map_int_str);
+    RAJ_parse_json(doc, "map_str_int", this->map_str_int);
+    RAJ_parse_json(doc, "map_str_str", this->map_str_str);
+    RAJ_parse_json(doc, "map_str_pair_str_str", this->map_str_pair_str_str);
+    RAJ_parse_json(doc, "map_int_vec_int", this->map_int_vec_int);
+    RAJ_parse_json(doc, "map_str_vec_str", this->map_str_vec_str);
+    RAJ_parse_json(doc, "map_int_map_int_int", this->map_int_map_int_int);
+}
+
 /********************************* 消息类，由程序员定义 *********************************/
 
 void BIC_HEADER::Serialize(std::string *s)

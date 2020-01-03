@@ -65,8 +65,6 @@ struct NegoHeader
 
 namespace EEHNS
 {
-    static int s_eeh_id = 0;    /** maybe chaos */
-    
     typedef int FD_t;
     typedef int ID_t;
     typedef int PORT_t;

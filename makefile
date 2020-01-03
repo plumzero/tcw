@@ -1,19 +1,22 @@
 
 
-SOCKET_EVENT    = socket_event
-SOCKET_SERVER   = socket_server
-
-CXXFLAGS    += -g -O0
-CXXFLAGS    += -I.
-CXXFLAGS    += bic.cpp eehandler.cpp eemodule.cpp eeclient.cpp eehelper.cpp
-CXXFLAGS    += -std=c++11
-CXXFLAGS    += -lpthread
+SRCS		= bic.cpp eehandler.cpp eemodule.cpp eeclient.cpp eehelper.cpp
+OBJS		= $(SRCS:.cpp=.o)
+LIB			= libeeh.a
+CXXFLAGS	+= -g -O0 -Wall -std=c++11 -lpthread
+CXXFLAGS	+= -I.
 
 .PHONY: all
 all:
-	$(CXX) socket_event.cpp $(CXXFLAGS) -o $(SOCKET_EVENT)
-	$(CXX) socket_server.cpp $(CXXFLAGS) -o $(SOCKET_SERVER)
+	$(CXX) $(CXXFLAGS) -c -o bic.o bic.cpp
+	$(CXX) $(CXXFLAGS) -c -o eehandler.o eehandler.cpp
+	$(CXX) $(CXXFLAGS) -c -o eemodule.o eemodule.cpp
+	$(CXX) $(CXXFLAGS) -c -o eeclient.o eeclient.cpp
+	$(CXX) $(CXXFLAGS) -c -o eehelper.o eehelper.cpp
+	$(AR) cr $(LIB) $(OBJS)
+	$(MAKE) -C test
 
 .PHONY: clean
 clean:
-	rm -rf $(SOCKET_EVENT) $(SOCKET_SERVER)
+	rm -rf $(OBJS) $(LIB)
+	$(MAKE) -C test clean

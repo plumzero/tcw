@@ -76,7 +76,7 @@ namespace EEHNS
 
     void EpollEvHandler::EEH_destroy()
     {
-        ECHO(INFO, "%d cs(%d ls, %d ils, %d ols) would be destroyed.", 
+        ECHO(INFO, "%lu cs(%lu ls, %lu ils, %lu ols) would be destroyed.", 
                         m_clients.size(), m_listeners.size(), m_ilinkers.size(), m_olinkers.size());
         
         m_serv_types.clear();
@@ -270,7 +270,7 @@ namespace EEHNS
         delete ec;
         ec = nullptr;
         
-        ECHO(INFO, "erase success. remain: cs=%d(ls=%d, ils=%d, ols=%d, pps=%d)", 
+        ECHO(INFO, "erase success. remain: cs=%lu(ls=%lu, ils=%lu, ols=%lu, pps=%lu)", 
             m_clients.size(), m_listeners.size(), m_ilinkers.size(), m_olinkers.size(), m_pipe_pairs.size());
         
         return EEH_OK;
@@ -624,15 +624,13 @@ namespace EEHNS
         }
 
         m_is_running = true;
-        
-        int read_count = 0;
-                
+                        
         int i, res;
         while (m_is_running) 
         {
             EEH_clear_zombie();
             
-            ECHO(INFO, "epi(%d) waiting: %d cs(%d ls, %d ils, %d ols, %d pps)", 
+            ECHO(INFO, "epi(%d) waiting: %lu cs(%lu ls, %lu ils, %lu ols, %lu pps)", 
                 m_epi, m_clients.size(), m_listeners.size(), m_ilinkers.size(), m_olinkers.size(), m_pipe_pairs.size());
             res = epoll_wait(m_epi, evs, EPOLL_MAX_NUM, 1000);
             if (res == -1) {
