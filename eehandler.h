@@ -5,6 +5,7 @@
 #include "include.h"
 #include "eeclient.h"
 #include "eemodule.h"
+#include "tortellini.h"
 
 /** policy: read actively and write passively */
 
@@ -48,6 +49,7 @@ namespace EEHNS
         static std::map<pid_t, std::string> m_info_process;     /** 进程信息 */
         ee_event_block_t                    m_info_block;       /** 测试用 */
         Logger*                             logger;
+        tortellini::ini                     m_ini;
     public:
         EEHErrCode EEH_init(SERVER_TYPE type);
         void EEH_destroy();

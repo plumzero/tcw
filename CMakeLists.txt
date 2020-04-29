@@ -9,8 +9,8 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
-if (NOT EEHLOG_FULL_PATH)
-    set(EEH_LOG_FULL_PATH "eeh.log")
+if (NOT EEH_CONF_FULL_PATH)
+    set(EEH_CONF_FULL_PATH "eeh.ini")
 endif()
 
 configure_file(

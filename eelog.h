@@ -17,16 +17,16 @@
 namespace EEHNS {
 
 /** index of fundmental log type */
-#define LOG_TYPE_GLOBAL             0
-#define LOG_TYPE_HANDLER            1
-#define LOG_TYPE_POLICY             2
-#define LOG_TYPE_TRANSFER           3
-#define LOG_TYPE_ROVER              4
-#define LOG_TYPE_SYNCHRON           5
-#define LOG_TYPE_RESONATOR          6
-#define LOG_TYPE_MADOLCHE           7
-#define LOG_TYPE_CHRONOMALY         8
-#define LOG_TYPE_GIMMICK_PUPPET     9
+#define LOG_TYPE_GLOB               0
+#define LOG_TYPE_HAND               1
+#define LOG_TYPE_POLI               2
+#define LOG_TYPE_TRAN               3
+#define LOG_TYPE_ROVE               4
+#define LOG_TYPE_SYNC               5
+#define LOG_TYPE_RESO               6
+#define LOG_TYPE_MADO               7
+#define LOG_TYPE_CHRO               8
+#define LOG_TYPE_GIMM               9
 /** index of user's application log type */
 #define LOG_TYPE_USER_MADOLCHE         21
 #define LOG_TYPE_USER_CHRONOMALY       22
@@ -89,16 +89,16 @@ private:
 };
 
 static const struct log_type_reg_table reg_table[] = {
-    { LOG_TYPE_GLOBAL,              "global" },
-    { LOG_TYPE_HANDLER,             "handler" },
-    { LOG_TYPE_POLICY,              "policy module" },
-    { LOG_TYPE_TRANSFER,            "transfer module" },
-    { LOG_TYPE_ROVER,               "rover module" },
-    { LOG_TYPE_SYNCHRON,            "synchron module" },
-    { LOG_TYPE_RESONATOR,           "resonator module" },
-    { LOG_TYPE_MADOLCHE,            "madolche module" },
-    { LOG_TYPE_CHRONOMALY,          "chronomaly module" },
-    { LOG_TYPE_GIMMICK_PUPPET,      "gimmick puppet module" },
+    { LOG_TYPE_GLOB,     "global" },
+    { LOG_TYPE_HAND,     "handler" },
+    { LOG_TYPE_POLI,     "policy module" },
+    { LOG_TYPE_TRAN,     "transfer module" },
+    { LOG_TYPE_ROVE,     "rover module" },
+    { LOG_TYPE_SYNC,     "synchron module" },
+    { LOG_TYPE_RESO,     "resonator module" },
+    { LOG_TYPE_MADO,     "madolche module" },
+    { LOG_TYPE_CHRO,     "chronomaly module" },
+    { LOG_TYPE_GIMM,     "gimmick puppet module" },
     
     { LOG_TYPE_USER_MADOLCHE,           "madolche user application" },
     { LOG_TYPE_USER_CHRONOMALY,         "chronomaly user application" },
