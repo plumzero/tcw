@@ -372,7 +372,7 @@ int transfer_timer_callback(void *args, void *userp)
                     EEHERRO(eeh->logger, TRAN, "fork: %s", strerror(errno));
                     return -1;
                 } else if (pid == 0) {
-                    EEHINFO(eeh->logger, TRAN, "create a new process pid=%d(ppid=%d)", getpid(), getppid());
+                    ECHO(INFO, "create a new process pid=%d(ppid=%d)", getpid(), getppid());
                     EEHNS::LINKER_TYPE linker_type = it_m->first;
                     
                     signal(SIGINT, signal_release);
@@ -382,6 +382,7 @@ int transfer_timer_callback(void *args, void *userp)
                     close(fd_pwcr[1]);
                     
                     rebuild_child_process_service(fd_pwcr[0], fd_prcw[1], linker_type);
+                    exit(0);
                 } else if (pid > 0) {
                     close(fd_prcw[1]);
                     close(fd_pwcr[0]);

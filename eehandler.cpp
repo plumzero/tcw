@@ -751,5 +751,7 @@ namespace EEHNS
                 }
             }
         }
+        
+        if (evs) free(evs);
     }
 }
