@@ -28,8 +28,7 @@ int main()
         return -1;
     }
         
-    struct sockaddr_in ssai, csai;
-    char ip[32] = { 0 };
+    struct sockaddr_in ssai;
     memset(&ssai, 0, sizeof(ssai));
     ssai.sin_port = htons(8070);
     ssai.sin_addr.s_addr = inet_addr("10.0.80.121");

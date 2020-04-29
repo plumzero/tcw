@@ -89,16 +89,29 @@ void rebuild_child_process_service(int rfd, int wfd, EEHNS::LINKER_TYPE linker_t
 
 ssize_t null_read_callback(int fd, void *buf, size_t size, void *userp)
 {
+    (void) fd;
+    (void) buf;
+    (void) size;
+    (void) userp;
+    
     return 0;
 }
 
 ssize_t null_write_callback(int fd, const void *buf, size_t count, void *userp)
 {
+    (void) fd;
+    (void) buf;
+    (void) count;
+    (void) userp;
+    
     return 0;
 }
 
 int null_timer_callback(void *args, void *userp)
 {
+    (void) args;
+    (void) userp;
+    
     return 0;
 }
 
@@ -110,6 +123,9 @@ ee_event_actions_t null_callback_module = {
 
 ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
 {
+    (void) buf;
+    (void) size;
+    
     EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
     
     EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[fd]);
@@ -261,6 +277,9 @@ ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
 /** do nothing, write purely */
 ssize_t transfer_write_callback(int fd, const void *buf, size_t count, void *userp)
 {
+    (void) buf;
+    (void) count;
+    
     EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
     
     EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[fd]);
@@ -593,6 +612,9 @@ static int madolche_handle_message(int fd, std::string msg, void *userp)
 /** do nothing, read purely */
 ssize_t madolche_read_callback(int fd, void *buf, size_t size, void *userp)
 {
+    (void) buf;
+    (void) size;
+    
     EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
     
     EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[fd]);
@@ -645,6 +667,9 @@ ssize_t madolche_read_callback(int fd, void *buf, size_t size, void *userp)
 /** do nothing, write purely */
 ssize_t madolche_write_callback(int fd, const void *buf, size_t count, void *userp)
 {
+    (void) buf;
+    (void) count;
+    
     EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
         
     EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[fd]);
@@ -842,6 +867,9 @@ static int gimmickpuppet_handle_message(int fd, std::string msg, void *userp)
 
 ssize_t gimmickpuppet_read_callback(int fd, void *buf, size_t size, void *userp)
 {
+    (void) buf;
+    (void) size;
+    
     EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
     
     EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[fd]);
@@ -893,6 +921,9 @@ ssize_t gimmickpuppet_read_callback(int fd, void *buf, size_t size, void *userp)
 
 ssize_t gimmickpuppet_write_callback(int fd, const void *buf, size_t count, void *userp)
 {
+    (void) buf;
+    (void) count;
+    
     EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
         
     EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[fd]);
@@ -973,6 +1004,9 @@ ee_event_actions_t gimmickpuppet_callback_module = {
 
 ssize_t policy_read_callback(int fd, void *buf, size_t size, void *userp)
 {
+    (void) buf;
+    (void) size;
+    
     EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
     
     EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[fd]);
@@ -1073,6 +1107,9 @@ ssize_t policy_read_callback(int fd, void *buf, size_t size, void *userp)
 
 ssize_t policy_write_callback(int fd, const void *buf, size_t count, void *userp)
 {
+    (void) buf;
+    (void) count;
+    
     EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
         
     EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[fd]);

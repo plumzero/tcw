@@ -3,7 +3,7 @@ SOCKET_EVENT	= socket_event
 SOCKET_SERVER	= socket_server
 RAJ_TEST		= rajtest
 
-CXXFLAGS	+= -g -O0 -Wall -std=c++11 -lpthread
+CXXFLAGS	+= -g -O0 -Wall -W -std=c++11 -lpthread
 CXXFLAGS	+= -I..
 CXXFLAGS	+= ../libeeh.a
 

@@ -3,7 +3,7 @@
 SRCS		= bic.cpp eehandler.cpp eemodule.cpp eeclient.cpp eehelper.cpp
 OBJS		= $(SRCS:.cpp=.o)
 LIB			= libeeh.a
-CXXFLAGS	+= -g -O0 -Wall -std=c++11 -lpthread
+CXXFLAGS	+= -g -O0 -Wall -W -std=c++11 -lpthread
 CXXFLAGS	+= -I.
 
 .PHONY: all
