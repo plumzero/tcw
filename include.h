@@ -36,6 +36,8 @@
 #include <mutex>
 #include <condition_variable>
 
+#include "config.h"
+
 /** heading direction of bic message or as a ec service type */
 enum _linker_or_server_type {
     LINKER_TYPE_NONE          = 0 << 0,
@@ -50,18 +52,12 @@ enum _linker_or_server_type {
     LINKER_TYPE_ALL        = -1,
 };
 
-struct NegoHeader
-{
+typedef struct __attribute__ ((__packed__)) {
     uint8_t     ver[2];             /** 0-major 1-revised */
     uint16_t    bodysize;           /** payload size */
     uint32_t    crc32;
     uint32_t    pholder;            /** placeholder */
-    
-    NegoHeader() : bodysize(0), pholder(0)
-    {
-        ver[0] = ver[1] = 0;
-    }
-};
+} NegoHeader;
 
 namespace EEHNS
 {
@@ -72,6 +68,39 @@ namespace EEHNS
     
     typedef _linker_or_server_type  LINKER_TYPE;
 };
+
+#define EEHLOG(logger, l, t, ...)                   \
+    do {                                            \
+        logger->log_out(LOG_LEVEL_ ## l,            \
+                        LOG_TYPE_ ## t,             \
+                        "[" # l "][" # t "] "       \
+                        __VA_ARGS__);               \
+    } while (0)
+
+#define EEHERRO(logger, type, fmt, ...)             \
+    do {                                            \
+        EEHLOG(logger, ERRO, type, "%4d " fmt "\n", \
+                    __LINE__, ##__VA_ARGS__);       \
+    } while (0)
+
+#define EEHWARN(logger, type, fmt, ...)             \
+    do {                                            \
+        EEHLOG(logger, WARN, type, "%4d " fmt "\n", \
+                    __LINE__, ##__VA_ARGS__);       \
+    } while (0)
+
+#define EEHINFO(logger, type, fmt, ...)             \
+    do {                                            \
+        EEHLOG(logger, INFO, type, "%4d " fmt "\n", \
+                    __LINE__, ##__VA_ARGS__);       \
+    } while (0)
+
+#define EEHDBUG(logger, type, fmt, ...)             \
+    do {                                            \
+        EEHLOG(logger, DBUG, type, "%4d " fmt "\n", \
+                    __LINE__, ##__VA_ARGS__);       \
+    } while (0)
+    
 
 #define NEGOHSIZE           sizeof(NegoHeader)
 

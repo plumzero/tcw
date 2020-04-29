@@ -12,6 +12,8 @@
 
 namespace EEHNS
 {   
+    class Logger;
+
     typedef enum {
         EEH_OK          = 0,
         EEH_ERROR       = -1,
@@ -45,6 +47,7 @@ namespace EEHNS
         std::map<LINKER_TYPE, uint64_t>     m_heartbeats;
         static std::map<pid_t, std::string> m_info_process;     /** 进程信息 */
         ee_event_block_t                    m_info_block;       /** 测试用 */
+        Logger*                             logger;
     public:
         EEHErrCode EEH_init(SERVER_TYPE type);
         void EEH_destroy();
@@ -52,7 +55,7 @@ namespace EEHNS
         EEHErrCode EEH_mod(EClient *ec, OPTION_t op);
         EEHErrCode EEH_del(EClient *ec);
         void EEH_run();
-        static void EEH_clear_zombie();
+        static void EEH_clear_zombie(void* userp);
         
         // TCP handler
         EClient* EEH_TCP_listen(std::string bind_ip, PORT_t service_port, SERVER_TYPE server_type,

@@ -12,47 +12,6 @@
 #include <sstream>
 #include <type_traits>
 
-/*********************************************** README ***********************************************
-    一、文件说明
-        1. 本文件属于对 rapidjson 进行模板封装后的工具类文件；
-        2. 本文件支持 windows 和 linux；
-        3. 本文件已在 linux 下进行过内存泄漏测试，测试结果为无内存泄漏，测试命令如下:
-            valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all ./测试程序
-    二、解析格式说明
-        1. 不同的数据类型或结构，其 json 方式的表现可能有多种，即序列化方式可能有多种，所以:
-        the parse method must corresponding to the write method defined previously.
-            std::pair       object
-            std::vector     array
-            std::list       array
-            std::set        array
-            std::map        object
-            std::multimap   array
-            std::multiset   array
-    三、功能说明
-        1. 可支持的常见基本类型与 rapidjson 对应，其中包括 bool、int、unsigned int、int64_t、uint64_t、double；
-        2. 未实现 char、signed char、unsigned char、long、long double 等罕见基本类型，可使用常见类型代替；
-        3. 支持 enum 类型；
-        4. 支持 std::string 类型；
-        5. 不支持 char*、unsigned char* 类型，可使用 std::string 代替；
-        6. 未实现 std::list、std::set 容器，可使用 std::vector 代替；
-        7. 未实现 std::multimap 容器，可使用 std::vector 和 std::pair 联合代替；
-        8. 未实现 std::multiset 容器，可使用 std::vector 代替；
-        9. 基本上，所有类型均可以通过在已定义类型方法基础上组合实现；
-           但数据结构不支持类似如下的非典型结构("小" 值 "大" 键):
-            std::pair<std::pair<K, T>, V>
-            std::pair<std::vector<T>, V>
-            std::pair<std::map<K, T>, V>
-            std::map<std::pair<K, T>, V>
-            std::map<std::vector<T>, V>
-            ...
-    四、方法实现说明
-        1. 略
-    五、编辑说明
-        1. editor:          libei@koal.com
-        2. last modified:   2019/12/16 libei@koal.com
-
- *****************************************************************************************************/
-
 /****************************************  for RAJ_write_json ****************************************/
 
 /** forward declaration */
