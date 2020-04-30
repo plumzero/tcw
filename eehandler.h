@@ -23,19 +23,14 @@ namespace EEHNS
     typedef EClient  EListener;
     typedef _linker_or_server_type  SERVER_TYPE;
 
-    class EpollEvHandler
+    class EpollEvHandler final
     {
     private:
-        int                                 m_epi;
-        std::mutex                          m_mutex;
-        std::condition_variable             m_cond;
-        EEHErrCode                          m_errcode;
-        
-        std::vector<SERVER_TYPE>            m_serv_types;
-        std::map<FD_t, SERVER_TYPE>         m_listeners;
+        int                                         		m_epi;
+        std::map<FD_t, SERVER_TYPE>                 		m_listeners;
+        static std::map<std::string, ee_event_actions_t>   	m_linkers_actions;
     public:
         static bool                         m_is_running;
-        static std::map<_linker_or_server_type, std::pair<std::string, ee_event_actions_t> > m_linkers_map;
         SERVER_TYPE                         m_type;
         /** m_clients = m_listeners 及其 clients 成员 + m_ilinkers + m_olinkers */
         std::map<FD_t, EClient*>            m_clients;
@@ -46,18 +41,23 @@ namespace EEHNS
         /** 记录 m_ilinkers 和 m_olinkers 的写入队列 */
         std::map<LINKER_TYPE, std::queue<std::string> > m_linker_queues;
         std::map<LINKER_TYPE, uint64_t>     m_heartbeats;
-        static std::map<pid_t, std::string> m_info_process;     /** 进程信息 */
-        ee_event_block_t                    m_info_block;       /** 测试用 */
+        std::map<_linker_or_server_type, std::pair<std::string, ee_event_actions_t> > m_linkers_map;
+        std::map<pid_t, std::string>        m_info_process;     /** 进程信息 */
         Logger*                             logger;
         tortellini::ini                     m_ini;
+        
+        ee_event_block_t                    m_info_block;       /** 测试用 */
     public:
+		static EEHErrCode EEH_set_services(const std::string& service,
+										   const& std::string& as,
+										   const& ee_event_actions_t actions);
         EEHErrCode EEH_init(SERVER_TYPE type);
         void EEH_destroy();
         EEHErrCode EEH_add(EClient *ec);
         EEHErrCode EEH_mod(EClient *ec, OPTION_t op);
         EEHErrCode EEH_del(EClient *ec);
         void EEH_run();
-        static void EEH_clear_zombie(void* userp);
+        void EEH_clear_zombie();
         
         // TCP handler
         EClient* EEH_TCP_listen(std::string bind_ip, PORT_t service_port, SERVER_TYPE server_type,
@@ -66,7 +66,6 @@ namespace EEHNS
         EClient* EEH_TCP_connect(std::string remote_ip, PORT_t remote_port, LINKER_TYPE);
         // Pipe handler
         std::pair<EClient*, EClient*> EEH_PIPE_create(FD_t rfd, FD_t wfd, LINKER_TYPE linker_type);
-        inline EEHErrCode EEH_last_error() { EEHErrCode ret = m_errcode; m_errcode = EEH_OK; return ret; }
     };
 };
 

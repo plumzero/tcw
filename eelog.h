@@ -27,6 +27,7 @@ namespace EEHNS {
 #define LOG_TYPE_MADO               7
 #define LOG_TYPE_CHRO               8
 #define LOG_TYPE_GIMM               9
+#define LOG_TYPE_SUBS              10
 /** index of user's application log type */
 #define LOG_TYPE_USER_MADOLCHE         21
 #define LOG_TYPE_USER_CHRONOMALY       22
@@ -99,6 +100,7 @@ static const struct log_type_reg_table reg_table[] = {
     { LOG_TYPE_MADO,     "madolche module" },
     { LOG_TYPE_CHRO,     "chronomaly module" },
     { LOG_TYPE_GIMM,     "gimmick puppet module" },
+    { LOG_TYPE_SUBS,     "sub service module" },
     
     { LOG_TYPE_USER_MADOLCHE,           "madolche user application" },
     { LOG_TYPE_USER_CHRONOMALY,         "chronomaly user application" },

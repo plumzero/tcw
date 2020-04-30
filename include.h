@@ -21,6 +21,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <fcntl.h>
+#include <fnmatch.h>
 
 #include <iostream>
 #include <fstream>
@@ -49,7 +50,7 @@ enum _linker_or_server_type {
     LINKER_TYPE_MADOLCHE      = 1 << 5,     /** 模拟下级服务端子进程一 */
     LINKER_TYPE_CHRONOMALY    = 1 << 6,     /** 模拟下级服务端子进程二 */
     LINKER_TYPE_GIMMICKPUPPET = 1 << 7,     /** 模拟下级服务端进程内启动进程 */
-    LINKER_TYPE_ALL        = -1,
+    LINKER_TYPE_ALL           = -1,
 };
 
 typedef struct __attribute__ ((__packed__)) {
@@ -66,6 +67,7 @@ namespace EEHNS
     typedef int PORT_t;
     typedef int OPTION_t;
     
+    typedef uint32_t  _linker_or_server_type;
     typedef _linker_or_server_type  LINKER_TYPE;
 };
 

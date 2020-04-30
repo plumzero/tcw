@@ -53,7 +53,7 @@ void signal_release(int signum)
 void rebuild_child_process_service(int rfd, int wfd, EEHNS::LINKER_TYPE linker_type)
 {   
     ECHO(INFO, "child process(pid=%d) would run service(%s)", 
-                        getpid(), EEHNS::EpollEvHandler::m_linkers_map[linker_type].first.c_str());
+                        getpid(), "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG");
     
     EEHNS::EpollEvHandler eeh;
     EEHNS::EEHErrCode rescode;
@@ -68,8 +68,8 @@ void rebuild_child_process_service(int rfd, int wfd, EEHNS::LINKER_TYPE linker_t
         ECHO(ERRO, "EEH_PIPE_create failed");
         return ;
     }
-    dynamic_cast<EEHNS::BaseClient*>(ec_pipe_pair.first)->set_actions(EEHNS::EpollEvHandler::m_linkers_map[linker_type].second);
-    dynamic_cast<EEHNS::BaseClient*>(ec_pipe_pair.second)->set_actions(EEHNS::EpollEvHandler::m_linkers_map[linker_type].second);
+    dynamic_cast<EEHNS::BaseClient*>(ec_pipe_pair.first)->set_actions(eeh.m_linkers_map[linker_type].second);
+    dynamic_cast<EEHNS::BaseClient*>(ec_pipe_pair.second)->set_actions(eeh.m_linkers_map[linker_type].second);
     rescode = eeh.EEH_add(ec_pipe_pair.first);
     if (rescode != EEHNS::EEH_OK) {
         ECHO(ERRO, "EEH_add failed");
@@ -81,8 +81,8 @@ void rebuild_child_process_service(int rfd, int wfd, EEHNS::LINKER_TYPE linker_t
         return ;
     }
     
-    EEHNS::EpollEvHandler::m_info_process[getpid()] = 
-                EEHNS::EpollEvHandler::m_linkers_map[linker_type].first;
+    eeh.m_info_process[getpid()] = 
+                eeh.m_linkers_map[linker_type].first;
     
     eeh.EEH_run();
     eeh.EEH_destroy();
@@ -331,8 +331,7 @@ int transfer_timer_callback(void *args, void *userp)
     std::map<EEHNS::LINKER_TYPE, uint64_t>::iterator it_m;
     for (it_m = eeh->m_heartbeats.begin(); it_m != eeh->m_heartbeats.end(); it_m++) {
         if (now_time() - it_m->second > 4 * 1000) {
-            if (EEHNS::EpollEvHandler::m_info_process[getpid()] != 
-                                EEHNS::EpollEvHandler::m_linkers_map[SERVER_TYPE_TRANSFER].first) {
+            if (eeh->m_info_process[getpid()] != eeh->m_linkers_map[SERVER_TYPE_TRANSFER].first) {
                 return -1;
             }
             
@@ -409,8 +408,7 @@ int transfer_timer_callback(void *args, void *userp)
                         EEHERRO(eeh->logger, TRAN, "EEH_add failed");
                         return -1;
                     }
-                    EEHNS::EpollEvHandler::m_info_process[pid] = 
-                                EEHNS::EpollEvHandler::m_linkers_map[it_m->first].first;
+                    eeh->m_info_process[pid] = eeh->m_linkers_map[it_m->first].first;
                 }
             }
         }

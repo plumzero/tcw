@@ -12,49 +12,73 @@
 
 namespace EEHNS
 {   
-    std::map<_linker_or_server_type, std::pair<std::string, ee_event_actions_t> > 
-    EpollEvHandler::m_linkers_map = {
-        { LINKER_TYPE_POLICY,        std::make_pair("POLICY",         policy_callback_module) },
-        { SERVER_TYPE_TRANSFER,      std::make_pair("TRANSFER",       transfer_callback_module) },
-        { SERVER_TYPE_ROVER,         std::make_pair("ROVER",          null_callback_module) },
-        { SERVER_TYPE_SYNCHRON,      std::make_pair("SYNCHRON",       null_callback_module) },
-        { SERVER_TYPE_RESONATOR,     std::make_pair("RESONATOR",      null_callback_module) },
-        { LINKER_TYPE_MADOLCHE,      std::make_pair("MADOLCHE",       madolche_callback_module) },
-        { LINKER_TYPE_CHRONOMALY,    std::make_pair("CHRONOMALY",     null_callback_module) },
-        { LINKER_TYPE_GIMMICKPUPPET, std::make_pair("GIMMICK_PUPPET", gimmickpuppet_callback_module) },
-    };
+    // std::map<_linker_or_server_type, std::pair<std::string, ee_event_actions_t> > 
+    // EpollEvHandler::m_linkers_map = {
+        // { LINKER_TYPE_POLICY,        std::make_pair("POLICY",         policy_callback_module) },
+        // { SERVER_TYPE_TRANSFER,      std::make_pair("TRANSFER",       transfer_callback_module) },
+        // { SERVER_TYPE_ROVER,         std::make_pair("ROVER",          null_callback_module) },
+        // { SERVER_TYPE_SYNCHRON,      std::make_pair("SYNCHRON",       null_callback_module) },
+        // { SERVER_TYPE_RESONATOR,     std::make_pair("RESONATOR",      null_callback_module) },
+        // { LINKER_TYPE_MADOLCHE,      std::make_pair("MADOLCHE",       madolche_callback_module) },
+        // { LINKER_TYPE_CHRONOMALY,    std::make_pair("CHRONOMALY",     null_callback_module) },
+        // { LINKER_TYPE_GIMMICKPUPPET, std::make_pair("GIMMICK_PUPPET", gimmickpuppet_callback_module) },
+    // };
 
-    std::map<pid_t, std::string> EpollEvHandler::m_info_process = std::map<pid_t, std::string>();
+    // std::map<pid_t, std::string> EpollEvHandler::m_info_process = std::map<pid_t, std::string>();
+    
+    std::map<std::string, ee_event_actions_t> EpollEvHandler::m_linkers_actions{};
     
     bool EpollEvHandler::m_is_running = false;
     
-    EEHErrCode EpollEvHandler::EEH_init(SERVER_TYPE type)
+    EEHErrCode EpollEvHandler::EEH_set_services(const std::string& service,
+                                                const std::string& as,
+                                                const ee_event_actions_t actions)
     {
-        sigset_t set;
-        sigemptyset(&set);
-        
-        int i;
-        for (i = SIGRTMIN; i <= SIGRTMAX; i++) {
-            sigaddset(&set, i);
-        }
-        sigaddset(&set, SIGPIPE);
-        int ret = pthread_sigmask(SIG_SETMASK, &set, NULL);
-        if (ret) {
-            ECHO(ERRO, "pthread_sigmask %s", strerror(errno));
+        static daemon_once_flag = 0;
+        if (as != "child" && as != "listen" && as != "daemon") {
+            ECHO(ERRO, "\"as\" must be one of (\"child\"|\"listen\"|\"daemon\")");
             return EEH_ERROR;
         }
         
+        if (daemon_once_flag) {
+            ECHO(ERRO, "daemon had been setted before");
+            return EEH_ERROR;
+        }
+        
+        m_linkers_actions[service] = actions;
+        
+        if (as == "daemon") {
+            daemon_once_flag = 1;
+        }
+        
+        return EEH_OK;
+    }
+    
+    EEHErrCode EpollEvHandler::EEH_init(SERVER_TYPE type)
+    // EEHErrCode EpollEvHandler::EEH_init(const std::string& service)
+    {
+        std::string service = "TRANSFER";
+        if (m_linkers_actions.size() == 0) {
+            ECHO(ERRO, "please set actions for service: %s before the initialization", service.c_str());
+            return EEH_ERROR;
+        }
+        // sigset_t set;
+        // sigemptyset(&set);
+        
+        // int i;
+        // for (i = SIGRTMIN; i <= SIGRTMAX; i++) {
+            // sigaddset(&set, i);
+        // }
+        // sigaddset(&set, SIGPIPE);
+        // int ret = pthread_sigmask(SIG_SETMASK, &set, NULL);
+        // if (ret) {
+            // ECHO(ERRO, "pthread_sigmask %s", strerror(errno));
+            // return EEH_ERROR;
+        // }
+        /** [1] signal handler */
         signal(SIGINT, signal_release);
-        
-        try {
-            std::string logname = m_linkers_map.at(type).first + ".log";
-            logger = new Logger("./", logname.c_str());
-            ECHO(INFO, "process(id=%lu) log file(%s) created", (unsigned long)getpid(), logname.c_str());
-        } catch (std::exception& e) {
-            ECHO(ERRO, "created log failed: %s", e.what());
-            return EEH_ERROR;
-        }
-        
+
+        /** [2] read conf */
         std::ifstream ifs(EEH_CONF_FULL_PATH, std::ifstream::in | std::ifstream::binary);
         if (! ifs.is_open()) {
             ECHO(ERRO, "open %s: %s", EEH_CONF_FULL_PATH, strerror(errno));
@@ -62,17 +86,30 @@ namespace EEHNS
         }
         ifs >> m_ini;
         ifs.close();
+        
+        if (! m_ini[service].size()) {
+            ECHO(ERRO, "service: %s not configured in file: %s", service.c_str(), EEH_CONF_FULL_PATH);
+            return EEH_ERROR;
+        }
+        
+        /** [3] build log */
+        try {
+            std::string logname = service + ".log";
+            logger = new Logger("./", logname.c_str());
+            ECHO(INFO, "process(id=%lu) log file(%s) created", (unsigned long)getpid(), logname.c_str());
+        } catch (std::exception& e) {
+            ECHO(ERRO, "created log failed: %s", e.what());
+            return EEH_ERROR;
+        }
 
         std::string loglevel = m_ini["LOG"]["Level"] | "INFO";
         std::transform(loglevel.begin(), loglevel.end(), loglevel.begin(), [](char c) {
             return std::toupper((int)c);
         });
-        
         int level = loglevel == "DBUG" ? LOG_LEVEL_DBUG :
                     loglevel == "INFO" ? LOG_LEVEL_INFO :
                     loglevel == "WARN" ? LOG_LEVEL_WARN :
                     loglevel == "ERRO" ? LOG_LEVEL_ERRO : LOG_LEVEL_INFO;
-        
         logger->log_set_global_level(level);
         logger->log_set_level(LOG_TYPE_HAND, level);
         logger->log_set_level(LOG_TYPE_POLI, level);
@@ -83,30 +120,81 @@ namespace EEHNS
         logger->log_set_level(LOG_TYPE_MADO, level);
         logger->log_set_level(LOG_TYPE_CHRO, level);
         logger->log_set_level(LOG_TYPE_GIMM, level);
+        
+        /** [4]  deal with service options */        
+        int on = m_ini[service]["on"] | 0;
+        if (! on) {
+            EEHERRO(logger, HAND, "service: %s not permit to run", service.c_str());
+            return EEH_ERROR;
+        }
+        
+        std::string run_as = m_ini[service]["as"] | "";
+        std::transform(as.begin(), as.end(), as.begin(), [](char c) { return tolower((int)c); });
+        int legal = run_as == "daemon" ? 1 :
+                    run_as == "child"  ? 1 :
+                    run_as == "listen" ? 1 : 0;
+        if (! legal) {
+            EEHERRO(logger, HAND, "service: %s run as type(=%s) illegal", service.c_str(), run_as.c_str());
+            return EEH_ERROR;
+        }
 
+        EEHINFO(logger, HAND, "service: %s would run as a %s process", service.c_str(), run_as.c_str());
+        
+        std::vector<std::string> vec_listen, vec_connect, vec_child;
+        decltype(m_ini[service].begin()) iter;
+        std::string small_letter_word;
+        for (iter = m_ini[service].begin(); iter != m_ini[service].end(); iter++) {
+            small_letter_word.clear();
+            std::transform(iter->first.begin(), iter->first.end(), std::back_inserter(small_letter_word),
+                            [](char c) { return std::tolower((int)c); });
+            if (fnmatch("listen[0-9]*", small_letter_word.c_str(), 0) == 0 ||
+                fnmatch("listen", small_letter_word.c_str(), 0) == 0) {
+                vec_listen.push_back(iter->second);
+            } else if (fnmatch("connect[0-9]*", small_letter_word.c_str(), 0) == 0 ||
+                       fnmatch("connect", small_letter_word.c_str(), 0) == 0) {
+                vec_connect.push_back(iter->second);
+            } else if (fnmatch("child[0-9]*", small_letter_word.c_str(), 0) == 0 ||
+                       fnmatch("child", small_letter_word.c_str(), 0) == 0) {
+                vec_child.push_back(iter->second);
+            }
+        }
+        
+        /** [5] add child service if run as daemon */
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        srand48(((uint64_t)ts.tv_sec * 1000000000L) + ts.tv_nsec);
+        uint32_t ran = lrand48();
+        
+        m_type = ran;
+        
+        if (run_as == "daemon") {
+            m_linkers_map[m_type] = std::pair<std::string, ee_event_actions_t>(service, transfer_callback_module);
+            uint32_t i;
+            for (i = 1; i <= vec_child.size(); i++) {
+                m_heartbeats[(ran + i) % std::numeric_limits<uint32_t>::max()] = now_time();
+            }
+        } else {
+            /** do nothing */
+        }
+        
+        for (const auto & ele : m_heartbeats) {
+            EEHDBUG(logger, HAND, "child linker type: %lu", ele.first);
+        }
+        
+        /** [6] do other init */
         m_listeners.clear();
         m_clients.clear();
-        m_serv_types.clear();
-        
-        m_serv_types.push_back(SERVER_TYPE_SYNCHRON);
-        m_serv_types.push_back(SERVER_TYPE_RESONATOR);
-        m_serv_types.push_back(LINKER_TYPE_POLICY);
-        
-        m_epi = -1;
-        m_type = type;
-        
-        if (m_type == SERVER_TYPE_TRANSFER) {
-            m_heartbeats[LINKER_TYPE_MADOLCHE] = now_time();
-            m_heartbeats[LINKER_TYPE_GIMMICKPUPPET] = now_time();
-        }
         
         m_is_running = false;
         
+        m_epi = -1;
         m_epi = epoll_create(EPOLL_MAX_NUM);
         if (m_epi < 0) {
             EEHERRO(logger, HAND, "epoll_create: %s", strerror(errno));
             return EEH_ERROR;
         }
+        
+        m_info_process[getpid()] = service;
         
         EEHINFO(logger, HAND, "eehandler created.");
         
@@ -118,7 +206,6 @@ namespace EEHNS
         EEHINFO(logger, HAND, "%lu cs(%lu ls, %lu ils, %lu ols) would be destroyed.", 
                         m_clients.size(), m_listeners.size(), m_ilinkers.size(), m_olinkers.size());
         
-        m_serv_types.clear();
         m_listeners.clear();
         m_ilinkers.clear();
         m_olinkers.clear();
@@ -321,11 +408,6 @@ namespace EEHNS
     EClient* EpollEvHandler::EEH_TCP_listen(std::string bind_ip, PORT_t service_port, 
                                             SERVER_TYPE server_type, ee_event_actions_t clients_action)
     {
-        if (std::find(m_serv_types.begin(), m_serv_types.end(), server_type) == m_serv_types.end()) {
-            EEHERRO(logger, HAND, "illegal server type(%d)", server_type);
-            return nullptr;
-        }
-
         for (std::map<FD_t, SERVER_TYPE>::const_iterator it_m = m_listeners.begin(); it_m != m_listeners.end(); it_m++) {
             if (it_m->second == server_type) {
                 EEHERRO(logger, HAND, "server type(%d) exist!", server_type);
@@ -637,20 +719,18 @@ namespace EEHNS
         
         return pipe_pair;
     }
-    void EpollEvHandler::EEH_clear_zombie(void* userp)
-    {
-        EpollEvHandler* eeh = (EpollEvHandler*)userp;
-        
+    void EpollEvHandler::EEH_clear_zombie()
+    {        
         std::map<pid_t, std::string>::iterator iter_m;
         for (iter_m = m_info_process.begin(); iter_m != m_info_process.end(); iter_m++) {
             int stat_loc;
             pid_t rpid;
             if ((rpid = waitpid(iter_m->first, &stat_loc, WNOHANG)) > 0) {
                 if (WIFEXITED(stat_loc)) {
-                    EEHINFO(eeh->logger, HAND, "service %s(pid=%d) exited with code %d", 
+                    EEHINFO(logger, HAND, "service %s(pid=%d) exited with code %d", 
                             iter_m->second.c_str(), iter_m->first, WEXITSTATUS(stat_loc));
                 } else if (WIFSIGNALED(stat_loc)) {
-                    EEHINFO(eeh->logger, HAND, "service %s(pid=%d) terminated abnormally with signal %d", 
+                    EEHINFO(logger, HAND, "service %s(pid=%d) terminated abnormally with signal %d", 
                             iter_m->second.c_str(), iter_m->first, WTERMSIG(stat_loc));
                 }
                 if (m_info_process.erase(rpid) == 1) {
@@ -672,7 +752,7 @@ namespace EEHNS
         int i, res;
         while (m_is_running) 
         {
-            EEH_clear_zombie(this);
+            EEH_clear_zombie();
             
             EEHINFO(logger, HAND, "epi(%d) waiting: %lu cs(%lu ls, %lu ils, %lu ols, %lu pps)", 
                 m_epi, m_clients.size(), m_listeners.size(), m_ilinkers.size(), m_olinkers.size(), m_pipe_pairs.size());
