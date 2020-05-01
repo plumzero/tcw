@@ -1,6 +1,7 @@
 
 #include "eehandler.h"
 #include "eelog.h"
+#include "sha1.h"
 
 /**
  * 随笔:
@@ -30,67 +31,91 @@ namespace EEHNS
     
     bool EpollEvHandler::m_is_running = false;
     
-    EEHErrCode EpollEvHandler::EEH_set_services(const std::string& service,
-                                                const std::string& as,
-                                                const ee_event_actions_t actions)
+    EEHErrCode EpollEvHandler::EEH_set_services(const std::string& service, const ee_event_actions_t actions)
     {
-        static daemon_once_flag = 0;
-        if (as != "child" && as != "listen" && as != "daemon") {
-            ECHO(ERRO, "\"as\" must be one of (\"child\"|\"listen\"|\"daemon\")");
-            return EEH_ERROR;
-        }
-        
-        if (daemon_once_flag) {
-            ECHO(ERRO, "daemon had been setted before");
-            return EEH_ERROR;
-        }
-        
         m_linkers_actions[service] = actions;
-        
-        if (as == "daemon") {
-            daemon_once_flag = 1;
-        }
-        
+
         return EEH_OK;
     }
     
-    EEHErrCode EpollEvHandler::EEH_init(SERVER_TYPE type)
+    EEHErrCode EpollEvHandler::EEH_init(std::string conf)
     // EEHErrCode EpollEvHandler::EEH_init(const std::string& service)
     {
-        std::string service = "TRANSFER";
-        if (m_linkers_actions.size() == 0) {
-            ECHO(ERRO, "please set actions for service: %s before the initialization", service.c_str());
+        /** [1] signal handler */
+        sigset_t set;
+        sigemptyset(&set);
+        
+        int i;
+        for (i = SIGRTMIN; i <= SIGRTMAX; i++) {
+            sigaddset(&set, i);
+        }
+        sigaddset(&set, SIGPIPE);
+        int ret = pthread_sigmask(SIG_SETMASK, &set, NULL);
+        if (ret) {
+            ECHO(ERRO, "pthread_sigmask %s", strerror(errno));
             return EEH_ERROR;
         }
-        // sigset_t set;
-        // sigemptyset(&set);
-        
-        // int i;
-        // for (i = SIGRTMIN; i <= SIGRTMAX; i++) {
-            // sigaddset(&set, i);
-        // }
-        // sigaddset(&set, SIGPIPE);
-        // int ret = pthread_sigmask(SIG_SETMASK, &set, NULL);
-        // if (ret) {
-            // ECHO(ERRO, "pthread_sigmask %s", strerror(errno));
-            // return EEH_ERROR;
-        // }
-        /** [1] signal handler */
         signal(SIGINT, signal_release);
-
-        /** [2] read conf */
-        std::ifstream ifs(EEH_CONF_FULL_PATH, std::ifstream::in | std::ifstream::binary);
+        
+        /** [2] read conf and check service's setting */
+        // conf
+        std::ifstream ifs(conf.c_str(), std::ifstream::in | std::ifstream::binary);
         if (! ifs.is_open()) {
-            ECHO(ERRO, "open %s: %s", EEH_CONF_FULL_PATH, strerror(errno));
+            ECHO(ERRO, "open %s: %s", conf.c_str(), strerror(errno));
             return EEH_ERROR;
         }
         ifs >> m_ini;
         ifs.close();
         
-        if (! m_ini[service].size()) {
-            ECHO(ERRO, "service: %s not configured in file: %s", service.c_str(), EEH_CONF_FULL_PATH);
+        decltype(m_ini.begin()) iterIni;
+        std::map<std::string, std::pair<std::string, bool>> service_as_on;
+        for (iterIni = m_ini.begin(); iterIni != m_ini.end(); iterIni++) {
+            if (iterIni->first.empty()) {
+                continue;
+            }
+            service_as_on[iterIni->first].first = m_ini[iterIni->first]["as"] | "";
+            service_as_on[iterIni->first].second = m_ini[iterIni->first]["on"] | false;
+            if (service_as_on[iterIni->first].first.empty()) {
+                ECHO(ERRO, "%s's 'as' option is not set", iterIni->first.c_str());
+                return EEH_ERROR;
+            }
+            if (service_as_on[iterIni->first].first != "daemon" &&
+                service_as_on[iterIni->first].first != "child" &&
+                service_as_on[iterIni->first].first != "server" &&
+                service_as_on[iterIni->first].first != "client") {
+                ECHO(ERRO, "%s's 'as' option is illegal(=%s)", iterIni->first.c_str(),
+                                                               service_as_on[iterIni->first].first.c_str());
+                return EEH_ERROR;
+            }
+        }
+        
+        int daemon_count = 0;
+        std::for_each(service_as_on.begin(), service_as_on.end(),
+                      [&daemon_count](const decltype(*service_as_on.begin())& ele) {
+            if (ele.second.first == "daemon" && ele.second.second == true) { ++daemon_count; }
+        });
+        if (daemon_count != 1) {
+            ECHO(ERRO, "daemon count(=%d) is not 1", daemon_count);
             return EEH_ERROR;
         }
+        // service setting
+        std::string service;
+        for (const auto & ele : service_as_on) {
+            if (ele.second.second) {
+                if (m_linkers_actions.find(ele.first) == m_linkers_actions.end()) {
+                    ECHO(ERRO, "did not set actions for service %s", ele.first.c_str())
+                    return EEH_ERROR;
+                }
+            }
+            if (ele.second.first != "daemon" && ele.second.first != "child" &&
+                ele.second.first != "server" && ele.second.first != "client") {
+                    
+            }
+            if (ele.second.first == "daemon") {
+                service = ele.first;
+            }
+        }
+        ECHO(INFO, "daemon service name is %s", service.c_str());
         
         /** [3] build log */
         try {
@@ -102,7 +127,7 @@ namespace EEHNS
             return EEH_ERROR;
         }
 
-        std::string loglevel = m_ini["LOG"]["Level"] | "INFO";
+        std::string loglevel = m_ini[""]["LogLevel"] | "INFO";
         std::transform(loglevel.begin(), loglevel.end(), loglevel.begin(), [](char c) {
             return std::toupper((int)c);
         });
@@ -121,80 +146,140 @@ namespace EEHNS
         logger->log_set_level(LOG_TYPE_CHRO, level);
         logger->log_set_level(LOG_TYPE_GIMM, level);
         
-        /** [4]  deal with service options */        
-        int on = m_ini[service]["on"] | 0;
-        if (! on) {
-            EEHERRO(logger, HAND, "service: %s not permit to run", service.c_str());
-            return EEH_ERROR;
-        }
-        
-        std::string run_as = m_ini[service]["as"] | "";
-        std::transform(as.begin(), as.end(), as.begin(), [](char c) { return tolower((int)c); });
-        int legal = run_as == "daemon" ? 1 :
-                    run_as == "child"  ? 1 :
-                    run_as == "listen" ? 1 : 0;
-        if (! legal) {
-            EEHERRO(logger, HAND, "service: %s run as type(=%s) illegal", service.c_str(), run_as.c_str());
-            return EEH_ERROR;
-        }
+        /** [4] caculate all service's sha1 */
+        decltype(m_ini.begin()) iterIni;
+        bool is_service_id_have{false};
+        for (iterIni = m_ini.begin(); iterIni != m_ini.end(); iterIni++) {
+            if (iterIni->first.empty()) {
+                continue;
+            }
 
-        EEHINFO(logger, HAND, "service: %s would run as a %s process", service.c_str(), run_as.c_str());
-        
-        std::vector<std::string> vec_listen, vec_connect, vec_child;
-        decltype(m_ini[service].begin()) iter;
-        std::string small_letter_word;
-        for (iter = m_ini[service].begin(); iter != m_ini[service].end(); iter++) {
-            small_letter_word.clear();
-            std::transform(iter->first.begin(), iter->first.end(), std::back_inserter(small_letter_word),
-                            [](char c) { return std::tolower((int)c); });
-            if (fnmatch("listen[0-9]*", small_letter_word.c_str(), 0) == 0 ||
-                fnmatch("listen", small_letter_word.c_str(), 0) == 0) {
-                vec_listen.push_back(iter->second);
-            } else if (fnmatch("connect[0-9]*", small_letter_word.c_str(), 0) == 0 ||
-                       fnmatch("connect", small_letter_word.c_str(), 0) == 0) {
-                vec_connect.push_back(iter->second);
-            } else if (fnmatch("child[0-9]*", small_letter_word.c_str(), 0) == 0 ||
-                       fnmatch("child", small_letter_word.c_str(), 0) == 0) {
-                vec_child.push_back(iter->second);
+            uint32_t hash_id{0};
+            bool hash_id_error{false};
+            do {
+                uint8_t sha1hash[20]{0};
+                SHA1Context sha1_ctx;
+                SHA1Init(&sha1_ctx);
+                
+                if (! hash_id_error) {
+                    SHA1Update(&sha1_ctx, iterIni->first.c_str(), iterIni->first.size());
+                } else {
+                    std::string strhex = integral2hex(hash_id);
+                    std::string strbin = hex2bin(strhex);
+                    SHA1Update(&sha1_ctx, strbin.c_str(), strbin.size());
+                }
+                SHA1Final(&sha1_ctx, sha1hash);
+                
+                std::string hex = bin2hex(std::string(sha1hash, sha1hash + 4));
+                hash_id = hex2integral<uint32_t>(hex);
+                
+                if (hash_id < RESERVE_ZONE) {
+                    EEHWARN(logger, HAND, "hash_id(%lu) is small than %lu", hash_id, RESERVE_ZONE);
+                    hash_id_error = true;
+                    continue;
+                }
+                if (m_services_id.find(hash_id) != m_services_id.end()) {
+                    EEHWARN(logger, HAND, "hash_id(%lu) already exist", hash_id);
+                    hash_id_error = true;
+                    continue;
+                }
+                
+                hash_id_error = false;
+            } while (hash_id_error);
+            
+            EEHDBUG(logger, HAND, "option %s's hash id is: %lu", iterIni->first.c_str(), hash_id);
+            
+            m_services_id[hash_id] = iterIni->first;
+            if (iterIni->first == service) {
+                m_id = hash_id;
+                is_service_id_have = true;
             }
         }
         
-        /** [5] add child service if run as daemon */
-        struct timespec ts;
-        clock_gettime(CLOCK_REALTIME, &ts);
-        srand48(((uint64_t)ts.tv_sec * 1000000000L) + ts.tv_nsec);
-        uint32_t ran = lrand48();
-        
-        m_type = ran;
-        
-        if (run_as == "daemon") {
-            m_linkers_map[m_type] = std::pair<std::string, ee_event_actions_t>(service, transfer_callback_module);
-            uint32_t i;
-            for (i = 1; i <= vec_child.size(); i++) {
-                m_heartbeats[(ran + i) % std::numeric_limits<uint32_t>::max()] = now_time();
-            }
-        } else {
-            /** do nothing */
+        if (! is_service_id_have) {
+            EEHERRO(logger, HAND, "could not caculate service %s's", service.c_str());
+            return EEH_ERROR;
         }
         
-        for (const auto & ele : m_heartbeats) {
-            EEHDBUG(logger, HAND, "child linker type: %lu", ele.first);
-        }
+        EEHINFO(logger, HAND, "service %s's id is %lu", m_id);
         
-        /** [6] do other init */
-        m_listeners.clear();
-        m_clients.clear();
-        
-        m_is_running = false;
-        
-        m_epi = -1;
+        /** [5] create epoll instance */
         m_epi = epoll_create(EPOLL_MAX_NUM);
         if (m_epi < 0) {
             EEHERRO(logger, HAND, "epoll_create: %s", strerror(errno));
             return EEH_ERROR;
         }
         
+        /** [6] deal with service options */        
+        std::vector<std::string> vec_server, vec_connect, vec_child;
+        decltype(m_ini[service].begin()) iterDaemon;
+        std::string daemon_key;
+        for (iterDaemon = m_ini[service].begin(); iterDaemon != m_ini[service].end(); iterDaemon++) {
+            daemon_key.clear();
+            std::transform(iterDaemon->first.begin(), iterDaemon->first.end(), std::back_inserter(daemon_key),
+                            [](char c) { return std::tolower((int)c); });
+            if ()  ///////////////////////////////////// HERE
+            
+            if (fnmatch("listen[0-9]*", daemon_key.c_str(), 0) == 0 ||
+                fnmatch("listen", key.c_str(), 0) == 0) {
+                vec_server.push_back(iterDaemon->second);
+            } else if (fnmatch("connect[0-9]*", key.c_str(), 0) == 0 ||
+                       fnmatch("connect", key.c_str(), 0) == 0) {
+                vec_connect.push_back(iterDaemon->second);
+            } else if (fnmatch("child[0-9]*", key.c_str(), 0) == 0 ||
+                       fnmatch("child", key.c_str(), 0) == 0) {
+                vec_child.push_back(iterDaemon->second);
+            }
+        }
+        // add child service if run as daemon
+        if (run_as == "daemon") {
+            m_linkers_map[m_type] = std::pair<std::string, ee_event_actions_t>(service, transfer_callback_module);
+            /** child configured */
+            for (const auto & child : vec_child) {
+                if (child == service) {
+                    EEHERRO(logger, HAND, "service %s should't be its own child service", service.c_str());
+                    return EEH_ERROR;
+                }
+                bool conf_have_child_service_option{true};
+                auto iterFind = std::find_if(m_services_id.begin(), m_services_id.end(),
+                                [&child](const& std::pair<uint32_t, std::string> pr) { return pr.second == child;});
+                if (iterFind == m_services_id.end()) {
+                    EEHERRO(logger, HAND, "could not find child service(%s)'s hash id", child.c_str());
+                    return EEH_ERROR;
+                }
+
+                m_heartbeats[iterFind->first] = now_time();
+            }
+            /** server configured */
+            for (const auto & server : vec_server) {
+                size_t pos = server.find(':');
+                if (pos == std::string::npos) {
+                    EEHERRO(logger, HAND, "host:port format error", server.c_str());
+                    return EEH_ERROR;
+                }
+                std::string host = std::string(server.begin(), server.begin() + pos);
+                int port = std::atoi(std::string(server.begin() + pos + 1, server.end()).c_str());
+                EClient* ec_listen = EEH_TCP_listen(host.c_str(), port, );
+            }
+            
+            /** connect configured */
+        } else if (run_as == "server") {
+            for (const auto &)
+            EClient* ec_listen = EEH_TCP_listen();
+        }
+
+        /** [7] do other init */
+        m_listeners.clear();
+        m_clients.clear();
+        
         m_info_process[getpid()] = service;
+        m_is_running = false;
+                
+        if (run_as == "server") {
+            EClient* ec_listen = EEH_TCP_listen("");
+        }
+        
+        
         
         EEHINFO(logger, HAND, "eehandler created.");
         

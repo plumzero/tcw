@@ -21,7 +21,6 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <fcntl.h>
-#include <fnmatch.h>
 
 #include <iostream>
 #include <fstream>
@@ -30,28 +29,29 @@
 #include <vector>
 #include <list>
 #include <map>
+#include <unordered_map>
 #include <queue>
 #include <utility>
 #include <functional>
 #include <algorithm>
-#include <mutex>
-#include <condition_variable>
 
 #include "config.h"
 
 /** heading direction of bic message or as a ec service type */
-enum _linker_or_server_type {
-    LINKER_TYPE_NONE          = 0 << 0,
-    LINKER_TYPE_POLICY        = 1 << 0,     /** 远端策略 */
-    SERVER_TYPE_TRANSFER      = 1 << 1,     /** 本端转发 */
-    SERVER_TYPE_ROVER         = 1 << 2,     /** 本端孤儿TCP客户端 */
-    SERVER_TYPE_SYNCHRON      = 1 << 3,     /** 本端TCP服务类型一 */
-    SERVER_TYPE_RESONATOR     = 1 << 4,     /** 本端TCP服务类型二 */
-    LINKER_TYPE_MADOLCHE      = 1 << 5,     /** 模拟下级服务端子进程一 */
-    LINKER_TYPE_CHRONOMALY    = 1 << 6,     /** 模拟下级服务端子进程二 */
-    LINKER_TYPE_GIMMICKPUPPET = 1 << 7,     /** 模拟下级服务端进程内启动进程 */
-    LINKER_TYPE_ALL           = -1,
-};
+// enum _linker_or_server_type {
+    // LINKER_TYPE_NONE          = 0 << 0,
+    // LINKER_TYPE_POLICY        = 1 << 0,     /** 远端策略 */
+    // SERVER_TYPE_TRANSFER      = 1 << 1,     /** 本端转发 */
+    // SERVER_TYPE_ROVER         = 1 << 2,     /** 本端孤儿TCP客户端 */
+    // SERVER_TYPE_SYNCHRON      = 1 << 3,     /** 本端TCP服务类型一 */
+    // SERVER_TYPE_RESONATOR     = 1 << 4,     /** 本端TCP服务类型二 */
+    // LINKER_TYPE_MADOLCHE      = 1 << 5,     /** 模拟下级服务端子进程一 */
+    // LINKER_TYPE_CHRONOMALY    = 1 << 6,     /** 模拟下级服务端子进程二 */
+    // LINKER_TYPE_GIMMICKPUPPET = 1 << 7,     /** 模拟下级服务端进程内启动进程 */
+    // LINKER_TYPE_ALL           = -1,
+// };
+
+#define  RESERVE_ZONE   1000000L
 
 typedef struct __attribute__ ((__packed__)) {
     uint8_t     ver[2];             /** 0-major 1-revised */
@@ -69,6 +69,82 @@ namespace EEHNS
     
     typedef uint32_t  _linker_or_server_type;
     typedef _linker_or_server_type  LINKER_TYPE;
+};
+
+namespace
+{
+    inline std::string bin2hex(const std::string& bin)
+    {
+        std::string hex;
+        
+        for (const auto & ele : bin) {
+            hex.append(1, "0123456789ABCDEF"[static_cast<int>((unsigned char)ele) / 16]);
+            hex.append(1, "0123456789ABCDEF"[static_cast<int>((unsigned char)ele) % 16]);
+        }
+        
+        return hex;
+    }
+	
+    inline std::string hex2bin(const std::string& hex)
+    {
+        std::string bin(hex.size() / 2, '\x0');
+        
+        char ch, ck;
+        int i = 0;
+        
+        for (const auto & ele : hex) {
+            if (ele >= '0' && ele <= '9') ch = ele - '0'; else
+            if (ele >= 'A' && ele <= 'F') ch = ele - '7'; else
+            if (ele >= 'a' && ele <= 'f') ch = ele - 'W'; else
+                return "";
+            
+            ck = ((i & 1) != 0) ? ch : ch << 4;
+            
+            bin[i >> 1] = (unsigned char)(bin[i >> 1] | ck);
+            i++;
+        }
+        
+        return bin;
+    }
+    
+    template<typename T, class = typename std::enable_if<std::is_integral<T>::value>::type>
+    std::string integral2hex(const T& t)
+    {    
+        const unsigned LE = 1;
+        unsigned isLittleEndian = *((char*)&LE);
+        
+        std::string ts(reinterpret_cast<const char*>((unsigned char*)&t), sizeof(t));
+        
+        size_t b, e;
+        
+        isLittleEndian ? (b = 0, e = ts.find_last_not_of('\x0') + 1)
+                       : (b = ts.find_first_not_of('\x0'), e = sizeof(t) + 1);
+
+        std::string bin(ts.begin() + b, ts.begin() + e);
+            
+        // store with big-endian mode
+        isLittleEndian ? std::reverse(bin.begin(), bin.end()) : void(0);
+        
+        return bin.empty() ? "00" : bin2hex(bin);
+    }
+
+    template<typename T, class = typename std::enable_if<std::is_integral<T>::value>::type,
+             typename S, class = typename std::enable_if<std::is_convertible<S, std::string>::value, std::string>::type>
+    T hex2integral(const S& hex)
+    {    
+        const unsigned LE = 1;
+        unsigned isLittleEndian = *((char*)&LE);
+        
+        std::string bin(hex2bin(hex));
+
+        isLittleEndian ? std::reverse(bin.begin(), bin.end()) : void(0);
+
+        isLittleEndian ? bin.append(sizeof(T) - bin.size(), '\x0')
+                       : bin.insert(0, sizeof(T) - bin.size(), '\x0');
+
+        return *reinterpret_cast<const T*>(bin.c_str());
+    }
+    
 };
 
 #define EEHLOG(logger, l, t, ...)                   \

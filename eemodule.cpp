@@ -183,6 +183,7 @@ ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
     BIC_MESSAGE bicmh(&bich, nullptr);
     bicmh.ExtractHeader(bicmsg.c_str());
 
+	// 删除
     if (from_outward) {
         if (bich.origin != LINKER_TYPE_POLICY) {
             EEHERRO(eeh->logger, TRAN, "danger! illegal policy!");

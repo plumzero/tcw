@@ -309,15 +309,15 @@ public:
             return value(_mapref[key]);
         }
         
-        inline std::map<std::string, std::string, case_insensitive>::size_type size() const {
+        inline std::remove_reference<decltype(_mapref)>::type::size_type size() const {
             return _mapref.size();
         }
         
-        std::map<std::string, std::string, case_insensitive>::const_iterator begin() const {
+        inline std::remove_reference<decltype(_mapref)>::type::const_iterator begin() const {
             return _mapref.begin();
         }
         
-        std::map<std::string, std::string, case_insensitive>::const_iterator end() const {
+        inline std::remove_reference<decltype(_mapref)>::type::const_iterator end() const {
             return _mapref.end();
         }
     };
@@ -349,6 +349,18 @@ public:
 
     inline section operator[](std::string name) noexcept {
         return section(_sections[name]);
+    }
+    
+    inline decltype(_sections)::size_type size() const {
+        return _sections.size();
+    }
+    
+    inline decltype(_sections)::const_iterator begin() const {
+        return _sections.begin();
+    }
+    
+    inline decltype(_sections)::const_iterator end() const {
+        return _sections.end();
     }
 
     template <typename TStream>

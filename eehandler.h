@@ -26,12 +26,13 @@ namespace EEHNS
     class EpollEvHandler final
     {
     private:
-        int                                         		m_epi;
-        std::map<FD_t, SERVER_TYPE>                 		m_listeners;
-        static std::map<std::string, ee_event_actions_t>   	m_linkers_actions;
+        int                                                 m_epi;
+        std::map<FD_t, SERVER_TYPE>                         m_listeners;
+        static std::map<std::string, ee_event_actions_t>    m_linkers_actions;
     public:
-        static bool                         m_is_running;
-        SERVER_TYPE                         m_type;
+        static bool                                         m_is_running;
+        std::unordered_map<uint32_t, std::string>           m_services_id;  /** 服务 id, 服务名称 */
+        SERVER_TYPE                         m_id;
         /** m_clients = m_listeners 及其 clients 成员 + m_ilinkers + m_olinkers */
         std::map<FD_t, EClient*>            m_clients;
         /** 接收或发送映射连接 */
@@ -48,9 +49,7 @@ namespace EEHNS
         
         ee_event_block_t                    m_info_block;       /** 测试用 */
     public:
-		static EEHErrCode EEH_set_services(const std::string& service,
-										   const& std::string& as,
-										   const& ee_event_actions_t actions);
+        static EEHErrCode EEH_set_services(const std::string& service, const& ee_event_actions_t actions);
         EEHErrCode EEH_init(SERVER_TYPE type);
         void EEH_destroy();
         EEHErrCode EEH_add(EClient *ec);
