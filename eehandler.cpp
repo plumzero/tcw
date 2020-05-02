@@ -12,21 +12,7 @@
  */
 
 namespace EEHNS
-{   
-    // std::map<_linker_or_server_type, std::pair<std::string, ee_event_actions_t> > 
-    // EpollEvHandler::m_linkers_map = {
-        // { LINKER_TYPE_POLICY,        std::make_pair("POLICY",         policy_callback_module) },
-        // { SERVER_TYPE_TRANSFER,      std::make_pair("TRANSFER",       transfer_callback_module) },
-        // { SERVER_TYPE_ROVER,         std::make_pair("ROVER",          null_callback_module) },
-        // { SERVER_TYPE_SYNCHRON,      std::make_pair("SYNCHRON",       null_callback_module) },
-        // { SERVER_TYPE_RESONATOR,     std::make_pair("RESONATOR",      null_callback_module) },
-        // { LINKER_TYPE_MADOLCHE,      std::make_pair("MADOLCHE",       madolche_callback_module) },
-        // { LINKER_TYPE_CHRONOMALY,    std::make_pair("CHRONOMALY",     null_callback_module) },
-        // { LINKER_TYPE_GIMMICKPUPPET, std::make_pair("GIMMICK_PUPPET", gimmickpuppet_callback_module) },
-    // };
-
-    // std::map<pid_t, std::string> EpollEvHandler::m_info_process = std::map<pid_t, std::string>();
-    
+{    
     std::map<std::string, ee_event_actions_t> EpollEvHandler::m_linkers_actions{};
     
     bool EpollEvHandler::m_is_running = false;
@@ -57,8 +43,8 @@ namespace EEHNS
         }
         signal(SIGINT, signal_release);
         
-        /** [2] read conf and check service's setting */
-        // conf
+        /** [2] check conf and service's setting */
+        // read conf
         std::ifstream ifs(conf.c_str(), std::ifstream::in | std::ifstream::binary);
         if (! ifs.is_open()) {
             ECHO(ERRO, "open %s: %s", conf.c_str(), strerror(errno));
@@ -66,60 +52,114 @@ namespace EEHNS
         }
         ifs >> m_ini;
         ifs.close();
-        
-        decltype(m_ini.begin()) iterIni;
-        std::map<std::string, std::pair<std::string, bool>> service_as_on;
-        for (iterIni = m_ini.begin(); iterIni != m_ini.end(); iterIni++) {
-            if (iterIni->first.empty()) {
-                continue;
+        // check daemon count
+        size_t count = std::count_if(m_ini.begin(), m_ini.end(), [&m_ini](const decltype(*m_ini.begin())& ele) {
+            std::string key, as, section = ele.first;
+            bool on;
+            for (const auto & kv : ele.second) {
+                key.clear();
+                std::transform(kv.first.begin(), kv.first.end(), std::back_inserter(key), 
+                               [&section](char c) { return tolower((int)c); });
+                if (key == "as") as = m_ini[section][key] | "";
+                if (key == "on") on = m_ini[section][key] | false;          
             }
-            service_as_on[iterIni->first].first = m_ini[iterIni->first]["as"] | "";
-            service_as_on[iterIni->first].second = m_ini[iterIni->first]["on"] | false;
-            if (service_as_on[iterIni->first].first.empty()) {
-                ECHO(ERRO, "%s's 'as' option is not set", iterIni->first.c_str());
-                return EEH_ERROR;
-            }
-            if (service_as_on[iterIni->first].first != "daemon" &&
-                service_as_on[iterIni->first].first != "child" &&
-                service_as_on[iterIni->first].first != "server" &&
-                service_as_on[iterIni->first].first != "client") {
-                ECHO(ERRO, "%s's 'as' option is illegal(=%s)", iterIni->first.c_str(),
-                                                               service_as_on[iterIni->first].first.c_str());
-                return EEH_ERROR;
-            }
-        }
-        
-        int daemon_count = 0;
-        std::for_each(service_as_on.begin(), service_as_on.end(),
-                      [&daemon_count](const decltype(*service_as_on.begin())& ele) {
-            if (ele.second.first == "daemon" && ele.second.second == true) { ++daemon_count; }
+            std::transform(as.begin(), as.end(), as.begin(), [](char c) { return tolower((int)c); });
+            return as == "daemon" && on == true;
         });
-        if (daemon_count != 1) {
-            ECHO(ERRO, "daemon count(=%d) is not 1", daemon_count);
+        if (count != 1) {
+            ECHO(ERRO, "daemon's count(=%d) is not 1", daemon_count);
             return EEH_ERROR;
         }
-        // service setting
-        std::string service;
-        for (const auto & ele : service_as_on) {
-            if (ele.second.second) {
-                if (m_linkers_actions.find(ele.first) == m_linkers_actions.end()) {
-                    ECHO(ERRO, "did not set actions for service %s", ele.first.c_str())
-                    return EEH_ERROR;
-                }
+        // check 'as' option whether illegal or not
+        auto iterFind = std::find_if(m_ini.begin(), m_ini.end(), [&m_ini](const decltype(*m_ini.begin())& ele) {
+            std::string key, as, section = ele.first;
+            for (const auto & kv : ele.second) {
+                key.clear();
+                std::transform(kv.first.begin(), kv.first.end(), std::back_inserter(key), 
+                               [&section](char c) { return tolower((int)c); });
+                if (key == "as") as = m_ini[section][key] | "";
             }
-            if (ele.second.first != "daemon" && ele.second.first != "child" &&
-                ele.second.first != "server" && ele.second.first != "client") {
-                    
-            }
-            if (ele.second.first == "daemon") {
-                service = ele.first;
-            }
+            std::transform(as.begin(), as.end(), as.begin(), [](char c) { return tolower((int)c); });
+            return ! section.empty() && as != "daemon" && as != "child" && as != "server" && as != "client";
+        });
+        if (iterFind != m_ini.end()) {
+            std::cout << iterFind->first << " not match" << std::endl;
+            ECHO(ERRO, "%s's 'as' key illegal", iterFind->first.c_str());
+            return EEH_ERROR;
         }
-        ECHO(INFO, "daemon service name is %s", service.c_str());
-        
+        // if service is as a server, check 'listen' key whether non or not
+        iterFind = std::find_if(m_ini.begin(), m_ini.end(), [&m_ini](const decltype(*m_ini.begin())& ele) {
+            std::string key, as, listen, section = ele.first;
+            for (const auto & kv : ele.second) {
+                key.clear();
+                std::transform(kv.first.begin(), kv.first.end(), std::back_inserter(key), 
+                               [&section](char c) { return tolower((int)c); });
+                if (key == "as") as = m_ini[section][key] | "";
+                if (key == "listen") listen = m_ini[section][key] | "";
+            }
+            std::transform(as.begin(), as.end(), as.begin(), [](char c) { return tolower((int)c); });
+            return ! section.empty() && as == "server" && listen.empty();
+        });
+        if (iterFind != m_ini.end()) {
+            ECHO(ERRO, "%s's 'listen' key is non", iterFind->first.c_str());
+            return EEH_ERROR;
+        }        
+        // if service is as a client, check 'connect' key whether non or not
+        iterFind = std::find_if(m_ini.begin(), m_ini.end(), [&m_ini](const decltype(*m_ini.begin())& ele) {
+            std::string key, as, connect, section = ele.first;
+            for (const auto & kv : ele.second) {
+                key.clear();
+                std::transform(kv.first.begin(), kv.first.end(), std::back_inserter(key), 
+                               [&section](char c) { return tolower((int)c); });
+                if (key == "as") as = m_ini[section][key] | "";
+                if (key == "connect") connect = m_ini[section][key] | "";
+            }
+            std::transform(as.begin(), as.end(), as.begin(), [](char c) { return tolower((int)c); });
+            return ! section.empty() && as == "client" && connect.empty();
+        });
+        if (iterFind != m_ini.end()) {
+            ECHO(ERRO, "%s's 'connect' key is non", iterFind->first.c_str());
+            return EEH_ERROR;
+        }
+        // check each service(daemon not include) which on=yes whether has its corresponding actions
+        iterFind = std::find_if(m_ini.begin(), m_ini.end(), [&m_ini](const decltype(*m_ini.begin())& ele) {
+            std::string key, as, section = ele.first;
+            for (const auto & kv : ele.second) {
+                key.clear();
+                std::transform(kv.first.begin(), kv.first.end(), std::back_inserter(key), 
+                               [&section](char c) { return tolower((int)c); });
+                if (key == "as") as = m_ini[section][key] | "";
+            }
+            std::transform(as.begin(), as.end(), as.begin(), [](char c) { return tolower((int)c); });
+            return ! section.empty() && as != "daemon" && m_linkers_actions.find(section) == m_linkers_actions.end();
+        });
+        if (iterFind != m_ini.end()) {
+            ECHO(ERRO, "%s's actions is not set", iterFind->first.c_str());
+            return EEH_ERROR;
+        }
+        // find deamon service
+        iterFind = std::find_if(m_ini.begin(), m_ini.end(), [&m_ini](const decltype(*m_ini.begin())& ele) {
+            std::string key, as, section = ele.first;
+            for (const auto & kv : ele.second) {
+                key.clear();
+                std::transform(kv.first.begin(), kv.first.end(), std::back_inserter(key), 
+                               [&section](char c) { return tolower((int)c); });
+                if (key == "as") as = m_ini[section][key] | "";
+            }
+            std::transform(as.begin(), as.end(), as.begin(), [](char c) { return tolower((int)c); });
+            return ! section.empty() && as == "daemon";
+        });
+        if (iterFind == m_ini.end()) {
+            ECHO(ERRO, "could not found daemon service");
+            return EEH_ERROR;
+        }
+        // found daemon service
+        std::string daemon = iterFind->first;
+        ECHO(INFO, "daemon service name is %s", daemon.c_str());
+
         /** [3] build log */
         try {
-            std::string logname = service + ".log";
+            std::string logname = daemon + ".log";
             logger = new Logger("./", logname.c_str());
             ECHO(INFO, "process(id=%lu) log file(%s) created", (unsigned long)getpid(), logname.c_str());
         } catch (std::exception& e) {
@@ -127,34 +167,33 @@ namespace EEHNS
             return EEH_ERROR;
         }
 
-        std::string loglevel = m_ini[""]["LogLevel"] | "INFO";
-        std::transform(loglevel.begin(), loglevel.end(), loglevel.begin(), [](char c) {
+        std::string whatlevel = m_ini[""]["LogLevel"] | "INFO";
+        std::transform(whatlevel.begin(), whatlevel.end(), whatlevel.begin(), [](char c) {
             return std::toupper((int)c);
         });
-        int level = loglevel == "DBUG" ? LOG_LEVEL_DBUG :
-                    loglevel == "INFO" ? LOG_LEVEL_INFO :
-                    loglevel == "WARN" ? LOG_LEVEL_WARN :
-                    loglevel == "ERRO" ? LOG_LEVEL_ERRO : LOG_LEVEL_INFO;
-        logger->log_set_global_level(level);
-        logger->log_set_level(LOG_TYPE_HAND, level);
-        logger->log_set_level(LOG_TYPE_POLI, level);
-        logger->log_set_level(LOG_TYPE_TRAN, level);
-        logger->log_set_level(LOG_TYPE_ROVE, level);
-        logger->log_set_level(LOG_TYPE_SYNC, level);
-        logger->log_set_level(LOG_TYPE_RESO, level);
-        logger->log_set_level(LOG_TYPE_MADO, level);
-        logger->log_set_level(LOG_TYPE_CHRO, level);
-        logger->log_set_level(LOG_TYPE_GIMM, level);
+        int loglevel = whatlevel == "DBUG" ? LOG_LEVEL_DBUG :
+                       whatlevel == "INFO" ? LOG_LEVEL_INFO :
+                       whatlevel == "WARN" ? LOG_LEVEL_WARN :
+                       whatlevel == "ERRO" ? LOG_LEVEL_ERRO : LOG_LEVEL_INFO;
+        logger->log_set_global_level(loglevel);
+        logger->log_set_level(LOG_TYPE_HAND, loglevel);
+        logger->log_set_level(LOG_TYPE_POLI, loglevel);
+        logger->log_set_level(LOG_TYPE_TRAN, loglevel);
+        logger->log_set_level(LOG_TYPE_ROVE, loglevel);
+        logger->log_set_level(LOG_TYPE_SYNC, loglevel);
+        logger->log_set_level(LOG_TYPE_RESO, loglevel);
+        logger->log_set_level(LOG_TYPE_MADO, loglevel);
+        logger->log_set_level(LOG_TYPE_CHRO, loglevel);
+        logger->log_set_level(LOG_TYPE_GIMM, loglevel);
         
-        /** [4] caculate all service's sha1 */
+        /** [4] caculate each service's sha1 id */
         decltype(m_ini.begin()) iterIni;
-        bool is_service_id_have{false};
         for (iterIni = m_ini.begin(); iterIni != m_ini.end(); iterIni++) {
             if (iterIni->first.empty()) {
                 continue;
             }
 
-            uint32_t hash_id{0};
+            uint64_t hash_id{0};
             bool hash_id_error{false};
             do {
                 uint8_t sha1hash[20]{0};
@@ -171,10 +210,10 @@ namespace EEHNS
                 SHA1Final(&sha1_ctx, sha1hash);
                 
                 std::string hex = bin2hex(std::string(sha1hash, sha1hash + 4));
-                hash_id = hex2integral<uint32_t>(hex);
+                hash_id = hex2integral<uint64_t>(hex);
                 
-                if (hash_id < RESERVE_ZONE) {
-                    EEHWARN(logger, HAND, "hash_id(%lu) is small than %lu", hash_id, RESERVE_ZONE);
+                if (hash_id < HASH_ID_RESERVE_ZONE) {
+                    EEHWARN(logger, HAND, "hash_id(%lu) is small than %lu", hash_id, HASH_ID_RESERVE_ZONE);
                     hash_id_error = true;
                     continue;
                 }
@@ -190,18 +229,12 @@ namespace EEHNS
             EEHDBUG(logger, HAND, "option %s's hash id is: %lu", iterIni->first.c_str(), hash_id);
             
             m_services_id[hash_id] = iterIni->first;
-            if (iterIni->first == service) {
+            if (iterIni->first == daemon) {
                 m_id = hash_id;
-                is_service_id_have = true;
             }
         }
         
-        if (! is_service_id_have) {
-            EEHERRO(logger, HAND, "could not caculate service %s's", service.c_str());
-            return EEH_ERROR;
-        }
-        
-        EEHINFO(logger, HAND, "service %s's id is %lu", m_id);
+        EEHINFO(logger, HAND, "daemon %s %s's id is %lu", daemon.c_str(), m_id);
         
         /** [5] create epoll instance */
         m_epi = epoll_create(EPOLL_MAX_NUM);
@@ -210,62 +243,71 @@ namespace EEHNS
             return EEH_ERROR;
         }
         
-        /** [6] deal with service options */        
-        std::vector<std::string> vec_server, vec_connect, vec_child;
-        decltype(m_ini[service].begin()) iterDaemon;
-        std::string daemon_key;
-        for (iterDaemon = m_ini[service].begin(); iterDaemon != m_ini[service].end(); iterDaemon++) {
-            daemon_key.clear();
-            std::transform(iterDaemon->first.begin(), iterDaemon->first.end(), std::back_inserter(daemon_key),
-                            [](char c) { return std::tolower((int)c); });
-            if ()  ///////////////////////////////////// HERE
+        /** [6] deal with service options */
+        for (iterIni = m_ini.begin(); iterIni != m_ini.end(); iterIni++) {
+            if (iterIni->first.empty()) {
+                continue;
+            }
             
-            if (fnmatch("listen[0-9]*", daemon_key.c_str(), 0) == 0 ||
-                fnmatch("listen", key.c_str(), 0) == 0) {
-                vec_server.push_back(iterDaemon->second);
-            } else if (fnmatch("connect[0-9]*", key.c_str(), 0) == 0 ||
-                       fnmatch("connect", key.c_str(), 0) == 0) {
-                vec_connect.push_back(iterDaemon->second);
-            } else if (fnmatch("child[0-9]*", key.c_str(), 0) == 0 ||
-                       fnmatch("child", key.c_str(), 0) == 0) {
-                vec_child.push_back(iterDaemon->second);
+            std::string section, key, as, addr;
+            section = iterIni->first;
+            EEHINFO(logger, HAND, "process with %s", section.c_str());
+            
+            for (const auto & kv : iterIni->second) {
+                key.clear();
+                std::transform(kv.first.begin(), kv.first.end(), std::back_inserter(key), 
+                               [&section](char c) { return tolower((int)c); });
+                if (key == "as") as = m_ini[section][key] | "";
+                if (key == "listen" || key == "connect") addr = m_ini[section][key] | "";
             }
-        }
-        // add child service if run as daemon
-        if (run_as == "daemon") {
-            m_linkers_map[m_type] = std::pair<std::string, ee_event_actions_t>(service, transfer_callback_module);
-            /** child configured */
-            for (const auto & child : vec_child) {
-                if (child == service) {
-                    EEHERRO(logger, HAND, "service %s should't be its own child service", service.c_str());
-                    return EEH_ERROR;
-                }
-                bool conf_have_child_service_option{true};
-                auto iterFind = std::find_if(m_services_id.begin(), m_services_id.end(),
-                                [&child](const& std::pair<uint32_t, std::string> pr) { return pr.second == child;});
-                if (iterFind == m_services_id.end()) {
-                    EEHERRO(logger, HAND, "could not find child service(%s)'s hash id", child.c_str());
-                    return EEH_ERROR;
-                }
-
-                m_heartbeats[iterFind->first] = now_time();
-            }
-            /** server configured */
-            for (const auto & server : vec_server) {
-                size_t pos = server.find(':');
+            std::transform(as.begin(), as.end(), as.begin(), [](char c) { return tolower((int)c); });
+            
+            std::string host;
+            int port;
+            if (as == "server" || as == "client") {
+                size_t pos = addr.find(':');
                 if (pos == std::string::npos) {
-                    EEHERRO(logger, HAND, "host:port format error", server.c_str());
+                    EEHERRO(logger, HAND, "%s format error", addr.c_str());
                     return EEH_ERROR;
                 }
-                std::string host = std::string(server.begin(), server.begin() + pos);
-                int port = std::atoi(std::string(server.begin() + pos + 1, server.end()).c_str());
-                EClient* ec_listen = EEH_TCP_listen(host.c_str(), port, );
+                host = std::string(addr.begin(), addr.begin() + pos);
+                port = std::atoi(std::string(addr.begin() + pos + 1, addr.end()).c_str());
+                EEHINFO(logger, HAND, "%s as %s would %s %s:%d", section.c_str(), as.c_str(),
+                                                           as == "server" ? "listen on" : "connect to",
+                                                           host.c_str(), port);
             }
+
+            auto iterId = std::find_if(m_services_id.begin(), m_services_id.end(),
+                            [&section](const decltype(*m_services_id.begin())& ele){ return ele.second == section; });
+            if (iterId == m_services_id.end()) {
+                EEHERRO(logger, HAND, "could not find %s's id", section.c_str());
+                return EEH_ERROR;
+            }
+            EEHDBUG(logger, HAND, "%s's id is %lu", section.c_str(), iterId->first);
             
-            /** connect configured */
-        } else if (run_as == "server") {
-            for (const auto &)
-            EClient* ec_listen = EEH_TCP_listen();
+            if (as == "server") {
+                EClient* ec_listen = EEH_TCP_listen(host, port, iterId->first, m_linkers_actions[section]);
+                if (! ec_listen) {
+                    EEHERRO(logger, HAND, "EEH_TCP_listen failed");
+                    return EEH_ERROR;
+                }
+                if (EEH_add(ec_listen) != EEH_OK) {
+                    EEHERRO(logger, HAND, "EEH_add failed");
+                    return EEH_ERROR;
+                }
+            } else if (as == "client") {
+                EClient* ec_client = EEH_TCP_connect(host, port, iterId->first, m_linkers_actions[section]);
+                if (! ec_client) {
+                    EEHERRO(logger, HAND, "EEH_TCP_connect failed");
+                    return EEH_ERROR;
+                }
+                if (EEH_add(ec_client) != EEH_OK) {
+                    EEHERRO(logger, HAND, "EEH_add failed");
+                    return EEH_ERROR;
+                }
+            } else if (as == "child") {
+                m_heartbeats[iterId->first] = now_time();
+            }
         }
 
         /** [7] do other init */
@@ -274,12 +316,6 @@ namespace EEHNS
         
         m_info_process[getpid()] = service;
         m_is_running = false;
-                
-        if (run_as == "server") {
-            EClient* ec_listen = EEH_TCP_listen("");
-        }
-        
-        
         
         EEHINFO(logger, HAND, "eehandler created.");
         
@@ -424,7 +460,7 @@ namespace EEHNS
             } else {    /** as connect client */
                 if (bc->linker_type != SERVER_TYPE_ROVER) {
                     FD_t sfd = 0;
-                    std::map<FD_t, SERVER_TYPE>::iterator iter_m;
+                    std::map<FD_t, SID_t>::iterator iter_m;
                     for (iter_m = m_listeners.begin(); iter_m != m_listeners.end(); iter_m++) {
                         if (iter_m->second == bc->linker_type) {
                             sfd = iter_m->first;
@@ -491,11 +527,11 @@ namespace EEHNS
     }
     
     EClient* EpollEvHandler::EEH_TCP_listen(std::string bind_ip, PORT_t service_port, 
-                                            SERVER_TYPE server_type, ee_event_actions_t clients_action)
+                                            SID_t sid, ee_event_actions_t clients_action)
     {
-        for (std::map<FD_t, SERVER_TYPE>::const_iterator it_m = m_listeners.begin(); it_m != m_listeners.end(); it_m++) {
-            if (it_m->second == server_type) {
-                EEHERRO(logger, HAND, "server type(%d) exist!", server_type);
+        for (std::map<FD_t, SID_t>::const_iterator it_m = m_listeners.begin(); it_m != m_listeners.end(); it_m++) {
+            if (it_m->second == sid) {
+                EEHERRO(logger, HAND, "server type(%d) exist!", sid);
                 return nullptr;
             }
         }
@@ -580,14 +616,14 @@ namespace EEHNS
         int op = EPOLLIN | EPOLLHUP | EPOLLRDHUP;
         
         tc->prev_option = op;
-        tc->linker_type = server_type;
+        tc->linker_type = sid;
         
         tc->ev.events = op;
         tc->ev.data.ptr = tc;
         
         tc->is_server = true;
         tc->clients_do = clients_action;
-        m_listeners[tc->fd] = server_type;
+        m_listeners[tc->fd] = sid;
         
         EEHINFO(logger, HAND, "eclient(%p, id=%d, fd=%d) as TCP server(%s:%d) listend.", 
                             tc, tc->id, tc->fd, tc->host.c_str(), tc->port);
@@ -676,11 +712,11 @@ namespace EEHNS
         return tc;
     }
     
-    EClient* EpollEvHandler::EEH_TCP_connect(std::string remote_ip, PORT_t remote_port, LINKER_TYPE linker_type)
+    EClient* EpollEvHandler::EEH_TCP_connect(std::string remote_ip, PORT_t remote_port, SID_t sid)
     {
-        for (std::map<FD_t, LINKER_TYPE>::const_iterator it_m = m_olinkers.begin(); it_m != m_olinkers.end(); it_m++) {
-            if (it_m->second == linker_type) {
-                EEHERRO(logger, HAND, "linker type(%d) exist!", linker_type);
+        for (std::map<FD_t, SID_t>::const_iterator it_m = m_olinkers.begin(); it_m != m_olinkers.end(); it_m++) {
+            if (it_m->second == sid) {
+                EEHERRO(logger, HAND, "linker type(%d) exist!", sid);
                 return nullptr;
             }
         }
@@ -737,7 +773,7 @@ namespace EEHNS
         tc->ev.events = op;
         tc->ev.data.ptr = tc;
         
-        tc->linker_type = linker_type;
+        tc->linker_type = sid;
 
         m_olinkers[tc->fd] = tc->linker_type;
         
@@ -747,13 +783,13 @@ namespace EEHNS
         return tc;
     }
     
-    std::pair<EClient*, EClient*> EpollEvHandler::EEH_PIPE_create(FD_t rfd, FD_t wfd, LINKER_TYPE linker_type)
+    std::pair<EClient*, EClient*> EpollEvHandler::EEH_PIPE_create(FD_t rfd, FD_t wfd, SID_t sid)
     {
         std::pair<EClient*, EClient*> pipe_pair(nullptr, nullptr);
         
-        for (std::map<FD_t, LINKER_TYPE>::const_iterator it_m = m_ilinkers.begin(); it_m != m_ilinkers.end(); it_m++) {
-            if (it_m->second == linker_type) {
-                EEHERRO(logger, HAND, "linker type(%d) exist!", linker_type);
+        for (std::map<FD_t, SID_t>::const_iterator it_m = m_ilinkers.begin(); it_m != m_ilinkers.end(); it_m++) {
+            if (it_m->second == sid) {
+                EEHERRO(logger, HAND, "linker type(%d) exist!", sid);
                 return pipe_pair;
             }
         }
@@ -780,7 +816,7 @@ namespace EEHNS
         rpc->ev.events = op;
         rpc->ev.data.ptr = rpc;
         
-        rpc->linker_type = linker_type;
+        rpc->linker_type = sid;
         
         EEHINFO(logger, HAND, "eclient(%p, id=%d, fd=%d) as PIPE read client created.", rpc, rpc->id, rpc->fd);
         
@@ -791,12 +827,12 @@ namespace EEHNS
         wpc->ev.events = op;
         wpc->ev.data.ptr = wpc;
         
-        wpc->linker_type = linker_type;
+        wpc->linker_type = sid;
         
-        m_heartbeats[linker_type] = now_time();
+        m_heartbeats[sid] = now_time();
         
         m_ilinkers[wpc->fd] = wpc->linker_type;
-        m_pipe_pairs[linker_type] = std::make_pair(rpc->fd, wpc->fd);
+        m_pipe_pairs[sid] = std::make_pair(rpc->fd, wpc->fd);
         
         EEHINFO(logger, HAND, "eclient(%p, id=%d, fd=%d) as PIPE write client created.", wpc, wpc->id, wpc->fd);
         

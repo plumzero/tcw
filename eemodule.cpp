@@ -50,7 +50,7 @@ void signal_release(int signum)
     }
 }
 
-void rebuild_child_process_service(int rfd, int wfd, EEHNS::LINKER_TYPE linker_type)
+void rebuild_child_process_service(int rfd, int wfd, EEHNS::SID_t linker_type)
 {   
     ECHO(INFO, "child process(pid=%d) would run service(%s)", 
                         getpid(), "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG");
@@ -183,13 +183,13 @@ ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
     BIC_MESSAGE bicmh(&bich, nullptr);
     bicmh.ExtractHeader(bicmsg.c_str());
 
-	// 删除
-    if (from_outward) {
-        if (bich.origin != LINKER_TYPE_POLICY) {
-            EEHERRO(eeh->logger, TRAN, "danger! illegal policy!");
-            return -1;
-        }
-    }
+    // 删除
+    // if (from_outward) {
+        // if (bich.origin != LINKER_TYPE_POLICY) {
+            // EEHERRO(eeh->logger, TRAN, "danger! illegal policy!");
+            // return -1;
+        // }
+    // }
 
     BIC_BASE *bicp = nullptr;
     if (bich.type == BIC_TYPE_GUARDRAGON) {
@@ -242,14 +242,14 @@ ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
 
     int tofd = 0;
     if (from_outward) {
-        std::map<EEHNS::FD_t, EEHNS::LINKER_TYPE>::const_iterator it_m;
+        std::map<EEHNS::FD_t, EEHNS::SID_t>::const_iterator it_m;
         for (it_m = eeh->m_ilinkers.begin(); it_m != eeh->m_ilinkers.end(); it_m++) {
             if (it_m->second == bich.orient) {
                 tofd = it_m->first;
             }
         }
     } else {
-        std::map<EEHNS::FD_t, EEHNS::LINKER_TYPE>::const_iterator it_m;
+        std::map<EEHNS::FD_t, EEHNS::SID_t>::const_iterator it_m;
         for (it_m = eeh->m_olinkers.begin(); it_m != eeh->m_olinkers.end(); it_m++) {
             if (it_m->second == bich.orient) {
                 tofd = it_m->first;
@@ -289,7 +289,7 @@ ssize_t transfer_write_callback(int fd, const void *buf, size_t count, void *use
         return -1;
     }
     
-    EEHNS::LINKER_TYPE linker_type;
+    EEHNS::SID_t linker_type;
     if (eeh->m_ilinkers.find(fd) != eeh->m_ilinkers.end()) {
         linker_type = eeh->m_ilinkers[fd];
     } else if (eeh->m_olinkers.find(fd) != eeh->m_olinkers.end()) {
@@ -329,7 +329,7 @@ int transfer_timer_callback(void *args, void *userp)
         return -1;
     }
     
-    std::map<EEHNS::LINKER_TYPE, uint64_t>::iterator it_m;
+    std::map<EEHNS::SID_t, uint64_t>::iterator it_m;
     for (it_m = eeh->m_heartbeats.begin(); it_m != eeh->m_heartbeats.end(); it_m++) {
         if (now_time() - it_m->second > 4 * 1000) {
             if (eeh->m_info_process[getpid()] != eeh->m_linkers_map[SERVER_TYPE_TRANSFER].first) {
@@ -337,7 +337,7 @@ int transfer_timer_callback(void *args, void *userp)
             }
             
             bool logical_error = false;
-            std::map<EEHNS::FD_t, EEHNS::LINKER_TYPE>::iterator iter_m;
+            std::map<EEHNS::FD_t, EEHNS::SID_t>::iterator iter_m;
             for (iter_m = eeh->m_ilinkers.begin(); iter_m != eeh->m_ilinkers.end(); iter_m++) {
                 if (iter_m->second == it_m->first) {
                     logical_error = true;
@@ -373,7 +373,7 @@ int transfer_timer_callback(void *args, void *userp)
                     return -1;
                 } else if (pid == 0) {
                     ECHO(INFO, "create a new process pid=%d(ppid=%d)", getpid(), getppid());
-                    EEHNS::LINKER_TYPE linker_type = it_m->first;
+                    EEHNS::SID_t linker_type = it_m->first;
                     
                     signal(SIGINT, signal_release);
                     sleep(1);
@@ -678,7 +678,7 @@ ssize_t madolche_write_callback(int fd, const void *buf, size_t count, void *use
         return -1;
     }
     
-    EEHNS::LINKER_TYPE linker_type;
+    EEHNS::SID_t linker_type;
     if (eeh->m_ilinkers.find(fd) != eeh->m_ilinkers.end()) {
         linker_type = eeh->m_ilinkers[fd];
     } else {
@@ -932,7 +932,7 @@ ssize_t gimmickpuppet_write_callback(int fd, const void *buf, size_t count, void
         return -1;
     }
     
-    EEHNS::LINKER_TYPE linker_type;
+    EEHNS::SID_t linker_type;
     if (eeh->m_ilinkers.find(fd) != eeh->m_ilinkers.end()) {
         linker_type = eeh->m_ilinkers[fd];
     } else {
@@ -1118,7 +1118,7 @@ ssize_t policy_write_callback(int fd, const void *buf, size_t count, void *userp
         return -1;
     }
     
-    EEHNS::LINKER_TYPE linker_type;
+    EEHNS::SID_t linker_type;
     if (eeh->m_olinkers.find(fd) != eeh->m_olinkers.end()) {
         linker_type = eeh->m_olinkers[fd];
     } else {
@@ -1144,7 +1144,7 @@ ssize_t policy_write_callback(int fd, const void *buf, size_t count, void *userp
     return 0;
 }
 
-void serialize_policy_callback_BIC_SUMMON(EEHNS::LINKER_TYPE linker_type, void *userp)
+void serialize_policy_callback_BIC_SUMMON(EEHNS::SID_t linker_type, void *userp)
 {
     std::string *bicmsg = dynamic_cast<std::string *>((std::string *)userp);
     
@@ -1169,7 +1169,7 @@ void serialize_policy_callback_BIC_SUMMON(EEHNS::LINKER_TYPE linker_type, void *
     bicm.Serialize(bicmsg); 
 }
 
-void serialize_policy_callback_BIC_BITRON(EEHNS::LINKER_TYPE linker_type, void *userp)
+void serialize_policy_callback_BIC_BITRON(EEHNS::SID_t linker_type, void *userp)
 {
     std::string *bicmsg = dynamic_cast<std::string *>((std::string *)userp);
     
@@ -1197,7 +1197,7 @@ void serialize_policy_callback_BIC_BITRON(EEHNS::LINKER_TYPE linker_type, void *
     bicm.Serialize(bicmsg);
 }
 
-void serialize_policy_callback_BIC_BLOCKRON(EEHNS::LINKER_TYPE linker_type, void *userp)
+void serialize_policy_callback_BIC_BLOCKRON(EEHNS::SID_t linker_type, void *userp)
 {
     ee_event_block_t *binfo = dynamic_cast<ee_event_block_t*>((ee_event_block_t*)userp);
     
@@ -1247,7 +1247,7 @@ void serialize_policy_callback_BIC_BLOCKRON(EEHNS::LINKER_TYPE linker_type, void
     }
 }
 
-void serialize_policy_callback_BIC_BOMB(EEHNS::LINKER_TYPE linker_type, void *userp)
+void serialize_policy_callback_BIC_BOMB(EEHNS::SID_t linker_type, void *userp)
 {
     std::string *bicmsg = dynamic_cast<std::string *>((std::string *)userp);
     
@@ -1263,7 +1263,7 @@ void serialize_policy_callback_BIC_BOMB(EEHNS::LINKER_TYPE linker_type, void *us
     bicm.Serialize(bicmsg);
 }
 
-void serialize_bicmsg_policy(serialize_cb *cb, EEHNS::LINKER_TYPE linker_type, void *userp)
+void serialize_bicmsg_policy(serialize_cb *cb, EEHNS::SID_t linker_type, void *userp)
 {
     return cb(linker_type, userp);
 }
@@ -1293,13 +1293,16 @@ int policy_timer_callback(void *args, void *userp)
         std::string tobicmsg;
                 
         static BICTYPE type = BIC_TYPE_P2S_SUMMON; // BIC_TYPE_NONE;
-        static EEHNS::LINKER_TYPE linker_type = LINKER_TYPE_GIMMICKPUPPET; // LINKER_TYPE_MADOLCHE;
+        static EEHNS::SID_t linker_type = LINKER_TYPE_GIMMICKPUPPET; // LINKER_TYPE_MADOLCHE;
         if (use) {
             type = BIC_TYPE_P2S_BLOCKRON;
         }
 
         if (type == BIC_TYPE_P2S_BITRON) {          /** 比特传输 */
             linker_type = LINKER_TYPE_MADOLCHE;
+            
+            
+            
             serialize_bicmsg_policy(serialize_policy_callback_BIC_BITRON, linker_type, &tobicmsg);
         } else if (type == BIC_TYPE_P2S_BLOCKRON) { /** 大文件传输 */
             linker_type = LINKER_TYPE_MADOLCHE;
@@ -1316,9 +1319,39 @@ int policy_timer_callback(void *args, void *userp)
             type = BIC_TYPE_P2S_SUMMON;
         } else if (type == BIC_TYPE_P2S_SUMMON) { /** 消息环回 */
             srand(time(nullptr));
-            linker_type = rand() % 2 ? LINKER_TYPE_MADOLCHE : LINKER_TYPE_GIMMICKPUPPET;
-            // linker_type = LINKER_TYPE_MADOLCHE;
-            serialize_bicmsg_policy(serialize_policy_callback_BIC_SUMMON, linker_type, &tobicmsg);
+
+            decltype(eeh->m_services_id.begin()) iterFind;
+            if (rand() % 2) {
+                iterFind = std::find_if(eeh->m_services_id.begin(), eeh->m_services_id.end(),
+                        [](const decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "MADOLCHE"; });
+                if (iterFind == m_services_id.end()) {
+                    EEHERRO(eeh->logger, POLI, "could not find service id");
+                    return -1;
+                }
+                BIC_HEADER bich(eeh->m_id, iterFind->sid, BIC_TYPE_P2S_SUMMON);
+                BIC_SUMMON bicp;
+                bicp.info = "召唤信息";
+                bicp.sno = "ABYR-JP048";
+                bicp.code = 37164373;
+                
+                BIC_MESSAGE bicm(&bich, &bicp);
+                bicm.Serialize(&tobicmsg);
+            } else {
+                iterFind = std::find_if(eeh->m_services_id.begin(), eeh->m_services_id.end(),
+                        [](const decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "GIMMICK_PUPPET"; });
+                if (iterFind == m_services_id.end()) {
+                    EEHERRO(eeh->logger, POLI, "could not find service id");
+                    return -1;
+                }
+                BIC_HEADER bich(eeh->m_id, iterFind->sid, BIC_TYPE_P2S_SUMMON);
+                BIC_SUMMON bicp;
+                bicp.info = "召唤信息";
+                bicp.sno = "PP16-JP010";
+                bicp.code = 33776843;
+                
+                BIC_MESSAGE bicm(&bich, &bicp);
+                bicm.Serialize(&tobicmsg);
+            }
         } else {
             return -1;
         }

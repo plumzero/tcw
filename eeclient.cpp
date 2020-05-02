@@ -16,7 +16,7 @@ namespace EEHNS
         memset(&ev, 0, sizeof(ev));
         host.clear();
         port = 0;
-        linker_type = LINKER_TYPE_NONE;
+        linker_type = 0;
         is_server = false;
         clients_do = null_callback_module;
         
