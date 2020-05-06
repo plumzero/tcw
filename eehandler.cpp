@@ -26,7 +26,7 @@ namespace EEHNS
     
     EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& service)
     {
-		std::string specified_service{service};
+        std::string specified_service{service};
         /** [1] signal handler */
         sigset_t set;
         sigemptyset(&set);
@@ -43,6 +43,10 @@ namespace EEHNS
         }
         signal(SIGINT, signal_release);
         
+        /** [1.1] do some clear */
+        m_listeners.clear();
+        m_clients.clear();
+
         /** [2] check conf and service's setting */
         // read conf
         std::ifstream ifs(conf.c_str(), std::ifstream::in | std::ifstream::binary);
@@ -137,7 +141,7 @@ namespace EEHNS
             return EEH_ERROR;
         }
         // find specified service whether exist or not(specified_service="" means as daemon)
-        bool daemon_flag{false};
+        m_daemon_flag = false;
         if (specified_service.empty()) {
             iterFind = std::find_if(m_ini.begin(), m_ini.end(), [this](const decltype(*m_ini.begin())& ele) {
                 std::string key, as, section = ele.first;
@@ -155,7 +159,7 @@ namespace EEHNS
                 return EEH_ERROR;
             }
             specified_service = iterFind->first;
-            daemon_flag = true;
+            m_daemon_flag = true;
             ECHO(INFO, "daemon service name is %s", specified_service.c_str());
         } else {
             iterFind = std::find_if(m_ini.begin(), m_ini.end(), 
@@ -245,7 +249,7 @@ namespace EEHNS
                 hash_id_error = false;
             } while (hash_id_error);
             
-            EEHDBUG(logger, HAND, "option %s's hash id is: %lu", iterIni->first.c_str(), hash_id);
+            EEHDBUG(logger, HAND, "section %s's hash id is: %lu", iterIni->first.c_str(), hash_id);
 
             m_services_id[hash_id] = iterIni->first;
             if (iterIni->first == specified_service) {
@@ -263,15 +267,17 @@ namespace EEHNS
         }
         
         /** [6] deal with service options */
-        if (daemon_flag) {
+        if (m_daemon_flag) {
             for (iterIni = m_ini.begin(); iterIni != m_ini.end(); iterIni++) {
                 if (iterIni->first.empty()) {
                     continue;
                 }
                 
                 std::string section, key, as, addr;
+                bool on;
                 section = iterIni->first;
-                EEHINFO(logger, HAND, "process with %s", section.c_str());
+
+                EEHINFO(logger, HAND, "deal with section %s", section.c_str());
                 
                 for (const auto & kv : iterIni->second) {
                     key.clear();
@@ -279,7 +285,14 @@ namespace EEHNS
                                    [&section](char c) { return tolower((int)c); });
                     if (key == "as") as = m_ini[section][key] | "";
                     if (key == "listen" || key == "connect") addr = m_ini[section][key] | "";
+                    if (key == "on") on = m_ini[section][key] | false;
                 }
+                EEHDBUG(logger, HAND, "%s's info(as=%s, addr=%s, on=%d)", section.c_str(), as.c_str(), addr.c_str(), on);
+
+                if (! on) {
+                    continue;
+                }
+                
                 std::transform(as.begin(), as.end(), as.begin(), [](char c) { return tolower((int)c); });
                 
                 std::string host;
@@ -292,9 +305,6 @@ namespace EEHNS
                     }
                     host = std::string(addr.begin(), addr.begin() + pos);
                     port = std::atoi(std::string(addr.begin() + pos + 1, addr.end()).c_str());
-                    EEHINFO(logger, HAND, "%s as %s would %s %s:%d", section.c_str(), as.c_str(),
-                                                               as == "server" ? "listen on" : "connect to",
-                                                               host.c_str(), port);
                 }
 
                 auto iterId = std::find_if(m_services_id.begin(), m_services_id.end(),
@@ -305,7 +315,9 @@ namespace EEHNS
                 }
                 EEHDBUG(logger, HAND, "%s's id is %lu", section.c_str(), iterId->first);
                 
-                if (as == "server") {
+                if (as == "daemon") {
+                    // do nothing
+                } else if (as == "server") {
                     EClient* ec_listen = EEH_TCP_listen(host, port, iterId->first, m_linkers_actions[section]);
                     if (! ec_listen) {
                         EEHERRO(logger, HAND, "EEH_TCP_listen failed");
@@ -315,7 +327,9 @@ namespace EEHNS
                         EEHERRO(logger, HAND, "EEH_add failed");
                         return EEH_ERROR;
                     }
-                } else if (as == "client") {					
+                    EEHDBUG(logger, HAND, "%s as a %s listened on %s:%d",
+                                            section.c_str(), as.c_str(), host.c_str(), port);
+                } else if (as == "client") {                    
                     EClient* ec_client = EEH_TCP_connect(host, port, iterId->first);
                     if (! ec_client) {
                         EEHERRO(logger, HAND, "EEH_TCP_connect failed");
@@ -325,9 +339,12 @@ namespace EEHNS
                         EEHERRO(logger, HAND, "EEH_add failed");
                         return EEH_ERROR;
                     }
-					dynamic_cast<BaseClient*>(ec_client)->set_actions(m_linkers_actions[section]);
+                    dynamic_cast<BaseClient*>(ec_client)->set_actions(m_linkers_actions[section]);
+                    EEHDBUG(logger, HAND, "%s as a %s connected to %s:%d",
+                                            section.c_str(), as.c_str(), host.c_str(), port);
                 } else if (as == "child") {
                     m_heartbeats[iterId->first] = now_time();
+                    EEHDBUG(logger, HAND, "%s would as a %s created by daemon", section.c_str(), as.c_str());
                 }
             }           
         } else {
@@ -341,15 +358,12 @@ namespace EEHNS
             m_heartbeats[iterId->first] = now_time();
         }
 
-        /** [7] do other init */
-        m_listeners.clear();
-        m_clients.clear();
-        
+        /** [7] do other init */        
         m_info_process[getpid()] = specified_service;
         m_is_running = false;
         m_conf_name = conf;
         
-        EEHINFO(logger, HAND, "eehandler created.");
+        EEHINFO(logger, HAND, "eeh initialize success.");
         
         return EEH_OK;
     }
@@ -362,6 +376,7 @@ namespace EEHNS
         m_listeners.clear();
         m_ilinkers.clear();
         m_olinkers.clear();
+        m_pipe_pairs.clear();           /** new add */
 
         std::map<FD_t, EClient*>::iterator iter_m;
         for (iter_m = m_clients.begin(); iter_m != m_clients.end(); iter_m++) {
@@ -376,11 +391,14 @@ namespace EEHNS
         m_clients.clear();
                 
         m_is_running = false;
+        
+        m_linker_queues.clear();        /** new add */
+        m_heartbeats.clear();           /** new add */
         m_info_process.clear();
         
         if (m_epi > 0)
             close(m_epi);
-        
+
         EEHINFO(logger, HAND, "eehandler destroyed.");
         
         delete logger;
@@ -892,6 +910,135 @@ namespace EEHNS
             }
         }
     }
+    void EpollEvHandler::EEH_rebuild_child(int rfd, int wfd, 
+                                           const std::string& conf, const std::string& specified_service)
+    {
+        ECHO(INFO, "child process(pid=%d) would run service(%s)",  getpid(), specified_service.c_str());
+        
+        EEHNS::EpollEvHandler eeh;
+        EEHNS::EEHErrCode rescode;
+        
+        eeh.EEH_init(conf, specified_service);
+        
+        auto iterFind = std::find_if(eeh.m_services_id.begin(), eeh.m_services_id.end(),
+                        [&specified_service](const decltype(*eeh.m_services_id.begin())& ele) {
+            return ele.second == specified_service;
+        });
+        if (iterFind == eeh.m_services_id.end()) {
+            ECHO(ERRO, "could not find %s's id", specified_service.c_str());
+            return ;
+        }
+        
+        EEHNS::SID_t linker_type = iterFind->first;
+        ECHO(INFO, "%s's id is %lu", specified_service.c_str(), linker_type);
+
+        std::pair<EEHNS::EClient*, EEHNS::EClient*> ec_pipe_pair = eeh.EEH_PIPE_create(rfd, wfd, linker_type);
+        if (! ec_pipe_pair.first) {
+            ECHO(ERRO, "EEH_PIPE_create failed");
+            return ;
+        }
+        if (! ec_pipe_pair.second) {
+            ECHO(ERRO, "EEH_PIPE_create failed");
+            return ;
+        }
+
+        dynamic_cast<EEHNS::BaseClient*>(ec_pipe_pair.first)->set_actions(eeh.m_linkers_actions[specified_service]);
+        dynamic_cast<EEHNS::BaseClient*>(ec_pipe_pair.second)->set_actions(eeh.m_linkers_actions[specified_service]);
+        
+        rescode = eeh.EEH_add(ec_pipe_pair.first);
+        if (rescode != EEHNS::EEH_OK) {
+            ECHO(ERRO, "EEH_add failed");
+            return ;
+        }
+        rescode = eeh.EEH_add(ec_pipe_pair.second);
+        if (rescode != EEHNS::EEH_OK) {
+            ECHO(ERRO, "EEH_add failed");
+            return ;
+        }
+        
+        eeh.m_info_process[getpid()] = specified_service;
+        
+        eeh.EEH_run();
+        eeh.EEH_destroy();
+    }
+    EEHErrCode EpollEvHandler::EEH_guard_child()
+    {
+        decltype(m_heartbeats.begin()) iter;
+        for (iter = m_heartbeats.begin(); iter != m_heartbeats.end(); iter++) {
+            if (now_time() - iter->second < 4 * 1000) {
+                return EEH_OK;
+            }
+            
+            EEHDBUG(logger, HAND, "============================ 重新拉起进程 ======================= pid");
+            int fd_prcw[2];     /** parent read and child write */
+            int fd_pwcr[2];     /** parent write and child read */
+            pid_t pid;
+            
+            if (pipe(fd_prcw) < 0) {
+                EEHERRO(logger, TRAN, "pipe: %s", strerror(errno));
+                return EEH_ERROR;
+            }
+            if (pipe(fd_pwcr) < 0) {
+                EEHERRO(logger, TRAN, "pipe: %s", strerror(errno));
+                if (fd_prcw[0] > 0) close(fd_prcw[0]);
+                if (fd_prcw[1] > 0) close(fd_prcw[1]);
+                return EEH_ERROR;
+            }
+            
+            pid = fork();
+            if (pid < 0) {
+                if (fd_prcw[0] > 0) close(fd_prcw[0]);
+                if (fd_prcw[1] > 0) close(fd_prcw[1]);
+                if (fd_pwcr[0] > 0) close(fd_pwcr[0]);
+                if (fd_pwcr[1] > 0) close(fd_pwcr[1]);
+                EEHERRO(logger, TRAN, "fork: %s", strerror(errno));
+                return EEH_ERROR;
+            } else if (pid == 0) {
+                DBUG("create a new process pid=%d(ppid=%d), now would free the old stack", getpid(), getppid());
+                std::string conf_name = m_conf_name;
+                std::string specified_service = m_services_id[iter->first];
+                
+                signal(SIGINT, signal_release);
+                sleep(1);
+                
+                close(fd_prcw[0]);
+                close(fd_pwcr[1]);
+                
+                ECHO(INFO, "would create a new process pid=%d(ppid=%d) for service %s",
+                            getpid(), getppid(), specified_service.c_str());
+                EEH_rebuild_child(fd_pwcr[0], fd_prcw[1], conf_name, specified_service);
+                exit(0);
+            } else if (pid > 0) {
+                close(fd_prcw[1]);
+                close(fd_pwcr[0]);
+                std::pair<EClient*, EClient*> ec_pipe_pair = 
+                                            EEH_PIPE_create(fd_prcw[0], fd_pwcr[1], iter->first);
+                if (! ec_pipe_pair.first) {
+                    EEHERRO(logger, TRAN, "EEH_PIPE_create failed");
+                    return EEH_ERROR;
+                }
+                if (! ec_pipe_pair.second) {
+                    EEHERRO(logger, TRAN, "EEH_PIPE_create failed");
+                    return EEH_ERROR;
+                }
+                dynamic_cast<BaseClient*>(ec_pipe_pair.first)->set_actions(transfer_callback_module);
+                dynamic_cast<BaseClient*>(ec_pipe_pair.second)->set_actions(transfer_callback_module);
+                EEHErrCode rescode;
+                rescode = EEH_add(ec_pipe_pair.first);
+                if (rescode != EEH_OK) {
+                    EEHERRO(logger, TRAN, "EEH_add failed");
+                    return EEH_ERROR;
+                }
+                rescode = EEH_add(ec_pipe_pair.second);
+                if (rescode != EEH_OK) {
+                    EEHERRO(logger, TRAN, "EEH_add failed");
+                    return EEH_ERROR;
+                }
+                m_info_process[pid] = m_services_id[iter->first];
+            }
+        }
+    }
+    
     
     void EpollEvHandler::EEH_run()
     {
@@ -906,6 +1053,7 @@ namespace EEHNS
         while (m_is_running) 
         {
             EEH_clear_zombie();
+            EEH_guard_child();
             
             EEHINFO(logger, HAND, "epi(%d) waiting: %lu cs(%lu ls, %lu ils, %lu ols, %lu pps)", 
                 m_epi, m_clients.size(), m_listeners.size(), m_ilinkers.size(), m_olinkers.size(), m_pipe_pairs.size());

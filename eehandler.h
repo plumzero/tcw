@@ -33,7 +33,8 @@ namespace EEHNS
         std::string                                         m_conf_name;        /** 记录配置名称 */
         /** 一个服务可能对应多个 SID, 所以这样映射 */
         std::unordered_map<SID_t, std::string>              m_services_id;      /** 服务 id, 服务名称 */
-        SID_t                                               m_id;
+        SID_t                                               m_id;               /** 当前服务 id */
+        bool                                                m_daemon_flag;      /** 当前服务是否为守护进程 */
         /** m_clients = m_listeners 及其 clients 成员 + m_ilinkers + m_olinkers */
         std::map<FD_t, EClient*>                            m_clients;
         /** 接收或发送映射连接 */
@@ -58,6 +59,8 @@ namespace EEHNS
         EEHErrCode EEH_del(EClient *ec);
         void EEH_run();
         void EEH_clear_zombie();
+        EEHErrCode EEH_guard_child();
+        static void EEH_rebuild_child(int rfd, int wfd, const std::string& conf, const std::string& specified_service);
         
         // TCP handler
         EClient* EEH_TCP_listen(std::string bind_ip, PORT_t service_port, SID_t sid, ee_event_actions_t clients_action);
