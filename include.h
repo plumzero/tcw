@@ -35,8 +35,6 @@
 #include <functional>
 #include <algorithm>
 
-#include "config.h"
-
 /** heading direction of bic message or as a ec service type */
 #define  HASH_ID_RESERVE_ZONE   10000000L
 #define  ROVER_ID               0x01
