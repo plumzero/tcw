@@ -39,6 +39,7 @@
 
 /** heading direction of bic message or as a ec service type */
 #define  HASH_ID_RESERVE_ZONE   10000000L
+#define  ROVER_ID               0x01
 
 typedef struct __attribute__ ((__packed__)) {
     uint8_t     ver[2];             /** 0-major 1-revised */
@@ -53,10 +54,7 @@ namespace EEHNS
     typedef int ID_t;
     typedef int PORT_t;
     typedef int OPTION_t;
-    typedef uint64_t SID_t;
-	
-    typedef uint64_t  _linker_or_server_type;
-    typedef _linker_or_server_type  LINKER_TYPE;
+    typedef uint64_t SID_t;	
 };
 
 namespace

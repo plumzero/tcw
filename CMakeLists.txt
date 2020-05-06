@@ -9,14 +9,6 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
-if (NOT EEH_CONF_FULL_PATH)
-    set(EEH_CONF_FULL_PATH "eeh.ini")
-endif()
-
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/config.h.in
-    ${CMAKE_CURRENT_BINARY_DIR}/config.h
-)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 if (CMAKE_BUILD_TYPE MATCHES "Debug")

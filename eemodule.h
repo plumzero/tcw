@@ -33,8 +33,6 @@ extern ee_event_actions_t madolche_callback_module;
 extern ee_event_actions_t gimmickpuppet_callback_module;
 extern ee_event_actions_t policy_callback_module;
 
-typedef void(serialize_cb)(EEHNS::LINKER_TYPE linker_type, void *user_data);
-
 void signal_release(int signum);
 
 #endif // ! __Epoll_Ev_MODULE_H__

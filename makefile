@@ -1,6 +1,6 @@
 
 
-SRCS        = bic.cpp eehandler.cpp eemodule.cpp eeclient.cpp eehelper.cpp eelog.cpp
+SRCS        = bic.cpp eehandler.cpp eemodule.cpp eeclient.cpp eehelper.cpp eelog.cpp sha1.cpp
 OBJS        = $(SRCS:.cpp=.o)
 LIB         = libeeh.a
 CXXFLAGS    += -g -O0 -Wall -W -std=c++11 -lpthread
@@ -14,6 +14,7 @@ all:
 	$(CXX) $(CXXFLAGS) -c -o eeclient.o eeclient.cpp
 	$(CXX) $(CXXFLAGS) -c -o eehelper.o eehelper.cpp
 	$(CXX) $(CXXFLAGS) -c -o eelog.o eelog.cpp
+	$(CXX) $(CXXFLAGS) -c -o sha1.o sha1.cpp
 	$(AR) cr $(LIB) $(OBJS)
 	$(MAKE) -C test
 

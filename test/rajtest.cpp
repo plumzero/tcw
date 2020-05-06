@@ -239,6 +239,9 @@ static void traverse_map_K_map_T_V(std::map<K, std::map<T, V> >& data)
     std::cout << " }" << std::endl;
 }
 
+#define LINKER_TYPE_POLICY      0x1234
+#define LINKER_TYPE_MADOLCHE    0x5678
+
 int main()
 {
     /******************** 开始测试 ********************/

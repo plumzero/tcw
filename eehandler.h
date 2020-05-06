@@ -27,9 +27,11 @@ namespace EEHNS
     private:
         int                                                 m_epi;
         std::map<FD_t, SID_t>                               m_listeners;
-        static std::map<std::string, ee_event_actions_t>    m_linkers_actions;  /** 服务名称, 执行动作 */
     public:
+        static std::map<std::string, ee_event_actions_t>    m_linkers_actions;  /** 服务名称, 执行动作 */
         static bool                                         m_is_running;
+        std::string                                         m_conf_name;        /** 记录配置名称 */
+        /** 一个服务可能对应多个 SID, 所以这样映射 */
         std::unordered_map<SID_t, std::string>              m_services_id;      /** 服务 id, 服务名称 */
         SID_t                                               m_id;
         /** m_clients = m_listeners 及其 clients 成员 + m_ilinkers + m_olinkers */
@@ -40,16 +42,16 @@ namespace EEHNS
         std::map<SID_t, std::pair<FD_t, FD_t>>              m_pipe_pairs;       /** 管道符对 */
         /** 记录 m_ilinkers 和 m_olinkers 的写入队列 */
         std::map<SID_t, std::queue<std::string>>            m_linker_queues;
-        std::map<SID_t, uint64_t>     m_heartbeats;
-        std::map<SID_t, std::pair<std::string, ee_event_actions_t>> m_linkers_map;
-        std::map<pid_t, std::string>        m_info_process;                     /** 进程信息 */
+        std::map<SID_t, uint64_t>                           m_heartbeats;
+        // std::map<SID_t, std::pair<std::string, ee_event_actions_t>> m_linkers_map;
+        std::map<pid_t, std::string>        m_info_process; /** 进程ID, 服务名称(用于处理子进程服务死掉) */
         Logger*                             logger;
         tortellini::ini                     m_ini;
 
         ee_event_block_t                    m_info_block;       /** 测试用 */
     public:
-        static EEHErrCode EEH_set_services(const std::string& service, const& ee_event_actions_t actions);
-        EEHErrCode EEH_init(const std::string& conf);
+        static EEHErrCode EEH_set_services(const std::string& service, const ee_event_actions_t& actions);
+        EEHErrCode EEH_init(const std::string& conf, const std::string& service = "");
         void EEH_destroy();
         EEHErrCode EEH_add(EClient *ec);
         EEHErrCode EEH_mod(EClient *ec, OPTION_t op);

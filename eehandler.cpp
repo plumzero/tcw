@@ -17,16 +17,16 @@ namespace EEHNS
     
     bool EpollEvHandler::m_is_running = false;
     
-    EEHErrCode EpollEvHandler::EEH_set_services(const std::string& service, const ee_event_actions_t actions)
+    EEHErrCode EpollEvHandler::EEH_set_services(const std::string& service, const ee_event_actions_t& actions)
     {
         m_linkers_actions[service] = actions;
 
         return EEH_OK;
     }
     
-    EEHErrCode EpollEvHandler::EEH_init(std::string conf)
-    // EEHErrCode EpollEvHandler::EEH_init(const std::string& service)
+    EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& service)
     {
+		std::string specified_service{service};
         /** [1] signal handler */
         sigset_t set;
         sigemptyset(&set);
@@ -53,7 +53,7 @@ namespace EEHNS
         ifs >> m_ini;
         ifs.close();
         // check daemon count
-        size_t count = std::count_if(m_ini.begin(), m_ini.end(), [&m_ini](const decltype(*m_ini.begin())& ele) {
+        size_t count = std::count_if(m_ini.begin(), m_ini.end(), [this](const decltype(*m_ini.begin())& ele) {
             std::string key, as, section = ele.first;
             bool on;
             for (const auto & kv : ele.second) {
@@ -67,11 +67,11 @@ namespace EEHNS
             return as == "daemon" && on == true;
         });
         if (count != 1) {
-            ECHO(ERRO, "daemon's count(=%d) is not 1", daemon_count);
+            ECHO(ERRO, "daemon's count(=%lu) is not 1", count);
             return EEH_ERROR;
         }
-        // check 'as' option whether illegal or not
-        auto iterFind = std::find_if(m_ini.begin(), m_ini.end(), [&m_ini](const decltype(*m_ini.begin())& ele) {
+        // check 'as' option whether illegal or not if have
+        auto iterFind = std::find_if(m_ini.begin(), m_ini.end(), [this](const decltype(*m_ini.begin())& ele) {
             std::string key, as, section = ele.first;
             for (const auto & kv : ele.second) {
                 key.clear();
@@ -83,12 +83,11 @@ namespace EEHNS
             return ! section.empty() && as != "daemon" && as != "child" && as != "server" && as != "client";
         });
         if (iterFind != m_ini.end()) {
-            std::cout << iterFind->first << " not match" << std::endl;
             ECHO(ERRO, "%s's 'as' key illegal", iterFind->first.c_str());
             return EEH_ERROR;
         }
-        // if service is as a server, check 'listen' key whether non or not
-        iterFind = std::find_if(m_ini.begin(), m_ini.end(), [&m_ini](const decltype(*m_ini.begin())& ele) {
+        // check 'listen' key whether non or not if have
+        iterFind = std::find_if(m_ini.begin(), m_ini.end(), [this](const decltype(*m_ini.begin())& ele) {
             std::string key, as, listen, section = ele.first;
             for (const auto & kv : ele.second) {
                 key.clear();
@@ -104,8 +103,8 @@ namespace EEHNS
             ECHO(ERRO, "%s's 'listen' key is non", iterFind->first.c_str());
             return EEH_ERROR;
         }        
-        // if service is as a client, check 'connect' key whether non or not
-        iterFind = std::find_if(m_ini.begin(), m_ini.end(), [&m_ini](const decltype(*m_ini.begin())& ele) {
+        // check 'connect' key whether non or not if have
+        iterFind = std::find_if(m_ini.begin(), m_ini.end(), [this](const decltype(*m_ini.begin())& ele) {
             std::string key, as, connect, section = ele.first;
             for (const auto & kv : ele.second) {
                 key.clear();
@@ -122,7 +121,7 @@ namespace EEHNS
             return EEH_ERROR;
         }
         // check each service(daemon not include) which on=yes whether has its corresponding actions
-        iterFind = std::find_if(m_ini.begin(), m_ini.end(), [&m_ini](const decltype(*m_ini.begin())& ele) {
+        iterFind = std::find_if(m_ini.begin(), m_ini.end(), [this](const decltype(*m_ini.begin())& ele) {
             std::string key, as, section = ele.first;
             for (const auto & kv : ele.second) {
                 key.clear();
@@ -137,29 +136,49 @@ namespace EEHNS
             ECHO(ERRO, "%s's actions is not set", iterFind->first.c_str());
             return EEH_ERROR;
         }
-        // find deamon service
-        iterFind = std::find_if(m_ini.begin(), m_ini.end(), [&m_ini](const decltype(*m_ini.begin())& ele) {
-            std::string key, as, section = ele.first;
-            for (const auto & kv : ele.second) {
-                key.clear();
-                std::transform(kv.first.begin(), kv.first.end(), std::back_inserter(key), 
-                               [&section](char c) { return tolower((int)c); });
-                if (key == "as") as = m_ini[section][key] | "";
+        // find specified service whether exist or not(specified_service="" means as daemon)
+        bool daemon_flag{false};
+        if (specified_service.empty()) {
+            iterFind = std::find_if(m_ini.begin(), m_ini.end(), [this](const decltype(*m_ini.begin())& ele) {
+                std::string key, as, section = ele.first;
+                for (const auto & kv : ele.second) {
+                    key.clear();
+                    std::transform(kv.first.begin(), kv.first.end(), std::back_inserter(key), 
+                                   [&section](char c) { return tolower((int)c); });
+                    if (key == "as") as = m_ini[section][key] | "";
+                }
+                std::transform(as.begin(), as.end(), as.begin(), [](char c) { return tolower((int)c); });
+                return ! section.empty() && as == "daemon";
+            });
+            if (iterFind == m_ini.end()) {
+                ECHO(ERRO, "could not found daemon service");
+                return EEH_ERROR;
             }
-            std::transform(as.begin(), as.end(), as.begin(), [](char c) { return tolower((int)c); });
-            return ! section.empty() && as == "daemon";
-        });
-        if (iterFind == m_ini.end()) {
-            ECHO(ERRO, "could not found daemon service");
-            return EEH_ERROR;
+            specified_service = iterFind->first;
+            daemon_flag = true;
+            ECHO(INFO, "daemon service name is %s", specified_service.c_str());
+        } else {
+            iterFind = std::find_if(m_ini.begin(), m_ini.end(), 
+                                    [this, &specified_service](const decltype(*m_ini.begin())& ele) {
+                std::string key, as, section = ele.first;
+                for (const auto & kv : ele.second) {
+                    key.clear();
+                    std::transform(kv.first.begin(), kv.first.end(), std::back_inserter(key), 
+                                   [&section](char c) { return tolower((int)c); });
+                    if (key == "as") as = m_ini[section][key] | "";
+                }
+                std::transform(as.begin(), as.end(), as.begin(), [](char c) { return tolower((int)c); });
+                return ! section.empty() && as == "child" && section == specified_service;
+            });
+            if (iterFind == m_ini.end()) {
+                ECHO(ERRO, "could not found %s service as child", specified_service.c_str());
+                return EEH_ERROR;
+            }
+            ECHO(INFO, "found service %s as child", specified_service.c_str());
         }
-        // found daemon service
-        std::string daemon = iterFind->first;
-        ECHO(INFO, "daemon service name is %s", daemon.c_str());
-
         /** [3] build log */
         try {
-            std::string logname = daemon + ".log";
+            std::string logname = specified_service + ".log";
             logger = new Logger("./", logname.c_str());
             ECHO(INFO, "process(id=%lu) log file(%s) created", (unsigned long)getpid(), logname.c_str());
         } catch (std::exception& e) {
@@ -227,14 +246,14 @@ namespace EEHNS
             } while (hash_id_error);
             
             EEHDBUG(logger, HAND, "option %s's hash id is: %lu", iterIni->first.c_str(), hash_id);
-            
+
             m_services_id[hash_id] = iterIni->first;
-            if (iterIni->first == daemon) {
+            if (iterIni->first == specified_service) {
                 m_id = hash_id;
             }
         }
         
-        EEHINFO(logger, HAND, "daemon %s %s's id is %lu", daemon.c_str(), m_id);
+        EEHINFO(logger, HAND, "%s's id is %lu", specified_service.c_str(), m_id);
         
         /** [5] create epoll instance */
         m_epi = epoll_create(EPOLL_MAX_NUM);
@@ -244,78 +263,91 @@ namespace EEHNS
         }
         
         /** [6] deal with service options */
-        for (iterIni = m_ini.begin(); iterIni != m_ini.end(); iterIni++) {
-            if (iterIni->first.empty()) {
-                continue;
-            }
-            
-            std::string section, key, as, addr;
-            section = iterIni->first;
-            EEHINFO(logger, HAND, "process with %s", section.c_str());
-            
-            for (const auto & kv : iterIni->second) {
-                key.clear();
-                std::transform(kv.first.begin(), kv.first.end(), std::back_inserter(key), 
-                               [&section](char c) { return tolower((int)c); });
-                if (key == "as") as = m_ini[section][key] | "";
-                if (key == "listen" || key == "connect") addr = m_ini[section][key] | "";
-            }
-            std::transform(as.begin(), as.end(), as.begin(), [](char c) { return tolower((int)c); });
-            
-            std::string host;
-            int port;
-            if (as == "server" || as == "client") {
-                size_t pos = addr.find(':');
-                if (pos == std::string::npos) {
-                    EEHERRO(logger, HAND, "%s format error", addr.c_str());
+        if (daemon_flag) {
+            for (iterIni = m_ini.begin(); iterIni != m_ini.end(); iterIni++) {
+                if (iterIni->first.empty()) {
+                    continue;
+                }
+                
+                std::string section, key, as, addr;
+                section = iterIni->first;
+                EEHINFO(logger, HAND, "process with %s", section.c_str());
+                
+                for (const auto & kv : iterIni->second) {
+                    key.clear();
+                    std::transform(kv.first.begin(), kv.first.end(), std::back_inserter(key), 
+                                   [&section](char c) { return tolower((int)c); });
+                    if (key == "as") as = m_ini[section][key] | "";
+                    if (key == "listen" || key == "connect") addr = m_ini[section][key] | "";
+                }
+                std::transform(as.begin(), as.end(), as.begin(), [](char c) { return tolower((int)c); });
+                
+                std::string host;
+                int port;
+                if (as == "server" || as == "client") {
+                    size_t pos = addr.find(':');
+                    if (pos == std::string::npos) {
+                        EEHERRO(logger, HAND, "%s format error", addr.c_str());
+                        return EEH_ERROR;
+                    }
+                    host = std::string(addr.begin(), addr.begin() + pos);
+                    port = std::atoi(std::string(addr.begin() + pos + 1, addr.end()).c_str());
+                    EEHINFO(logger, HAND, "%s as %s would %s %s:%d", section.c_str(), as.c_str(),
+                                                               as == "server" ? "listen on" : "connect to",
+                                                               host.c_str(), port);
+                }
+
+                auto iterId = std::find_if(m_services_id.begin(), m_services_id.end(),
+                                [&section](const decltype(*m_services_id.begin())& ele){ return ele.second == section; });
+                if (iterId == m_services_id.end()) {
+                    EEHERRO(logger, HAND, "could not find %s's id", section.c_str());
                     return EEH_ERROR;
                 }
-                host = std::string(addr.begin(), addr.begin() + pos);
-                port = std::atoi(std::string(addr.begin() + pos + 1, addr.end()).c_str());
-                EEHINFO(logger, HAND, "%s as %s would %s %s:%d", section.c_str(), as.c_str(),
-                                                           as == "server" ? "listen on" : "connect to",
-                                                           host.c_str(), port);
-            }
-
+                EEHDBUG(logger, HAND, "%s's id is %lu", section.c_str(), iterId->first);
+                
+                if (as == "server") {
+                    EClient* ec_listen = EEH_TCP_listen(host, port, iterId->first, m_linkers_actions[section]);
+                    if (! ec_listen) {
+                        EEHERRO(logger, HAND, "EEH_TCP_listen failed");
+                        return EEH_ERROR;
+                    }
+                    if (EEH_add(ec_listen) != EEH_OK) {
+                        EEHERRO(logger, HAND, "EEH_add failed");
+                        return EEH_ERROR;
+                    }
+                } else if (as == "client") {					
+                    EClient* ec_client = EEH_TCP_connect(host, port, iterId->first);
+                    if (! ec_client) {
+                        EEHERRO(logger, HAND, "EEH_TCP_connect failed");
+                        return EEH_ERROR;
+                    }
+                    if (EEH_add(ec_client) != EEH_OK) {
+                        EEHERRO(logger, HAND, "EEH_add failed");
+                        return EEH_ERROR;
+                    }
+					dynamic_cast<BaseClient*>(ec_client)->set_actions(m_linkers_actions[section]);
+                } else if (as == "child") {
+                    m_heartbeats[iterId->first] = now_time();
+                }
+            }           
+        } else {
             auto iterId = std::find_if(m_services_id.begin(), m_services_id.end(),
-                            [&section](const decltype(*m_services_id.begin())& ele){ return ele.second == section; });
+                                        [&specified_service](const decltype(*m_services_id.begin())& ele){
+                                            return ele.second == specified_service; });
             if (iterId == m_services_id.end()) {
-                EEHERRO(logger, HAND, "could not find %s's id", section.c_str());
+                EEHERRO(logger, HAND, "could not find %s's id", specified_service.c_str());
                 return EEH_ERROR;
             }
-            EEHDBUG(logger, HAND, "%s's id is %lu", section.c_str(), iterId->first);
-            
-            if (as == "server") {
-                EClient* ec_listen = EEH_TCP_listen(host, port, iterId->first, m_linkers_actions[section]);
-                if (! ec_listen) {
-                    EEHERRO(logger, HAND, "EEH_TCP_listen failed");
-                    return EEH_ERROR;
-                }
-                if (EEH_add(ec_listen) != EEH_OK) {
-                    EEHERRO(logger, HAND, "EEH_add failed");
-                    return EEH_ERROR;
-                }
-            } else if (as == "client") {
-                EClient* ec_client = EEH_TCP_connect(host, port, iterId->first, m_linkers_actions[section]);
-                if (! ec_client) {
-                    EEHERRO(logger, HAND, "EEH_TCP_connect failed");
-                    return EEH_ERROR;
-                }
-                if (EEH_add(ec_client) != EEH_OK) {
-                    EEHERRO(logger, HAND, "EEH_add failed");
-                    return EEH_ERROR;
-                }
-            } else if (as == "child") {
-                m_heartbeats[iterId->first] = now_time();
-            }
+            m_heartbeats[iterId->first] = now_time();
         }
 
         /** [7] do other init */
         m_listeners.clear();
         m_clients.clear();
         
-        m_info_process[getpid()] = service;
+        m_info_process[getpid()] = specified_service;
         m_is_running = false;
+        m_conf_name = conf;
         
         EEHINFO(logger, HAND, "eehandler created.");
         
@@ -446,7 +478,7 @@ namespace EEHNS
                 for (iter_l = bc->clients.begin(); iter_l != bc->clients.end(); iter_l++) {
                     BaseClient *bcc = dynamic_cast<BaseClient*>(*iter_l);
                     if (bcc) {
-                        bcc->linker_type = SERVER_TYPE_ROVER;
+                        bcc->linker_type = ROVER_ID;
                     } else {
                         /** an exception occurs, but do nothing */
                     }
@@ -458,7 +490,7 @@ namespace EEHNS
                     /** an exception occurs, but do nothing */
                 }
             } else {    /** as connect client */
-                if (bc->linker_type != SERVER_TYPE_ROVER) {
+                if (bc->linker_type != ROVER_ID) {
                     FD_t sfd = 0;
                     std::map<FD_t, SID_t>::iterator iter_m;
                     for (iter_m = m_listeners.begin(); iter_m != m_listeners.end(); iter_m++) {

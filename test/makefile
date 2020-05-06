@@ -12,11 +12,11 @@ PTHREAD_SUPPORT = -lpthread
 .PHONY: all
 all:
 	$(CXX) socket_event.cpp $(CXXFLAGS) -o $(SOCKET_EVENT) $(PTHREAD_SUPPORT)
-# $(CXX) socket_server.cpp $(CXXFLAGS) -o $(SOCKET_SERVER) $(PTHREAD_SUPPORT)
-# $(CXX) rajtest.cpp $(CXXFLAGS) -o $(RAJ_TEST)
+	$(CXX) socket_server.cpp $(CXXFLAGS) -o $(SOCKET_SERVER) $(PTHREAD_SUPPORT)
+	$(CXX) rajtest.cpp $(CXXFLAGS) -o $(RAJ_TEST)
 
 .PHONY: clean
 clean:
 	rm -rf $(SOCKET_EVENT)
-# rm -rf $(SOCKET_SERVER)
-# rm -rf $(RAJ_TEST)
+	rm -rf $(SOCKET_SERVER)
+	rm -rf $(RAJ_TEST)

@@ -13,8 +13,8 @@
  *  version 2.0 非模板版本，引用版本，当前版本；
  */
 
-typedef _linker_or_server_type      BICORIGIN;      /** who sended this message */
-typedef _linker_or_server_type      BICORIENT;      /** who would recv this message */
+typedef uint64_t      BICORIGIN;      /** who sended this message */
+typedef uint64_t      BICORIENT;      /** who would recv this message */
 
 /********************************* 基类，消息头类，消息封装类 *********************************/
 
@@ -32,7 +32,7 @@ public:
     BIC_HEADER(BICORIGIN from, BICORIENT to, BICTYPE t)
         : origin(from), orient(to), type(t), birth(time(NULL)) {}
     BIC_HEADER() 
-      : origin(LINKER_TYPE_NONE), orient(LINKER_TYPE_NONE), type(BIC_TYPE_NONE), birth(time(NULL)) {}
+      : origin(0), orient(0), type(BIC_TYPE_NONE), birth(time(NULL)) {}
     virtual ~BIC_HEADER() {}
     virtual void Serialize(std::string *s);
     virtual void Structuralize(const std::string &s);
