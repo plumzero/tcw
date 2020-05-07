@@ -13,6 +13,8 @@
 
 namespace EEHNS
 {   
+    void signal_release(int signum);
+    
     class Logger;
 
     typedef enum {

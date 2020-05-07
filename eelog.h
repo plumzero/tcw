@@ -18,22 +18,16 @@ namespace EEHNS {
 
 /** index of fundmental log type */
 #define LOG_TYPE_GLOB               0
-#define LOG_TYPE_HAND               1
-#define LOG_TYPE_POLI               2
-#define LOG_TYPE_TRAN               3
-#define LOG_TYPE_ROVE               4
-#define LOG_TYPE_SYNC               5
-#define LOG_TYPE_RESO               6
-#define LOG_TYPE_MADO               7
-#define LOG_TYPE_CHRO               8
-#define LOG_TYPE_GIMM               9
-#define LOG_TYPE_SUBS              10
+#define LOG_TYPE_WARD               1
+#define LOG_TYPE_FLOW               2
+#define LOG_TYPE_CHLD               3
+#define LOG_TYPE_SERV               4
+#define LOG_TYPE_TEST               5
 /** index of user's application log type */
-#define LOG_TYPE_USER_MADOLCHE         21
-#define LOG_TYPE_USER_CHRONOMALY       22
-#define LOG_TYPE_USER_GIMMICK_PUPPET   23
+#define LOG_TYPE_USER_MIX          21
+#define LOG_TYPE_USER_XYZ          22
 /** the first index of extend log type */
-#define LOG_TYPE_FIRST_EXT_ID 32
+#define LOG_TYPE_FIRST_EXT_ID      32
 
 /** log level */
 #define LOG_LEVEL_EMER     1U
@@ -90,21 +84,15 @@ private:
 };
 
 static const struct log_type_reg_table reg_table[] = {
-    { LOG_TYPE_GLOB,     "global" },
-    { LOG_TYPE_HAND,     "handler" },
-    { LOG_TYPE_POLI,     "policy module" },
-    { LOG_TYPE_TRAN,     "transfer module" },
-    { LOG_TYPE_ROVE,     "rover module" },
-    { LOG_TYPE_SYNC,     "synchron module" },
-    { LOG_TYPE_RESO,     "resonator module" },
-    { LOG_TYPE_MADO,     "madolche module" },
-    { LOG_TYPE_CHRO,     "chronomaly module" },
-    { LOG_TYPE_GIMM,     "gimmick puppet module" },
-    { LOG_TYPE_SUBS,     "sub service module" },
-    
-    { LOG_TYPE_USER_MADOLCHE,           "madolche user application" },
-    { LOG_TYPE_USER_CHRONOMALY,         "chronomaly user application" },
-    { LOG_TYPE_USER_GIMMICK_PUPPET,     "gimmick puppet user application" }
+    { LOG_TYPE_GLOB,     "Global" },
+    { LOG_TYPE_WARD,     "Guard"  },
+    { LOG_TYPE_FLOW,     "Flow"   },
+    { LOG_TYPE_CHLD,     "Child"  },
+    { LOG_TYPE_SERV,     "Server" },
+    { LOG_TYPE_TEST,     "Test"   },
+
+    { LOG_TYPE_USER_MIX, "mix user application" },
+    { LOG_TYPE_USER_XYZ, "xyz user application" },
 };
 
 };

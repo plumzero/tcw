@@ -15,93 +15,6 @@
  *   3. 除了服务回调之外，禁止再使用花里胡哨的其他回调；
  */
 
-void signal_exit(int signum)
-{
-    switch (signum)
-    {
-        case SIGALRM:
-            exit(0);
-            // kill(getpid(), SIGKILL); /** violence is not recommended */
-            break;
-        default:
-            break;
-    }
-}
-
-void signal_release(int signum)
-{
-    switch (signum)
-    {
-        case SIGALRM:
-            ECHO(INFO, "pid %d release resources", getpid());
-            EEHNS::EpollEvHandler::m_is_running = false;
-            signal(SIGALRM, signal_exit);
-            alarm(1);
-            break;
-        case SIGTERM:
-            EEHNS::EpollEvHandler::m_is_running = false;
-            signal(SIGALRM, signal_exit);
-            alarm(1);
-            break;
-        case SIGINT:
-            EEHNS::EpollEvHandler::m_is_running = false;
-            break;
-        default:
-            break;
-    }
-}
-
-void rbchild(int rfd, int wfd, const std::string& conf, const std::string& specified_service)
-{   
-    ECHO(INFO, "child process(pid=%d) would run service(%s)",  getpid(), specified_service.c_str());
-    
-    EEHNS::EpollEvHandler eeh;
-    EEHNS::EEHErrCode rescode;
-    
-    eeh.EEH_init(conf, specified_service);
-    
-    auto iterFind = std::find_if(eeh.m_services_id.begin(), eeh.m_services_id.end(),
-                    [&specified_service](const decltype(*eeh.m_services_id.begin())& ele) {
-        return ele.second == specified_service;
-    });
-    if (iterFind == eeh.m_services_id.end()) {
-        ECHO(ERRO, "could not find %s's id", specified_service.c_str());
-        return ;
-    }
-    
-    EEHNS::SID_t linker_type = iterFind->first;
-    ECHO(INFO, "%s's id is %lu", specified_service.c_str(), linker_type);
-
-    std::pair<EEHNS::EClient*, EEHNS::EClient*> ec_pipe_pair = eeh.EEH_PIPE_create(rfd, wfd, linker_type);
-    if (! ec_pipe_pair.first) {
-        ECHO(ERRO, "EEH_PIPE_create failed");
-        return ;
-    }
-    if (! ec_pipe_pair.second) {
-        ECHO(ERRO, "EEH_PIPE_create failed");
-        return ;
-    }
-
-    dynamic_cast<EEHNS::BaseClient*>(ec_pipe_pair.first)->set_actions(eeh.m_linkers_actions[specified_service]);
-    dynamic_cast<EEHNS::BaseClient*>(ec_pipe_pair.second)->set_actions(eeh.m_linkers_actions[specified_service]);
-    
-    rescode = eeh.EEH_add(ec_pipe_pair.first);
-    if (rescode != EEHNS::EEH_OK) {
-        ECHO(ERRO, "EEH_add failed");
-        return ;
-    }
-    rescode = eeh.EEH_add(ec_pipe_pair.second);
-    if (rescode != EEHNS::EEH_OK) {
-        ECHO(ERRO, "EEH_add failed");
-        return ;
-    }
-    
-    eeh.m_info_process[getpid()] = specified_service;
-    
-    eeh.EEH_run();
-    eeh.EEH_destroy();
-}
-
 ssize_t null_read_callback(int fd, void *buf, size_t size, void *userp)
 {
     (void) fd;
@@ -148,7 +61,7 @@ ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
         return -1;
     }
 
-    EEHINFO(eeh->logger, TRAN, "do read from eclient(%p, type=%d)", bc, bc->type);
+    EEHINFO(eeh->logger, FLOW, "do read from eclient(%p, type=%d)", bc, bc->type);
     bool from_outward = false;
     if (eeh->m_olinkers.find(fd) != eeh->m_olinkers.end()) {
         from_outward = true;
@@ -159,7 +72,7 @@ ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
     char hbuf[NEGOHSIZE];
     ssize_t nh = read(fd, hbuf, NEGOHSIZE);
     if (nh != NEGOHSIZE) {
-        EEHERRO(eeh->logger, TRAN, "read(%ld): %s", nh, strerror(errno));
+        EEHERRO(eeh->logger, FLOW, "read(%ld): %s", nh, strerror(errno));
         return -1;
     }
 
@@ -175,7 +88,7 @@ ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
 
     ssize_t nb = read(fd, rbuf, bodysize);
     if (nb != (ssize_t)bodysize) {
-        EEHERRO(eeh->logger, TRAN, "read(%ld != %lu): %s", nb, bodysize, strerror(errno));
+        EEHERRO(eeh->logger, FLOW, "read(%ld != %lu): %s", nb, bodysize, strerror(errno));
         if (rbuf) {
             free(rbuf);
         }
@@ -189,7 +102,7 @@ ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
 
     /** CRC32 check */
     if (crc32calc(bicmsg.c_str(), bicmsg.size()) != ntohl(header.crc32)) {
-        EEHERRO(eeh->logger, TRAN, "crc32 check error");
+        EEHERRO(eeh->logger, FLOW, "crc32 check error");
         return -1;
     }
 
@@ -197,22 +110,14 @@ ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
     BIC_MESSAGE bicmh(&bich, nullptr);
     bicmh.ExtractHeader(bicmsg.c_str());
 
-    // 删除
-    // if (from_outward) {
-        // if (bich.origin != LINKER_TYPE_POLICY) {
-            // EEHERRO(eeh->logger, TRAN, "danger! illegal policy!");
-            // return -1;
-        // }
-    // }
-
     BIC_BASE *bicp = nullptr;
     if (bich.type == BIC_TYPE_GUARDRAGON) {
         BIC_GUARDRAGON bicguard;
         BIC_MESSAGE bicmguard(nullptr, &bicguard);
         
         bicmguard.ExtractPayload(bicmsg);
-        EEHDBUG(eeh->logger, TRAN, "BIC_GUARDRAGON.heartbeat: %ld", bicguard.heartbeat);
-        EEHDBUG(eeh->logger, TRAN, "BIC_GUARDRAGON.biubiu:    %s", bicguard.biubiu.c_str());
+        EEHDBUG(eeh->logger, FLOW, "BIC_GUARDRAGON.heartbeat: %ld", bicguard.heartbeat);
+        EEHDBUG(eeh->logger, FLOW, "BIC_GUARDRAGON.biubiu:    %s", bicguard.biubiu.c_str());
         eeh->m_heartbeats[bc->linker_type] = now_time();
         return 0;
     } else if (bich.type == BIC_TYPE_P2S_SUMMON || bich.type == BIC_TYPE_S2P_SUMMON) {
@@ -226,7 +131,7 @@ ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
     } else if (bich.type == BIC_TYPE_P2S_BOMBER || bich.type == BIC_TYPE_S2P_BOMBER) {
         bicp = new BIC_BOMBER();
     } else {
-        EEHERRO(eeh->logger, TRAN, "undefined or unhandled msg(%d)", (int)bich.type);
+        EEHERRO(eeh->logger, FLOW, "undefined or unhandled msg(%d)", (int)bich.type);
         return -1;
     }
 
@@ -245,7 +150,7 @@ ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
     tobicm.Serialize(&tobicmsg);
     
     if (tobicmsg.empty()) {
-        EEHERRO(eeh->logger, TRAN, "msg size is 0");
+        EEHERRO(eeh->logger, FLOW, "msg size is 0");
         return -1;
     }
     add_header(&tomsg, tobicmsg);
@@ -282,7 +187,7 @@ ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
 
     eeh->m_linker_queues[tobc->linker_type].push(tomsg);
 
-    EEHINFO(eeh->logger, TRAN, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and forward to eclient(%p, type=%d)", 
+    EEHINFO(eeh->logger, FLOW, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and forward to eclient(%p, type=%d)", 
                 tomsg.size(), tobc->linker_type, eeh->m_linker_queues[tobc->linker_type].size(), tobc, tobc->type);
 
     eeh->EEH_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
@@ -309,22 +214,22 @@ ssize_t transfer_write_callback(int fd, const void *buf, size_t count, void *use
     } else if (eeh->m_olinkers.find(fd) != eeh->m_olinkers.end()) {
         linker_type = eeh->m_olinkers[fd];
     } else {
-        EEHERRO(eeh->logger, TRAN, "an exceptions occurs");
+        EEHERRO(eeh->logger, FLOW, "an exceptions occurs");
         return -1;
     }
         
-    EEHINFO(eeh->logger, TRAN, "do write to eclient(%p, type=%d, linker_type=%d, queue_size=%lu)", 
+    EEHINFO(eeh->logger, FLOW, "do write to eclient(%p, type=%d, linker_type=%d, queue_size=%lu)", 
                     bc, bc->type, linker_type, eeh->m_linker_queues[linker_type].size());
 
     while (eeh->m_linker_queues[linker_type].size() > 0) {
         std::string msg(eeh->m_linker_queues[linker_type].front());
         size_t nt = write(fd, msg.c_str(), msg.size());
         if (nt != msg.size()) {
-            EEHERRO(eeh->logger, TRAN, "write: %s", strerror(errno));
+            EEHERRO(eeh->logger, FLOW, "write: %s", strerror(errno));
             return -1;
         }
         eeh->m_linker_queues[linker_type].pop();
-        EEHINFO(eeh->logger, TRAN, "transfered msg(len=%lu) to peer end of eclient(%p, type=%d)", nt, bc, bc->type);
+        EEHINFO(eeh->logger, FLOW, "transfered msg(len=%lu) to peer end of eclient(%p, type=%d)", nt, bc, bc->type);
     }
     
     return 0;
@@ -333,105 +238,10 @@ ssize_t transfer_write_callback(int fd, const void *buf, size_t count, void *use
 int transfer_timer_callback(void *args, void *userp)
 {   
     EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
-    
-    // 这一步应该不需要， 删除
-    // if (eeh->m_id != SERVER_TYPE_TRANSFER) {
-        // return -1;
-    // }
-    
+
     EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>((EEHNS::EClient*)args);
     if (! bc) {
         return -1;
-    }
-    
-    std::map<EEHNS::SID_t, uint64_t>::iterator it_m;
-    for (it_m = eeh->m_heartbeats.begin(); it_m != eeh->m_heartbeats.end(); it_m++) {
-        if (now_time() - it_m->second > 4 * 1000) {
-            // 这一步应该不需要， 删除
-            // if (eeh->m_info_process[getpid()] != eeh->m_ linkers _map[SERVER _ TYPE _TRANSFER].first) {
-                // return -1;
-            // }
-            
-            bool logical_error = false;
-            std::map<EEHNS::FD_t, EEHNS::SID_t>::iterator iter_m;
-            for (iter_m = eeh->m_ilinkers.begin(); iter_m != eeh->m_ilinkers.end(); iter_m++) {
-                if (iter_m->second == it_m->first) {
-                    logical_error = true;
-                }
-            }
-            if (logical_error) {
-                EEHERRO(eeh->logger, TRAN, "============= a logical error occurs =============");
-                return -1;
-            } else {
-                EEHDBUG(eeh->logger, TRAN, "============================ 重新拉起进程 ======================= pid");
-                int fd_prcw[2];     /** parent read and child write */
-                int fd_pwcr[2];     /** parent write and child read */
-                pid_t pid;
-                
-                if (pipe(fd_prcw) < 0) {
-                    EEHERRO(eeh->logger, TRAN, "pipe: %s", strerror(errno));
-                    return -1;
-                }
-                if (pipe(fd_pwcr) < 0) {
-                    EEHERRO(eeh->logger, TRAN, "pipe: %s", strerror(errno));
-                    if (fd_prcw[0] > 0) close(fd_prcw[0]);
-                    if (fd_prcw[1] > 0) close(fd_prcw[1]);
-                    return -1;
-                }
-                
-                pid = fork();
-                if (pid < 0) {
-                    if (fd_prcw[0] > 0) close(fd_prcw[0]);
-                    if (fd_prcw[1] > 0) close(fd_prcw[1]);
-                    if (fd_pwcr[0] > 0) close(fd_pwcr[0]);
-                    if (fd_pwcr[1] > 0) close(fd_pwcr[1]);
-                    EEHERRO(eeh->logger, TRAN, "fork: %s", strerror(errno));
-                    return -1;
-                } else if (pid == 0) {
-                    DBUG("create a new process pid=%d(ppid=%d), now would free the old stack", getpid(), getppid());
-                    std::string conf_name = eeh->m_conf_name;
-                    std::string specified_service = eeh->m_services_id[it_m->first];
-                    
-                    signal(SIGINT, signal_release);
-                    sleep(1);
-                    
-                    close(fd_prcw[0]);
-                    close(fd_pwcr[1]);
-                    
-                    ECHO(INFO, "would create a new process pid=%d(ppid=%d) for service %s",
-                                getpid(), getppid(), specified_service.c_str());
-                    rbchild(fd_pwcr[0], fd_prcw[1], conf_name, specified_service);
-                    exit(0);
-                } else if (pid > 0) {
-                    close(fd_prcw[1]);
-                    close(fd_pwcr[0]);
-                    std::pair<EEHNS::EClient*, EEHNS::EClient*> ec_pipe_pair = 
-                                eeh->EEH_PIPE_create(fd_prcw[0], fd_pwcr[1], it_m->first);
-                    if (! ec_pipe_pair.first) {
-                        EEHERRO(eeh->logger, TRAN, "EEH_PIPE_create failed");
-                        return -1;
-                    }
-                    if (! ec_pipe_pair.second) {
-                        EEHERRO(eeh->logger, TRAN, "EEH_PIPE_create failed");
-                        return -1;
-                    }
-                    dynamic_cast<EEHNS::BaseClient*>(ec_pipe_pair.first)->set_actions(transfer_callback_module);
-                    dynamic_cast<EEHNS::BaseClient*>(ec_pipe_pair.second)->set_actions(transfer_callback_module);
-                    EEHNS::EEHErrCode rescode;
-                    rescode = eeh->EEH_add(ec_pipe_pair.first);
-                    if (rescode != EEHNS::EEH_OK) {
-                        EEHERRO(eeh->logger, TRAN, "EEH_add failed");
-                        return -1;
-                    }
-                    rescode = eeh->EEH_add(ec_pipe_pair.second);
-                    if (rescode != EEHNS::EEH_OK) {
-                        EEHERRO(eeh->logger, TRAN, "EEH_add failed");
-                        return -1;
-                    }
-                    eeh->m_info_process[pid] = eeh->m_services_id[it_m->first];
-                }
-            }
-        }
     }
     
     if (eeh->m_olinkers.find(bc->fd) != eeh->m_olinkers.end()) {    /** guard heartbeat */
@@ -448,20 +258,20 @@ int transfer_timer_callback(void *args, void *userp)
 
             std::string tomsg;
             if (tobicmsg.empty()) {
-                EEHERRO(eeh->logger, TRAN, "msg size is 0");
+                EEHERRO(eeh->logger, FLOW, "msg size is 0");
                 return -1;
             }
             add_header(&tomsg, tobicmsg);
 
             eeh->m_linker_queues[bc->linker_type].push(tomsg);
 
-            EEHINFO(eeh->logger, TRAN, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and heartbeat to eclient(%p, type=%d)", 
+            EEHINFO(eeh->logger, FLOW, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and heartbeat to eclient(%p, type=%d)", 
                     tomsg.size(), bc->linker_type, eeh->m_linker_queues[bc->linker_type].size(), bc, bc->type);
             
             eeh->EEH_mod(bc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
         }
     } else {
-
+        // do nothing
     }
     
     return 0;
@@ -487,11 +297,11 @@ static int madolche_handle_message(int fd, std::string msg, void *userp)
     bicm.ExtractHeader(msg);
 
     if (bc->linker_type != bich.orient) {
-        EEHERRO(eeh->logger, MADO, "not belong here, discard the message");
+        EEHERRO(eeh->logger, CHLD, "not belong here, discard the message");
         return 0;
     }
 
-    EEHINFO(eeh->logger, MADO, "received msg(len=%lu, type=%d) from origin(linker=%d) to orient(linker=%d)",
+    EEHINFO(eeh->logger, CHLD, "received msg(len=%lu, type=%d) from origin(linker=%d) to orient(linker=%d)",
                                                         msg.size(), bich.type, bich.origin, bich.orient);
 
     BIC_BASE *tobicp = nullptr;
@@ -502,9 +312,9 @@ static int madolche_handle_message(int fd, std::string msg, void *userp)
         
         bicsummon.ExtractPayload(msg);
         
-        EEHDBUG(eeh->logger, MADO, "BIC_SUMMON.info:  %s", bic.info.c_str());
-        EEHDBUG(eeh->logger, MADO, "BIC_SUMMON.sno:   %s", bic.sno.c_str());
-        EEHDBUG(eeh->logger, MADO, "BIC_SUMMON.code:  %lu", bic.code);
+        EEHDBUG(eeh->logger, CHLD, "BIC_SUMMON.info:  %s", bic.info.c_str());
+        EEHDBUG(eeh->logger, CHLD, "BIC_SUMMON.sno:   %s", bic.sno.c_str());
+        EEHDBUG(eeh->logger, CHLD, "BIC_SUMMON.code:  %lu", bic.code);
         
         BIC_MONSTER* monster = new BIC_MONSTER();
         monster->name = "Madolche Queen Tiaramisu";
@@ -524,7 +334,7 @@ static int madolche_handle_message(int fd, std::string msg, void *userp)
         
         bicbit.ExtractPayload(msg);
         
-        EEHDBUG(eeh->logger, MADO, "BIC_BITRON.bitslen: %d", bic.bitslen);
+        EEHDBUG(eeh->logger, CHLD, "BIC_BITRON.bitslen: %d", bic.bitslen);
         uint32_t i;
         for (i = 0; i < bic.bitslen; ) {
             printf(" %02x", static_cast<int>((unsigned char)bic.bits[i]));
@@ -539,10 +349,10 @@ static int madolche_handle_message(int fd, std::string msg, void *userp)
         
         bicblock.ExtractPayload(msg);
         
-        EEHDBUG(eeh->logger, MADO, "BIC_BLOCKRON.fname:     %s", bic.fname.c_str());
-        EEHDBUG(eeh->logger, MADO, "BIC_BLOCKRON.fsize:     %u", bic.fsize);
-        EEHDBUG(eeh->logger, MADO, "BIC_BLOCKRON.offset:    %u", bic.offset);
-        EEHDBUG(eeh->logger, MADO, "BIC_BLOCKRON.blocksize: %u", bic.blocksize);
+        EEHDBUG(eeh->logger, CHLD, "BIC_BLOCKRON.fname:     %s", bic.fname.c_str());
+        EEHDBUG(eeh->logger, CHLD, "BIC_BLOCKRON.fsize:     %u", bic.fsize);
+        EEHDBUG(eeh->logger, CHLD, "BIC_BLOCKRON.offset:    %u", bic.offset);
+        EEHDBUG(eeh->logger, CHLD, "BIC_BLOCKRON.blocksize: %u", bic.blocksize);
         
         std::ofstream ofs;
         std::string ofile(bic.fname + "_bak");
@@ -553,7 +363,7 @@ static int madolche_handle_message(int fd, std::string msg, void *userp)
         }
         
         if (! ofs.is_open()) {
-            EEHERRO(eeh->logger, MADO, "open(\"%s\"): %s", ofile.c_str(), strerror(errno));
+            EEHERRO(eeh->logger, CHLD, "open(\"%s\"): %s", ofile.c_str(), strerror(errno));
             return -1;
         }
         
@@ -568,9 +378,9 @@ static int madolche_handle_message(int fd, std::string msg, void *userp)
         
         bicbomb.ExtractPayload(msg);
         
-        EEHDBUG(eeh->logger, MADO, "BIC_BOMBER.service_name: %s", bic.service_name.c_str());
-        EEHDBUG(eeh->logger, MADO, "BIC_BOMBER.service_type: %d", bic.service_type);
-        EEHDBUG(eeh->logger, MADO, "BIC_BOMBER.kill:         %s", bic.kill ? "true" : "false");
+        EEHDBUG(eeh->logger, CHLD, "BIC_BOMBER.service_name: %s", bic.service_name.c_str());
+        EEHDBUG(eeh->logger, CHLD, "BIC_BOMBER.service_type: %d", bic.service_type);
+        EEHDBUG(eeh->logger, CHLD, "BIC_BOMBER.kill:         %s", bic.kill ? "true" : "false");
         
         BIC_BOMBER* bomb = new BIC_BOMBER();
         bomb->service_name = bic.service_name;
@@ -579,14 +389,14 @@ static int madolche_handle_message(int fd, std::string msg, void *userp)
         bomb->rescode = 1;
         bomb->receipt = "魔偶甜点 将在 1 秒内被吃掉";
         
-        signal(SIGALRM, signal_release);
+        signal(SIGALRM, EEHNS::signal_release);
         alarm(2);
-        EEHINFO(eeh->logger, MADO, "pid %d would be destructed in 2 seconds", getpid());
+        EEHINFO(eeh->logger, CHLD, "pid %d would be destructed in 2 seconds", getpid());
         
         tobicp = bomb;
         totype = BIC_TYPE_S2P_BOMBER;
     } else {
-        EEHERRO(eeh->logger, MADO, "undefined or unhandled msg(%d)", (int)bich.type);
+        EEHERRO(eeh->logger, CHLD, "undefined or unhandled msg(%d)", (int)bich.type);
         return -1;
     }
     
@@ -598,7 +408,7 @@ static int madolche_handle_message(int fd, std::string msg, void *userp)
     
     std::string tomsg;
     if (tobicmsg.empty()) {
-        EEHERRO(eeh->logger, MADO, "msg size is 0");
+        EEHERRO(eeh->logger, CHLD, "msg size is 0");
         return -1;
     }
     add_header(&tomsg, tobicmsg);
@@ -611,7 +421,7 @@ static int madolche_handle_message(int fd, std::string msg, void *userp)
     if (eeh->m_pipe_pairs.find(bc->linker_type) != eeh->m_pipe_pairs.end()) {
         tofd = eeh->m_pipe_pairs[bc->linker_type].second;
     } else {
-        EEHERRO(eeh->logger, MADO, "an exceptions occurs");
+        EEHERRO(eeh->logger, CHLD, "an exceptions occurs");
         return -1;
     }
     
@@ -622,7 +432,7 @@ static int madolche_handle_message(int fd, std::string msg, void *userp)
         
     eeh->m_linker_queues[tobc->linker_type].push(tomsg);
 
-    EEHINFO(eeh->logger, MADO, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and forward to eclient(%p, type=%d)", 
+    EEHINFO(eeh->logger, CHLD, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and forward to eclient(%p, type=%d)", 
             tomsg.size(), tobc->linker_type, eeh->m_linker_queues[tobc->linker_type].size(), tobc, tobc->type);
         
     eeh->EEH_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
@@ -642,12 +452,12 @@ ssize_t madolche_read_callback(int fd, void *buf, size_t size, void *userp)
         return -1;
     }
     
-    EEHINFO(eeh->logger, MADO, "do read from eclient(%p, type=%d)", bc, bc->type);
+    EEHINFO(eeh->logger, CHLD, "do read from eclient(%p, type=%d)", bc, bc->type);
     
     char hbuf[NEGOHSIZE];
     ssize_t nh = read(fd, hbuf, NEGOHSIZE);
     if (nh != NEGOHSIZE) {
-        EEHERRO(eeh->logger, MADO, "read(%ld): %s", nh, strerror(errno));
+        EEHERRO(eeh->logger, CHLD, "read(%ld): %s", nh, strerror(errno));
         return -1;
     }
     
@@ -663,7 +473,7 @@ ssize_t madolche_read_callback(int fd, void *buf, size_t size, void *userp)
     
     ssize_t nb = read(fd, rbuf, bodysize);
     if (nb != (ssize_t)bodysize) {
-        EEHERRO(eeh->logger, MADO, "read(%ld != %lu): %s", nb, bodysize, strerror(errno));
+        EEHERRO(eeh->logger, CHLD, "read(%ld != %lu): %s", nb, bodysize, strerror(errno));
         if (rbuf) {
             free(rbuf);
         }
@@ -672,9 +482,9 @@ ssize_t madolche_read_callback(int fd, void *buf, size_t size, void *userp)
     
     int ret = madolche_handle_message(fd, std::string(rbuf, nb), userp);
     if (ret == 0) {
-        EEHINFO(eeh->logger, MADO, "Madolche: success handled msg(len=%ld) from eclient(%p, type=%d)", nb, bc, bc->type);
+        EEHINFO(eeh->logger, CHLD, "Madolche: success handled msg(len=%ld) from eclient(%p, type=%d)", nb, bc, bc->type);
     } else {
-        EEHERRO(eeh->logger, MADO, "Madolche: failure handled msg(len=%ld) from eclient(%p, type=%d)", nb, bc, bc->type);
+        EEHERRO(eeh->logger, CHLD, "Madolche: failure handled msg(len=%ld) from eclient(%p, type=%d)", nb, bc, bc->type);
     }
     
     if (rbuf) {
@@ -701,22 +511,22 @@ ssize_t madolche_write_callback(int fd, const void *buf, size_t count, void *use
     if (eeh->m_ilinkers.find(fd) != eeh->m_ilinkers.end()) {
         linker_type = eeh->m_ilinkers[fd];
     } else {
-        EEHERRO(eeh->logger, MADO, "an exceptions occurs");
+        EEHERRO(eeh->logger, CHLD, "an exceptions occurs");
         return -1;
     }
     
-    EEHINFO(eeh->logger, MADO, "do write to eclient(%p, type=%d, linker_type=%d, queue_size=%lu)", 
+    EEHINFO(eeh->logger, CHLD, "do write to eclient(%p, type=%d, linker_type=%d, queue_size=%lu)", 
                     bc, bc->type, linker_type, eeh->m_linker_queues[linker_type].size());
     
     while (eeh->m_linker_queues[linker_type].size() > 0) {
         std::string msg(eeh->m_linker_queues[linker_type].front());
         size_t nt = write(fd, msg.c_str(), msg.size());
         if (nt != msg.size()) {
-            EEHERRO(eeh->logger, MADO, "write: %s", strerror(errno));
+            EEHERRO(eeh->logger, CHLD, "write: %s", strerror(errno));
             return -1;
         }
         eeh->m_linker_queues[linker_type].pop();
-        EEHINFO(eeh->logger, MADO, "transfered msg(len=%lu) to peer end of eclient(%p, type=%d)", nt, bc, bc->type);
+        EEHINFO(eeh->logger, CHLD, "transfered msg(len=%lu) to peer end of eclient(%p, type=%d)", nt, bc, bc->type);
     }
     
     return 0;
@@ -746,14 +556,14 @@ int madolche_timer_callback(void *args, void *userp)
 
         std::string tomsg;
         if (tobicmsg.empty()) {
-            EEHERRO(eeh->logger, MADO, "msg size is 0");
+            EEHERRO(eeh->logger, CHLD, "msg size is 0");
             return -1;
         }
         add_header(&tomsg, tobicmsg);
 
         eeh->m_linker_queues[bc->linker_type].push(tomsg);
 
-        EEHINFO(eeh->logger, MADO, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and heartbeat to eclient(%p, type=%d)", 
+        EEHINFO(eeh->logger, CHLD, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and heartbeat to eclient(%p, type=%d)", 
                 tomsg.size(), bc->linker_type, eeh->m_linker_queues[bc->linker_type].size(), bc, bc->type);
         
         eeh->EEH_mod(bc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
@@ -782,11 +592,11 @@ static int gimmickpuppet_handle_message(int fd, std::string msg, void *userp)
     bicm.ExtractHeader(msg);
 
     if (bc->linker_type != bich.orient) {
-        EEHERRO(eeh->logger, GIMM, "not belong here, discard the message");
+        EEHERRO(eeh->logger, CHLD, "not belong here, discard the message");
         return 0;
     }
 
-    EEHINFO(eeh->logger, GIMM, "received msg(len=%lu, type=%d) from origin(linker=%d) to orient(linker=%d)",
+    EEHINFO(eeh->logger, CHLD, "received msg(len=%lu, type=%d) from origin(linker=%d) to orient(linker=%d)",
                                                         msg.size(), bich.type, bich.origin, bich.orient);
 
     BIC_BASE *tobicp = nullptr;
@@ -797,9 +607,9 @@ static int gimmickpuppet_handle_message(int fd, std::string msg, void *userp)
         
         bicsummon.ExtractPayload(msg);
         
-        EEHDBUG(eeh->logger, GIMM, "BIC_SUMMON.info:  %s", bic.info.c_str());
-        EEHDBUG(eeh->logger, GIMM, "BIC_SUMMON.sno:   %s", bic.sno.c_str());
-        EEHDBUG(eeh->logger, GIMM, "BIC_SUMMON.code:  %lu", bic.code);
+        EEHDBUG(eeh->logger, CHLD, "BIC_SUMMON.info:  %s", bic.info.c_str());
+        EEHDBUG(eeh->logger, CHLD, "BIC_SUMMON.sno:   %s", bic.sno.c_str());
+        EEHDBUG(eeh->logger, CHLD, "BIC_SUMMON.code:  %lu", bic.code);
         
         BIC_MONSTER* monster = new BIC_MONSTER();
         monster->name = "Gimmick Puppet Giant Hunter";
@@ -819,9 +629,9 @@ static int gimmickpuppet_handle_message(int fd, std::string msg, void *userp)
         
         bicbomb.ExtractPayload(msg);
         
-        EEHDBUG(eeh->logger, GIMM, "BIC_BOMBER.service_name: %s", bic.service_name.c_str());
-        EEHDBUG(eeh->logger, GIMM, "BIC_BOMBER.service_type: %d", bic.service_type);
-        EEHDBUG(eeh->logger, GIMM, "BIC_BOMBER.kill:         %s", bic.kill ? "true" : "false");
+        EEHDBUG(eeh->logger, CHLD, "BIC_BOMBER.service_name: %s", bic.service_name.c_str());
+        EEHDBUG(eeh->logger, CHLD, "BIC_BOMBER.service_type: %d", bic.service_type);
+        EEHDBUG(eeh->logger, CHLD, "BIC_BOMBER.kill:         %s", bic.kill ? "true" : "false");
         
         BIC_BOMBER* bomb = new BIC_BOMBER();
         bomb->service_name = bic.service_name;
@@ -830,30 +640,30 @@ static int gimmickpuppet_handle_message(int fd, std::string msg, void *userp)
         bomb->rescode = 1;
         bomb->receipt = "机关傀儡 将在 2 秒内被摧毁";
         
-        signal(SIGALRM, signal_release);
+        signal(SIGALRM, EEHNS::signal_release);
         alarm(2);
-        EEHINFO(eeh->logger, GIMM, "pid %d would be destructed in 2 seconds", getpid());
+        EEHINFO(eeh->logger, CHLD, "pid %d would be destructed in 2 seconds", getpid());
         
         tobicp = bomb;
         totype = BIC_TYPE_S2P_BOMBER;
     } else {
-        EEHERRO(eeh->logger, GIMM, "undefined or unhandled msg(%d)", (int)bich.type);
+        EEHERRO(eeh->logger, CHLD, "undefined or unhandled msg(%d)", (int)bich.type);
         return -1;
     }
     
     BIC_HEADER tobich(eeh->m_id, bich.origin, totype);
     BIC_MESSAGE tobicm(&tobich, tobicp);
     
-    EEHDBUG(eeh->logger, GIMM, "===> m_id=%lu, bich.origin=%d, totype=%d", eeh->m_id, bich.origin, totype);
+    EEHDBUG(eeh->logger, CHLD, "===> m_id=%lu, bich.origin=%d, totype=%d", eeh->m_id, bich.origin, totype);
     
     std::string tobicmsg;
     tobicm.Serialize(&tobicmsg);
     
-    // EEHDBUG(eeh->logger, GIMM, "tobicmsg(%d): %s", tobicmsg.size(), tobicmsg.c_str());
+    // EEHDBUG(eeh->logger, CHLD, "tobicmsg(%d): %s", tobicmsg.size(), tobicmsg.c_str());
     
     std::string tomsg;
     if (tobicmsg.empty()) {
-        EEHERRO(eeh->logger, GIMM, "msg size is 0");
+        EEHERRO(eeh->logger, CHLD, "msg size is 0");
         return -1;
     }
     add_header(&tomsg, tobicmsg);
@@ -866,7 +676,7 @@ static int gimmickpuppet_handle_message(int fd, std::string msg, void *userp)
     if (eeh->m_pipe_pairs.find(bc->linker_type) != eeh->m_pipe_pairs.end()) {
         tofd = eeh->m_pipe_pairs[bc->linker_type].second;
     } else {
-        EEHERRO(eeh->logger, GIMM, "an exceptions occurs");
+        EEHERRO(eeh->logger, CHLD, "an exceptions occurs");
         return -1;
     }
     
@@ -877,7 +687,7 @@ static int gimmickpuppet_handle_message(int fd, std::string msg, void *userp)
         
     eeh->m_linker_queues[tobc->linker_type].push(tomsg);
 
-    EEHINFO(eeh->logger, GIMM, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and forward to eclient(%p, type=%d)", 
+    EEHINFO(eeh->logger, CHLD, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and forward to eclient(%p, type=%d)", 
             tomsg.size(), tobc->linker_type, eeh->m_linker_queues[tobc->linker_type].size(), tobc, tobc->type);
         
     eeh->EEH_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
@@ -897,12 +707,12 @@ ssize_t gimmickpuppet_read_callback(int fd, void *buf, size_t size, void *userp)
         return -1;
     }
     
-    EEHINFO(eeh->logger, GIMM, "do read from eclient(%p, type=%d)", bc, bc->type);
+    EEHINFO(eeh->logger, CHLD, "do read from eclient(%p, type=%d)", bc, bc->type);
     
     char hbuf[NEGOHSIZE];
     ssize_t nh = read(fd, hbuf, NEGOHSIZE);
     if (nh != NEGOHSIZE) {
-        EEHERRO(eeh->logger, GIMM, "read(%ld != %lu): %s", nh, NEGOHSIZE, strerror(errno));
+        EEHERRO(eeh->logger, CHLD, "read(%ld != %lu): %s", nh, NEGOHSIZE, strerror(errno));
         return -1;
     }
     
@@ -918,7 +728,7 @@ ssize_t gimmickpuppet_read_callback(int fd, void *buf, size_t size, void *userp)
     
     ssize_t nb = read(fd, rbuf, bodysize);
     if (nb != (ssize_t)bodysize) {
-        EEHERRO(eeh->logger, GIMM, "read(%ld != %lu): %s", nb, bodysize, strerror(errno));
+        EEHERRO(eeh->logger, CHLD, "read(%ld != %lu): %s", nb, bodysize, strerror(errno));
         if (rbuf) {
             free(rbuf);
         }
@@ -927,9 +737,9 @@ ssize_t gimmickpuppet_read_callback(int fd, void *buf, size_t size, void *userp)
     
     int ret = gimmickpuppet_handle_message(fd, std::string(rbuf, nb), userp);
     if (ret == 0) {
-        EEHINFO(eeh->logger, GIMM, "GimmickPuppet: success handled msg(len=%ld) from eclient(%p, type=%d)", nb, bc, bc->type);
+        EEHINFO(eeh->logger, CHLD, "GimmickPuppet: success handled msg(len=%ld) from eclient(%p, type=%d)", nb, bc, bc->type);
     } else {
-        EEHERRO(eeh->logger, GIMM, "GimmickPuppet: failure handled msg(len=%ld) from eclient(%p, type=%d)", nb, bc, bc->type);
+        EEHERRO(eeh->logger, CHLD, "GimmickPuppet: failure handled msg(len=%ld) from eclient(%p, type=%d)", nb, bc, bc->type);
     }
     
     if (rbuf) {
@@ -955,22 +765,22 @@ ssize_t gimmickpuppet_write_callback(int fd, const void *buf, size_t count, void
     if (eeh->m_ilinkers.find(fd) != eeh->m_ilinkers.end()) {
         linker_type = eeh->m_ilinkers[fd];
     } else {
-        EEHERRO(eeh->logger, GIMM, "an exceptions occurs");
+        EEHERRO(eeh->logger, CHLD, "an exceptions occurs");
         return -1;
     }
     
-    EEHINFO(eeh->logger, GIMM, "do write to eclient(%p, type=%d, linker_type=%d, queue_size=%lu)", 
+    EEHINFO(eeh->logger, CHLD, "do write to eclient(%p, type=%d, linker_type=%d, queue_size=%lu)", 
                     bc, bc->type, linker_type, eeh->m_linker_queues[linker_type].size());
     
     while (eeh->m_linker_queues[linker_type].size() > 0) {
         std::string msg(eeh->m_linker_queues[linker_type].front());
         size_t nt = write(fd, msg.c_str(), msg.size());
         if (nt != msg.size()) {
-            EEHERRO(eeh->logger, GIMM, "write: %s", strerror(errno));
+            EEHERRO(eeh->logger, CHLD, "write: %s", strerror(errno));
             return -1;
         }
         eeh->m_linker_queues[linker_type].pop();
-        EEHINFO(eeh->logger, GIMM, "transfered msg(len=%lu) to peer end of eclient(%p, type=%d)", nt, bc, bc->type);
+        EEHINFO(eeh->logger, CHLD, "transfered msg(len=%lu) to peer end of eclient(%p, type=%d)", nt, bc, bc->type);
     }
     
     return 0;
@@ -1000,14 +810,14 @@ int gimmickpuppet_timer_callback(void *args, void *userp)
 
         std::string tomsg;
         if (tobicmsg.empty()) {
-            EEHERRO(eeh->logger, GIMM, "msg size is 0");
+            EEHERRO(eeh->logger, CHLD, "msg size is 0");
             return -1;
         }
         add_header(&tomsg, tobicmsg);
 
         eeh->m_linker_queues[bc->linker_type].push(tomsg);
 
-        EEHINFO(eeh->logger, GIMM, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and heartbeat to eclient(%p, type=%d)", 
+        EEHINFO(eeh->logger, CHLD, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and heartbeat to eclient(%p, type=%d)", 
                 tomsg.size(), bc->linker_type, eeh->m_linker_queues[bc->linker_type].size(), bc, bc->type);
         
         eeh->EEH_mod(bc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
@@ -1034,12 +844,12 @@ ssize_t policy_read_callback(int fd, void *buf, size_t size, void *userp)
         return -1;
     }
     
-    EEHINFO(eeh->logger, POLI, "do read from eclient(%p, type=%d)", bc, bc->type);
+    EEHINFO(eeh->logger, SERV, "do read from eclient(%p, type=%d)", bc, bc->type);
     
     char hbuf[NEGOHSIZE];
     ssize_t nh = read(fd, hbuf, NEGOHSIZE);
     if (nh != NEGOHSIZE) {
-        EEHERRO(eeh->logger, POLI, "read(%ld != %lu): %s", nh, NEGOHSIZE, strerror(errno));
+        EEHERRO(eeh->logger, SERV, "read(%ld != %lu): %s", nh, NEGOHSIZE, strerror(errno));
         return -1;
     }
     
@@ -1055,7 +865,7 @@ ssize_t policy_read_callback(int fd, void *buf, size_t size, void *userp)
     
     ssize_t nb = read(fd, rbuf, bodysize);
     if (nb != (ssize_t)bodysize) {
-        EEHERRO(eeh->logger, POLI, "read(%ld != %lu): %s", nb, bodysize, strerror(errno));
+        EEHERRO(eeh->logger, SERV, "read(%ld != %lu): %s", nb, bodysize, strerror(errno));
         if (rbuf) {
             free(rbuf);
         }
@@ -1077,11 +887,11 @@ ssize_t policy_read_callback(int fd, void *buf, size_t size, void *userp)
     bicm.ExtractHeader(bicmsg);
 
     if (eeh->m_id != bich.orient) {
-        EEHERRO(eeh->logger, POLI, "not belong here, discard the message");
+        EEHERRO(eeh->logger, SERV, "not belong here, discard the message");
         return 0;
     }
     
-    EEHINFO(eeh->logger, POLI, "received msg(len=%lu, type=%d) from origin(linker=%d) to orient(linker=%d)",
+    EEHINFO(eeh->logger, SERV, "received msg(len=%lu, type=%d) from origin(linker=%d) to orient(linker=%d)",
                                                         bicmsg.size(), bich.type, bich.origin, bich.orient);
 
     if (bich.type == BIC_TYPE_GUARDRAGON) {
@@ -1089,8 +899,8 @@ ssize_t policy_read_callback(int fd, void *buf, size_t size, void *userp)
         BIC_MESSAGE bicmguard(nullptr, &bicguard);
         
         bicmguard.ExtractPayload(bicmsg);
-        EEHDBUG(eeh->logger, POLI, "BIC_GUARDRAGON.heartbeat: %ld", bicguard.heartbeat);
-        EEHDBUG(eeh->logger, POLI, "BIC_GUARDRAGON.biubiu:    %s", bicguard.biubiu.c_str());
+        EEHDBUG(eeh->logger, SERV, "BIC_GUARDRAGON.heartbeat: %ld", bicguard.heartbeat);
+        EEHDBUG(eeh->logger, SERV, "BIC_GUARDRAGON.biubiu:    %s", bicguard.biubiu.c_str());
         eeh->m_heartbeats[bc->linker_type] = now_time();
     } else if (bich.type == BIC_TYPE_S2P_MONSTER) {
         BIC_MONSTER bicp;
@@ -1098,27 +908,27 @@ ssize_t policy_read_callback(int fd, void *buf, size_t size, void *userp)
         
         bicm.ExtractPayload(bicmsg);
         
-        EEHDBUG(eeh->logger, POLI, "BIC_MONSTER.name:        %s", bicp.name.c_str());
-        EEHDBUG(eeh->logger, POLI, "BIC_MONSTER.type:        %s", bicp.type.c_str());
-        EEHDBUG(eeh->logger, POLI, "BIC_MONSTER.attribute:   %s", bicp.attribute.c_str());
-        EEHDBUG(eeh->logger, POLI, "BIC_MONSTER.race:        %s", bicp.race.c_str());
-        EEHDBUG(eeh->logger, POLI, "BIC_MONSTER.level:       %u", bicp.level);
-        EEHDBUG(eeh->logger, POLI, "BIC_MONSTER.attack:      %u", bicp.attack);
-        EEHDBUG(eeh->logger, POLI, "BIC_MONSTER.defense:     %u", bicp.defense);
-        EEHDBUG(eeh->logger, POLI, "BIC_MONSTER.description: %s", bicp.description.c_str());
+        EEHDBUG(eeh->logger, SERV, "BIC_MONSTER.name:        %s", bicp.name.c_str());
+        EEHDBUG(eeh->logger, SERV, "BIC_MONSTER.type:        %s", bicp.type.c_str());
+        EEHDBUG(eeh->logger, SERV, "BIC_MONSTER.attribute:   %s", bicp.attribute.c_str());
+        EEHDBUG(eeh->logger, SERV, "BIC_MONSTER.race:        %s", bicp.race.c_str());
+        EEHDBUG(eeh->logger, SERV, "BIC_MONSTER.level:       %u", bicp.level);
+        EEHDBUG(eeh->logger, SERV, "BIC_MONSTER.attack:      %u", bicp.attack);
+        EEHDBUG(eeh->logger, SERV, "BIC_MONSTER.defense:     %u", bicp.defense);
+        EEHDBUG(eeh->logger, SERV, "BIC_MONSTER.description: %s", bicp.description.c_str());
     } else if (bich.type == BIC_TYPE_S2P_BOMBER) {
         BIC_BOMBER bicp;
         BIC_MESSAGE bicm(nullptr, &bicp);
         
         bicm.ExtractPayload(bicmsg);
         
-        EEHDBUG(eeh->logger, POLI, "BIC_BOMBER.service_name: %s", bicp.service_name.c_str());
-        EEHDBUG(eeh->logger, POLI, "BIC_BOMBER.service_type: %d", bicp.service_type);
-        EEHDBUG(eeh->logger, POLI, "BIC_BOMBER.kill:         %s", bicp.kill ? "true" : "false");
-        EEHDBUG(eeh->logger, POLI, "BIC_BOMBER.rescode:      %d", bicp.rescode);
-        EEHDBUG(eeh->logger, POLI, "BIC_BOMBER.receipt:      %s", bicp.receipt.c_str());
+        EEHDBUG(eeh->logger, SERV, "BIC_BOMBER.service_name: %s", bicp.service_name.c_str());
+        EEHDBUG(eeh->logger, SERV, "BIC_BOMBER.service_type: %d", bicp.service_type);
+        EEHDBUG(eeh->logger, SERV, "BIC_BOMBER.kill:         %s", bicp.kill ? "true" : "false");
+        EEHDBUG(eeh->logger, SERV, "BIC_BOMBER.rescode:      %d", bicp.rescode);
+        EEHDBUG(eeh->logger, SERV, "BIC_BOMBER.receipt:      %s", bicp.receipt.c_str());
     } else {
-        EEHERRO(eeh->logger, POLI, "undefined or unhandled msg(%d)", (int)bich.type);
+        EEHERRO(eeh->logger, SERV, "undefined or unhandled msg(%d)", (int)bich.type);
         return -1;
     }
         
@@ -1141,23 +951,23 @@ ssize_t policy_write_callback(int fd, const void *buf, size_t count, void *userp
     if (eeh->m_olinkers.find(fd) != eeh->m_olinkers.end()) {
         linker_type = eeh->m_olinkers[fd];
     } else {
-        EEHERRO(eeh->logger, POLI, "an exceptions occurs");
+        EEHERRO(eeh->logger, SERV, "an exceptions occurs");
         return -1;
     }
     
-    EEHINFO(eeh->logger, POLI, "do write to eclient(%p, type=%d, linker_type=%d, queue_size=%lu)", 
+    EEHINFO(eeh->logger, SERV, "do write to eclient(%p, type=%d, linker_type=%d, queue_size=%lu)", 
                     bc, bc->type, linker_type, eeh->m_linker_queues[linker_type].size());
     
     while (eeh->m_linker_queues[linker_type].size() > 0) {
         std::string msg(eeh->m_linker_queues[linker_type].front());
         size_t nt = write(fd, msg.c_str(), msg.size());
         if (nt != msg.size()) {
-            EEHERRO(eeh->logger, POLI, "write(%lu != %lu): %s", nt, msg.size(), strerror(errno));
+            EEHERRO(eeh->logger, SERV, "write(%lu != %lu): %s", nt, msg.size(), strerror(errno));
             return -1;
         }
         eeh->m_linker_queues[linker_type].pop();
 
-        EEHINFO(eeh->logger, POLI, "handled msg(len=%lu) to peer end of eclient(%p, type=%d)", nt, bc, bc->type);
+        EEHINFO(eeh->logger, SERV, "handled msg(len=%lu) to peer end of eclient(%p, type=%d)", nt, bc, bc->type);
     }
     
     return 0;
@@ -1192,7 +1002,7 @@ int policy_timer_callback(void *args, void *userp)
                 iterFind = std::find_if(eeh->m_services_id.begin(), eeh->m_services_id.end(),
                         [](const decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "MADOLCHE"; });
                 if (iterFind == eeh->m_services_id.end()) {
-                    EEHERRO(eeh->logger, POLI, "could not find service id");
+                    EEHERRO(eeh->logger, SERV, "could not find service id");
                     return -1;
                 }
                 BIC_HEADER bich(eeh->m_id, iterFind->first, BIC_TYPE_P2S_SUMMON);
@@ -1207,7 +1017,7 @@ int policy_timer_callback(void *args, void *userp)
                 iterFind = std::find_if(eeh->m_services_id.begin(), eeh->m_services_id.end(),
                         [](const decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "GIMMICK_PUPPET"; });
                 if (iterFind == eeh->m_services_id.end()) {
-                    EEHERRO(eeh->logger, POLI, "could not find service id");
+                    EEHERRO(eeh->logger, SERV, "could not find service id");
                     return -1;
                 }
                 BIC_HEADER bich(eeh->m_id, iterFind->first, BIC_TYPE_P2S_SUMMON);
@@ -1226,14 +1036,14 @@ int policy_timer_callback(void *args, void *userp)
         std::string tomsg;
         
         if (tobicmsg.empty()) {
-            EEHERRO(eeh->logger, POLI, "msg size is 0");
+            EEHERRO(eeh->logger, SERV, "msg size is 0");
             return -1;
         }
         add_header(&tomsg, tobicmsg);
         
         eeh->m_linker_queues[bc->linker_type].push(tomsg);
         
-        EEHINFO(eeh->logger, POLI, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and send to eclient(%p, type=%d)", 
+        EEHINFO(eeh->logger, SERV, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and send to eclient(%p, type=%d)", 
                 tomsg.size(), bc->linker_type, eeh->m_linker_queues[bc->linker_type].size(), bc, bc->type);
         
         eeh->EEH_mod(bc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);

@@ -33,6 +33,4 @@ extern ee_event_actions_t madolche_callback_module;
 extern ee_event_actions_t gimmickpuppet_callback_module;
 extern ee_event_actions_t policy_callback_module;
 
-void signal_release(int signum);
-
 #endif // ! __Epoll_Ev_MODULE_H__
