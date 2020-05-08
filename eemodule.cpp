@@ -455,6 +455,7 @@ static int madolche_handle_message(int fd, std::string msg, void *userp)
 
     return 0;
 }
+
 /** do nothing, read purely */
 ssize_t madolche_read_callback(int fd, void *buf, size_t size, void *userp)
 {
@@ -473,7 +474,7 @@ ssize_t madolche_read_callback(int fd, void *buf, size_t size, void *userp)
     char hbuf[NEGOHSIZE];
     ssize_t nh = read(fd, hbuf, NEGOHSIZE);
     if (nh != NEGOHSIZE) {
-        EEHERRO(eeh->logger, CHLD, "read(%ld): %s", nh, strerror(errno));
+        EEHERRO(eeh->logger, CHLD, "read(%ld != %lu): %s", nh, NEGOHSIZE, strerror(errno));
         return -1;
     }
     
