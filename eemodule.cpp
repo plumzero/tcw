@@ -116,8 +116,8 @@ ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
         BIC_MESSAGE bicmguard(nullptr, &bicguard);
         
         bicmguard.ExtractPayload(bicmsg);
-        EEHDBUG(eeh->logger, FLOW, "BIC_GUARDRAGON.heartbeat: %ld", bicguard.heartbeat);
-        EEHDBUG(eeh->logger, FLOW, "BIC_GUARDRAGON.biubiu:    %s", bicguard.biubiu.c_str());
+        EEHDBUG(eeh->logger, FLOW, "BIC_GUARDRAGON.heartbeat: %lu", bicguard.heartbeat);
+        EEHDBUG(eeh->logger, FLOW, "BIC_GUARDRAGON.biubiu:    %s",  bicguard.biubiu.c_str());
         eeh->m_heartbeats[bc->linker_type] = now_time();
         return 0;
     } else if (bich.type == BIC_TYPE_P2S_SUMMON || bich.type == BIC_TYPE_S2P_SUMMON) {
@@ -187,7 +187,7 @@ ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
 
     eeh->m_linker_queues[tobc->linker_type].push(tomsg);
 
-    EEHINFO(eeh->logger, FLOW, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and forward to eclient(%p, type=%d)", 
+    EEHINFO(eeh->logger, FLOW, "pushed msg(len=%lu) to queue(linker=%lu, size=%lu) and forward to eclient(%p, type=%d)", 
                 tomsg.size(), tobc->linker_type, eeh->m_linker_queues[tobc->linker_type].size(), tobc, tobc->type);
 
     eeh->EEH_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
@@ -218,7 +218,7 @@ ssize_t transfer_write_callback(int fd, const void *buf, size_t count, void *use
         return -1;
     }
         
-    EEHINFO(eeh->logger, FLOW, "do write to eclient(%p, type=%d, linker_type=%d, queue_size=%lu)", 
+    EEHINFO(eeh->logger, FLOW, "do write to eclient(%p, type=%d, linker_type=%lu, queue_size=%lu)", 
                     bc, bc->type, linker_type, eeh->m_linker_queues[linker_type].size());
 
     while (eeh->m_linker_queues[linker_type].size() > 0) {
@@ -265,7 +265,7 @@ int transfer_timer_callback(void *args, void *userp)
 
             eeh->m_linker_queues[bc->linker_type].push(tomsg);
 
-            EEHINFO(eeh->logger, FLOW, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and heartbeat to eclient(%p, type=%d)", 
+            EEHINFO(eeh->logger, FLOW, "pushed msg(len=%lu) to queue(linker=%lu, size=%lu) and heartbeat to eclient(%p, type=%d)", 
                     tomsg.size(), bc->linker_type, eeh->m_linker_queues[bc->linker_type].size(), bc, bc->type);
             
             eeh->EEH_mod(bc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
@@ -432,7 +432,7 @@ static int madolche_handle_message(int fd, std::string msg, void *userp)
         
     eeh->m_linker_queues[tobc->linker_type].push(tomsg);
 
-    EEHINFO(eeh->logger, CHLD, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and forward to eclient(%p, type=%d)", 
+    EEHINFO(eeh->logger, CHLD, "pushed msg(len=%lu) to queue(linker=%lu, size=%lu) and forward to eclient(%p, type=%d)", 
             tomsg.size(), tobc->linker_type, eeh->m_linker_queues[tobc->linker_type].size(), tobc, tobc->type);
         
     eeh->EEH_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
@@ -515,7 +515,7 @@ ssize_t madolche_write_callback(int fd, const void *buf, size_t count, void *use
         return -1;
     }
     
-    EEHINFO(eeh->logger, CHLD, "do write to eclient(%p, type=%d, linker_type=%d, queue_size=%lu)", 
+    EEHINFO(eeh->logger, CHLD, "do write to eclient(%p, type=%d, linker_type=%lu, queue_size=%lu)", 
                     bc, bc->type, linker_type, eeh->m_linker_queues[linker_type].size());
     
     while (eeh->m_linker_queues[linker_type].size() > 0) {
@@ -563,7 +563,7 @@ int madolche_timer_callback(void *args, void *userp)
 
         eeh->m_linker_queues[bc->linker_type].push(tomsg);
 
-        EEHINFO(eeh->logger, CHLD, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and heartbeat to eclient(%p, type=%d)", 
+        EEHINFO(eeh->logger, CHLD, "pushed msg(len=%lu) to queue(linker=%lu, size=%lu) and heartbeat to eclient(%p, type=%d)", 
                 tomsg.size(), bc->linker_type, eeh->m_linker_queues[bc->linker_type].size(), bc, bc->type);
         
         eeh->EEH_mod(bc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
@@ -687,7 +687,7 @@ static int gimmickpuppet_handle_message(int fd, std::string msg, void *userp)
         
     eeh->m_linker_queues[tobc->linker_type].push(tomsg);
 
-    EEHINFO(eeh->logger, CHLD, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and forward to eclient(%p, type=%d)", 
+    EEHINFO(eeh->logger, CHLD, "pushed msg(len=%lu) to queue(linker=%lu, size=%lu) and forward to eclient(%p, type=%d)", 
             tomsg.size(), tobc->linker_type, eeh->m_linker_queues[tobc->linker_type].size(), tobc, tobc->type);
         
     eeh->EEH_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
@@ -769,7 +769,7 @@ ssize_t gimmickpuppet_write_callback(int fd, const void *buf, size_t count, void
         return -1;
     }
     
-    EEHINFO(eeh->logger, CHLD, "do write to eclient(%p, type=%d, linker_type=%d, queue_size=%lu)", 
+    EEHINFO(eeh->logger, CHLD, "do write to eclient(%p, type=%d, linker_type=%lu, queue_size=%lu)", 
                     bc, bc->type, linker_type, eeh->m_linker_queues[linker_type].size());
     
     while (eeh->m_linker_queues[linker_type].size() > 0) {
@@ -817,7 +817,7 @@ int gimmickpuppet_timer_callback(void *args, void *userp)
 
         eeh->m_linker_queues[bc->linker_type].push(tomsg);
 
-        EEHINFO(eeh->logger, CHLD, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and heartbeat to eclient(%p, type=%d)", 
+        EEHINFO(eeh->logger, CHLD, "pushed msg(len=%lu) to queue(linker=%lu, size=%lu) and heartbeat to eclient(%p, type=%d)", 
                 tomsg.size(), bc->linker_type, eeh->m_linker_queues[bc->linker_type].size(), bc, bc->type);
         
         eeh->EEH_mod(bc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
@@ -899,8 +899,8 @@ ssize_t policy_read_callback(int fd, void *buf, size_t size, void *userp)
         BIC_MESSAGE bicmguard(nullptr, &bicguard);
         
         bicmguard.ExtractPayload(bicmsg);
-        EEHDBUG(eeh->logger, SERV, "BIC_GUARDRAGON.heartbeat: %ld", bicguard.heartbeat);
-        EEHDBUG(eeh->logger, SERV, "BIC_GUARDRAGON.biubiu:    %s", bicguard.biubiu.c_str());
+        EEHDBUG(eeh->logger, SERV, "BIC_GUARDRAGON.heartbeat: %lu", bicguard.heartbeat);
+        EEHDBUG(eeh->logger, SERV, "BIC_GUARDRAGON.biubiu:    %s",  bicguard.biubiu.c_str());
         eeh->m_heartbeats[bc->linker_type] = now_time();
     } else if (bich.type == BIC_TYPE_S2P_MONSTER) {
         BIC_MONSTER bicp;
@@ -955,7 +955,7 @@ ssize_t policy_write_callback(int fd, const void *buf, size_t count, void *userp
         return -1;
     }
     
-    EEHINFO(eeh->logger, SERV, "do write to eclient(%p, type=%d, linker_type=%d, queue_size=%lu)", 
+    EEHINFO(eeh->logger, SERV, "do write to eclient(%p, type=%d, linker_type=%lu, queue_size=%lu)", 
                     bc, bc->type, linker_type, eeh->m_linker_queues[linker_type].size());
     
     while (eeh->m_linker_queues[linker_type].size() > 0) {
@@ -1043,7 +1043,7 @@ int policy_timer_callback(void *args, void *userp)
         
         eeh->m_linker_queues[bc->linker_type].push(tomsg);
         
-        EEHINFO(eeh->logger, SERV, "pushed msg(len=%lu) to queue(linker=%d, size=%lu) and send to eclient(%p, type=%d)", 
+        EEHINFO(eeh->logger, SERV, "pushed msg(len=%lu) to queue(linker=%lu, size=%lu) and send to eclient(%p, type=%d)", 
                 tomsg.size(), bc->linker_type, eeh->m_linker_queues[bc->linker_type].size(), bc, bc->type);
         
         eeh->EEH_mod(bc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);

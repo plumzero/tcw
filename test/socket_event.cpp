@@ -15,7 +15,6 @@ int main(int argc, char *argv[])
     EEHNS::EpollEvHandler::EEH_set_services("MADOLCHE",       madolche_callback_module);
     EEHNS::EpollEvHandler::EEH_set_services("GIMMICK_PUPPET", gimmickpuppet_callback_module);
     EEHNS::EpollEvHandler::EEH_set_services("SYNCHRON",       null_callback_module);
-    EEHNS::EpollEvHandler::EEH_set_services("POLICY",         policy_callback_module);
     rescode = eeh.EEH_init("eeh.ini");
     if (rescode != EEHNS::EEH_OK) {
         ECHO(ERRO, "EEH_init failed");
