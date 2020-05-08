@@ -9,9 +9,16 @@ int main(int argc, char *argv[])
     (void) argv;
     
     EEHNS::EpollEvHandler eeh;
-    // EEHNS::EEHErrCode rescode;
+    EEHNS::EEHErrCode rescode;
     
-    eeh.EEH_init("eeh.ini");
+    EEHNS::EpollEvHandler::EEH_set_services("DAEMON",         transfer_callback_module);
+    EEHNS::EpollEvHandler::EEH_set_services("POLICY",         policy_callback_module);
+    
+    rescode = eeh.EEH_init("server.ini");
+    if (rescode != EEHNS::EEH_OK) {
+        ECHO(ERRO, "EEH_init failed");
+        return -1;
+    }
     
     // EEHNS::EClient* ec_listen = 
         // eeh.EEH_TCP_listen("10.0.80.121", 8061, 
@@ -26,9 +33,7 @@ int main(int argc, char *argv[])
         // printf("EEH_add failed\n");
         // return -1;
     // }
-    
-    sleep(2);
-    
+
     eeh.EEH_run();
     
     eeh.EEH_destroy();

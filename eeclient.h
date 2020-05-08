@@ -44,7 +44,7 @@ namespace EEHNS
         PORT_t              port;
         ACTION_t            action;
         OPTION_t            prev_option;
-        SID_t               linker_type;        /** the service type between two ends */
+        SID_t               sid;                /** the service type between two ends */
         uint64_t            heartbeat;          /** record the time the heartbeat was sent */
         
         bool                is_server;          /** only for tcp server. whether is server or not */
