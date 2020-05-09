@@ -11,9 +11,9 @@ int main(int argc, char *argv[])
     EEHNS::EpollEvHandler eeh;
     EEHNS::EEHErrCode rescode;
     
-    EEHNS::EpollEvHandler::EEH_set_services("TRANSFER",       transfer_callback_module);
-    EEHNS::EpollEvHandler::EEH_set_services("MADOLCHE",       madolche_callback_module);
-    EEHNS::EpollEvHandler::EEH_set_services("GIMMICK_PUPPET", gimmickpuppet_callback_module);
+    EEHNS::EpollEvHandler::EEH_set_services("TRANSFER",       daemon_callback_module);
+    EEHNS::EpollEvHandler::EEH_set_services("MADOLCHE",       child_callback_module);
+    EEHNS::EpollEvHandler::EEH_set_services("GIMMICK_PUPPET", child_callback_module);
     EEHNS::EpollEvHandler::EEH_set_services("SYNCHRON",       null_callback_module);
     
     rescode = eeh.EEH_init("event.ini");

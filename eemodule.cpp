@@ -49,7 +49,7 @@ ee_event_actions_t null_callback_module = {
     null_timer_callback,
 };
 
-ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
+ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
 {
     (void) buf;
     (void) size;
@@ -125,17 +125,17 @@ ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
                                 eeh->m_services_id[bich.origin].c_str(), 
                                 eeh->m_services_id[bich.orient].c_str(), bich.type, from_outward);
 
-	decltype (std::declval<std::map<EEHNS::FD_t, EEHNS::SID_t>>().begin()) iterTo;
+    decltype (std::declval<std::map<EEHNS::FD_t, EEHNS::SID_t>>().begin()) iterTo;
     if (from_outward) {
-		iterTo = std::find_if(eeh->m_ilinkers.begin(), eeh->m_ilinkers.end(),
-								[&bich](const decltype(*eeh->m_ilinkers.begin())& ele){
-			return ele.second == bich.orient;
-		});
+        iterTo = std::find_if(eeh->m_ilinkers.begin(), eeh->m_ilinkers.end(),
+                                [&bich](const decltype(*eeh->m_ilinkers.begin())& ele){
+            return ele.second == bich.orient;
+        });
     } else {
-		iterTo = std::find_if(eeh->m_olinkers.begin(), eeh->m_olinkers.end(),
-								[&bich](const decltype(*eeh->m_olinkers.begin())& ele){
-			return ele.second == bich.orient;
-		});
+        iterTo = std::find_if(eeh->m_olinkers.begin(), eeh->m_olinkers.end(),
+                                [&bich](const decltype(*eeh->m_olinkers.begin())& ele){
+            return ele.second == bich.orient;
+        });
     }
 
     if (iterTo->first <= 0) {
@@ -163,7 +163,7 @@ ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
 }
 
 /** do nothing, write purely */
-ssize_t transfer_write_callback(int fd, const void *buf, size_t count, void *userp)
+ssize_t daemon_write_callback(int fd, const void *buf, size_t count, void *userp)
 {
     (void) buf;
     (void) count;
@@ -202,7 +202,7 @@ ssize_t transfer_write_callback(int fd, const void *buf, size_t count, void *use
     return 0;
 }
 
-int transfer_timer_callback(void *args, void *userp)
+int daemon_timer_callback(void *args, void *userp)
 {   
     EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
 
@@ -211,15 +211,13 @@ int transfer_timer_callback(void *args, void *userp)
         return -1;
     }
     
-    return 0;
-    
     if (eeh->m_olinkers.find(bc->fd) != eeh->m_olinkers.end()) {    /** guard heartbeat */
         if (now_time() - bc->heartbeat >= 1000) {
             bc->heartbeat = now_time();
 
             BIC_HEADER tobich(eeh->m_id, bc->sid, BIC_TYPE_GUARDRAGON);
             BIC_GUARDRAGON tobicp;
-            tobicp.biubiu = "Hello World, 索尼克";
+            tobicp.biubiu = "Hello World, " + eeh->m_services_id[bc->sid];;
             BIC_MESSAGE tobicm(&tobich, &tobicp);
 
             std::string tobicmsg;
@@ -248,13 +246,13 @@ int transfer_timer_callback(void *args, void *userp)
     return 0;
 }
 
-ee_event_actions_t transfer_callback_module = {
-    transfer_read_callback,
-    transfer_write_callback,
-    transfer_timer_callback,
+ee_event_actions_t daemon_callback_module = {
+    daemon_read_callback,
+    daemon_write_callback,
+    daemon_timer_callback,
 };
 
-static int madolche_handle_message(int fd, std::string msg, void *userp)
+static int child_handle_message(int fd, std::string msg, void *userp)
 {
     EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
 
@@ -289,14 +287,14 @@ static int madolche_handle_message(int fd, std::string msg, void *userp)
         EEHDBUG(eeh->logger, CHLD, "BIC_SUMMON.code:  %lu", bic.code);
         
         BIC_MONSTER* monster = new BIC_MONSTER();
-        monster->name = "Madolche Queen Tiaramisu";
-        monster->type = "xyz monster (Effect)";
-        monster->attribute = "Earth";
+        monster->name = eeh->m_services_id[bc->sid];
+        monster->type = "service";
+        monster->attribute = "process";
         monster->race = "Fairy";
         monster->level = 4;
         monster->attack = 2200;
         monster->defense = 2100;
-        monster->description = "魔偶甜点 后冠提拉米苏";
+        monster->description = "访问的是 " + eeh->m_services_id[bc->sid] + " 服务";
         
         tobicp = monster;
         totype = BIC_TYPE_S2P_MONSTER;
@@ -359,7 +357,7 @@ static int madolche_handle_message(int fd, std::string msg, void *userp)
         bomb->service_type = bic.service_type;
         bomb->kill = bic.kill;
         bomb->rescode = 1;
-        bomb->receipt = "魔偶甜点 将在 1 秒内被吃掉";
+        bomb->receipt = eeh->m_services_id[bc->sid] + " 服务将在 1 秒内被销毁";
         
         signal(SIGALRM, EEHNS::signal_release);
         alarm(2);
@@ -419,7 +417,7 @@ static int madolche_handle_message(int fd, std::string msg, void *userp)
 }
 
 /** do nothing, read purely */
-ssize_t madolche_read_callback(int fd, void *buf, size_t size, void *userp)
+ssize_t child_read_callback(int fd, void *buf, size_t size, void *userp)
 {
     (void) buf;
     (void) size;
@@ -459,7 +457,7 @@ ssize_t madolche_read_callback(int fd, void *buf, size_t size, void *userp)
         return -1;
     }
     
-    int ret = madolche_handle_message(fd, std::string(rbuf, nb), userp);
+    int ret = child_handle_message(fd, std::string(rbuf, nb), userp);
     if (ret == 0) {
         EEHDBUG(eeh->logger, CHLD, "%s: success handled msg(len=%ld) from ec(%p, t=%d)",
                                     eeh->m_services_id[eeh->m_id].c_str(), nb, bc, bc->type);
@@ -476,7 +474,7 @@ ssize_t madolche_read_callback(int fd, void *buf, size_t size, void *userp)
 }
 
 /** do nothing, write purely */
-ssize_t madolche_write_callback(int fd, const void *buf, size_t count, void *userp)
+ssize_t child_write_callback(int fd, const void *buf, size_t count, void *userp)
 {
     (void) buf;
     (void) count;
@@ -514,7 +512,7 @@ ssize_t madolche_write_callback(int fd, const void *buf, size_t count, void *use
     return 0;
 }
 
-int madolche_timer_callback(void *args, void *userp)
+int child_timer_callback(void *args, void *userp)
 {
     EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
     EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>((EEHNS::EClient*)args);
@@ -530,7 +528,7 @@ int madolche_timer_callback(void *args, void *userp)
 
         BIC_HEADER tobich(eeh->m_id, bc->sid, BIC_TYPE_GUARDRAGON);
         BIC_GUARDRAGON tobicp;
-        tobicp.biubiu = "Hello World, 魔偶甜点";
+        tobicp.biubiu = "Hello World, " + eeh->m_services_id[bc->sid];
         BIC_MESSAGE tobicm(&tobich, &tobicp);
 
         std::string tobicmsg;
@@ -556,274 +554,10 @@ int madolche_timer_callback(void *args, void *userp)
     return 0;
 }
 
-ee_event_actions_t madolche_callback_module = {
-    madolche_read_callback,
-    madolche_write_callback,
-    madolche_timer_callback,
-};
-
-static int gimmickpuppet_handle_message(int fd, std::string msg, void *userp)
-{
-    EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
-
-    EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[fd]);
-    if (! bc) {
-        return -1;
-    }
-
-    BIC_HEADER  bich;
-    BIC_MESSAGE bicm(&bich, nullptr);
-    bicm.ExtractHeader(msg);
-
-    if (bc->sid != bich.orient) {
-        EEHERRO(eeh->logger, CHLD, "not belong here, discard the message");
-        return 0;
-    }
-
-    EEHDBUG(eeh->logger, CHLD, "received msg(type=%d, len=%d) from origin(sid=%s) to orient(sid=%s)",
-                                bich.type, msg.size(),
-                                eeh->m_services_id[bich.origin].c_str(), eeh->m_services_id[bich.orient].c_str());
-
-    BIC_BASE *tobicp = nullptr;
-    BICTYPE totype;
-    if (bich.type == BIC_TYPE_P2S_SUMMON) {
-        BIC_SUMMON bic;
-        BIC_MESSAGE bicsummon(nullptr, &bic);
-        
-        bicsummon.ExtractPayload(msg);
-        
-        EEHDBUG(eeh->logger, CHLD, "BIC_SUMMON.info:  %s", bic.info.c_str());
-        EEHDBUG(eeh->logger, CHLD, "BIC_SUMMON.sno:   %s", bic.sno.c_str());
-        EEHDBUG(eeh->logger, CHLD, "BIC_SUMMON.code:  %lu", bic.code);
-        
-        BIC_MONSTER* monster = new BIC_MONSTER();
-        monster->name = "Gimmick Puppet Giant Hunter";
-        monster->type = "xyz monster (Effect)";
-        monster->attribute = "Dark";
-        monster->race = "Machine";
-        monster->level = 9;
-        monster->attack = 2500;
-        monster->defense = 1500;
-        monster->description = "机关傀儡-连环杀手";
-        
-        tobicp = monster;
-        totype = BIC_TYPE_S2P_MONSTER;
-    } else if (bich.type == BIC_TYPE_P2S_BOMBER) {
-        BIC_BOMBER bic;
-        BIC_MESSAGE bicbomb(nullptr, &bic);
-        
-        bicbomb.ExtractPayload(msg);
-        
-        EEHDBUG(eeh->logger, CHLD, "BIC_BOMBER.service_name: %s", bic.service_name.c_str());
-        EEHDBUG(eeh->logger, CHLD, "BIC_BOMBER.service_type: %d", bic.service_type);
-        EEHDBUG(eeh->logger, CHLD, "BIC_BOMBER.kill:         %s", bic.kill ? "true" : "false");
-        
-        BIC_BOMBER* bomb = new BIC_BOMBER();
-        bomb->service_name = bic.service_name;
-        bomb->service_type = bic.service_type;
-        bomb->kill = bic.kill;
-        bomb->rescode = 1;
-        bomb->receipt = "机关傀儡 将在 2 秒内被摧毁";
-        
-        signal(SIGALRM, EEHNS::signal_release);
-        alarm(2);
-        EEHDBUG(eeh->logger, CHLD, "pid %d would be destructed in 2 seconds", getpid());
-        
-        tobicp = bomb;
-        totype = BIC_TYPE_S2P_BOMBER;
-    } else {
-        EEHERRO(eeh->logger, CHLD, "undefined or unhandled msg(%d)", (int)bich.type);
-        return -1;
-    }
-    
-    BIC_HEADER tobich(eeh->m_id, bich.origin, totype);
-    BIC_MESSAGE tobicm(&tobich, tobicp);
-    
-    EEHDBUG(eeh->logger, CHLD, "done! msg(type=%d) would send from(%s) to(%s)",
-                                totype, eeh->m_services_id[eeh->m_id].c_str(),
-                                eeh->m_services_id[bich.origin].c_str());
-
-    std::string tobicmsg;
-    tobicm.Serialize(&tobicmsg);
-    
-    // EEHDBUG(eeh->logger, CHLD, "tobicmsg(%d): %s", tobicmsg.size(), tobicmsg.c_str());
-    
-    std::string tomsg;
-    if (tobicmsg.empty()) {
-        EEHERRO(eeh->logger, CHLD, "msg size is 0");
-        return -1;
-    }
-    add_header(&tomsg, tobicmsg);
-    
-    if (tobicp != nullptr) {
-        delete tobicp;
-    }
-    
-    int tofd(0);
-    if (eeh->m_pipe_pairs.find(bc->sid) != eeh->m_pipe_pairs.end()) {
-        tofd = eeh->m_pipe_pairs[bc->sid].second;
-    } else {
-        EEHERRO(eeh->logger, CHLD, "an exceptions occurs");
-        return -1;
-    }
-    
-    EEHNS::BaseClient *tobc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[tofd]);
-    if (! tobc) {
-        return -1;
-    }
-        
-    eeh->m_linker_queues[tobc->sid].push(tomsg);
-
-    EEHDBUG(eeh->logger, CHLD, "pushed msg(type=%d, len=%lu, from=%s) to que(ownby=%s, size=%lu) and forward to %s", 
-                                totype, tomsg.size(), eeh->m_services_id[tobich.origin].c_str(),
-                                eeh->m_services_id[tobc->sid].c_str(), eeh->m_linker_queues[tobc->sid].size(),
-                                eeh->m_services_id[tobich.orient].c_str());
-        
-    eeh->EEH_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
-
-    return 0;
-}
-
-ssize_t gimmickpuppet_read_callback(int fd, void *buf, size_t size, void *userp)
-{
-    (void) buf;
-    (void) size;
-    
-    EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
-    
-    EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[fd]);
-    if (! bc) {
-        return -1;
-    }
-    
-    EEHDBUG(eeh->logger, CHLD, "do read from ec(%p, t=%d, s=%s)", bc, bc->type, eeh->m_services_id[bc->sid].c_str());
-    
-    char hbuf[NEGOHSIZE];
-    ssize_t nh = read(fd, hbuf, NEGOHSIZE);
-    if (nh != NEGOHSIZE) {
-        EEHERRO(eeh->logger, CHLD, "read(%ld != %lu): %s", nh, NEGOHSIZE, strerror(errno));
-        return -1;
-    }
-    
-    NegoHeader header;
-    memcpy(&header, hbuf, NEGOHSIZE);
-    
-    size_t bodysize = ntohs(header.bodysize);
-    
-    char *rbuf = (char *)calloc(1, bodysize);
-    if (! rbuf) {
-        return -1;
-    }
-    
-    ssize_t nb = read(fd, rbuf, bodysize);
-    if (nb != (ssize_t)bodysize) {
-        EEHERRO(eeh->logger, CHLD, "read(%ld != %lu): %s", nb, bodysize, strerror(errno));
-        if (rbuf) {
-            free(rbuf);
-        }
-        return -1;
-    }
-    
-    int ret = gimmickpuppet_handle_message(fd, std::string(rbuf, nb), userp);
-    if (ret == 0) {
-        EEHDBUG(eeh->logger, CHLD, "%s: success handled msg(len=%ld) from ec(%p, t=%d)",
-                                    eeh->m_services_id[eeh->m_id].c_str(), nb, bc, bc->type);
-    } else {
-        EEHERRO(eeh->logger, CHLD, "%s: failure handled msg(len=%ld) from ec(%p, t=%d)",
-                                    eeh->m_services_id[eeh->m_id].c_str(), nb, bc, bc->type);
-    }
-    
-    if (rbuf) {
-        free(rbuf);
-    }
-    
-    return ret;
-}
-
-ssize_t gimmickpuppet_write_callback(int fd, const void *buf, size_t count, void *userp)
-{
-    (void) buf;
-    (void) count;
-    
-    EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
-        
-    EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[fd]);
-    if (! bc) {
-        return -1;
-    }
-    
-    EEHNS::SID_t sid;
-    if (eeh->m_ilinkers.find(fd) != eeh->m_ilinkers.end()) {
-        sid = eeh->m_ilinkers[fd];
-    } else {
-        EEHERRO(eeh->logger, CHLD, "an exceptions occurs");
-        return -1;
-    }
-    
-    EEHDBUG(eeh->logger, CHLD, "do write to ec(%p, t=%d, s=%s, queue_size=%lu)", 
-                                bc, bc->type,
-                                eeh->m_services_id[sid].c_str(), eeh->m_linker_queues[sid].size());
-    
-    while (eeh->m_linker_queues[sid].size() > 0) {
-        std::string msg(eeh->m_linker_queues[sid].front());
-        size_t nt = write(fd, msg.c_str(), msg.size());
-        if (nt != msg.size()) {
-            EEHERRO(eeh->logger, CHLD, "write: %s", strerror(errno));
-            return -1;
-        }
-        eeh->m_linker_queues[sid].pop();
-        EEHDBUG(eeh->logger, CHLD, "forwarded msg(len=%lu) to peer end of ec(%p, t=%d)", nt, bc, bc->type);
-    }
-    
-    return 0;
-}
-
-int gimmickpuppet_timer_callback(void *args, void *userp)
-{
-    EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
-    EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>((EEHNS::EClient*)args);
-    if (! bc) {
-        return -1;
-    }
-
-    if (eeh->m_ilinkers.find(bc->fd) != eeh->m_ilinkers.end()) {
-        if (now_time() - bc->heartbeat < 1000) {
-            return 0;
-        }
-        bc->heartbeat = now_time();
-
-        BIC_HEADER tobich(eeh->m_id, bc->sid, BIC_TYPE_GUARDRAGON);
-        BIC_GUARDRAGON tobicp;
-        tobicp.biubiu = "Hello World, 机关傀儡";
-        BIC_MESSAGE tobicm(&tobich, &tobicp);
-
-        std::string tobicmsg;
-        tobicm.Serialize(&tobicmsg);
-
-        std::string tomsg;
-        if (tobicmsg.empty()) {
-            EEHERRO(eeh->logger, CHLD, "msg size is 0");
-            return -1;
-        }
-        add_header(&tomsg, tobicmsg);
-
-        eeh->m_linker_queues[bc->sid].push(tomsg);
-
-        EEHDBUG(eeh->logger, CHLD, "pushed msg(type=%d, len=%lu, from=%s) to que(ownby=%s, size=%lu) and heartbeat to %s", 
-                                    BIC_TYPE_GUARDRAGON, tomsg.size(), eeh->m_services_id[tobich.origin].c_str(),
-                                    eeh->m_services_id[bc->sid].c_str(), eeh->m_linker_queues[bc->sid].size(),
-                                    eeh->m_services_id[tobich.orient].c_str());
-        
-        eeh->EEH_mod(bc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
-    }
-
-    return 0;
-}
-
-ee_event_actions_t gimmickpuppet_callback_module = {
-    gimmickpuppet_read_callback,
-    gimmickpuppet_write_callback,
-    gimmickpuppet_timer_callback,
+ee_event_actions_t child_callback_module = {
+    child_read_callback,
+    child_write_callback,
+    child_timer_callback,
 };
 
 ssize_t policy_read_callback(int fd, void *buf, size_t size, void *userp)
@@ -983,9 +717,9 @@ int policy_timer_callback(void *args, void *userp)
         }
         bc->heartbeat = now_time();
         
-        std::string tobicmsg;
-                
-        static BICTYPE type = BIC_TYPE_P2S_SUMMON; // BIC_TYPE_NONE;
+        srand(time(nullptr));
+        
+        static int test_option = 1;
         
         decltype(eeh->m_services_id.begin()) iterFrom, iterTo;
 
@@ -995,44 +729,72 @@ int policy_timer_callback(void *args, void *userp)
             EEHERRO(eeh->logger, SERV, "could not find service id");
             return -1;
         }
-
-        if (type == BIC_TYPE_P2S_BITRON) {          /** 比特传输 */
-        } else if (type == BIC_TYPE_P2S_BLOCKRON) { /** 大文件传输 */
-        } else if (type == BIC_TYPE_P2S_BOMBER) {   /** 杀 Madolche */
-        } else if (type == BIC_TYPE_P2S_SUMMON) { /** 消息环回 */
-            srand(time(nullptr));
-
-            if (rand() % 2) {
-                iterTo = std::find_if(eeh->m_services_id.begin(), eeh->m_services_id.end(),
-                        [](const decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "MADOLCHE"; });
-                if (iterTo == eeh->m_services_id.end()) {
-                    EEHERRO(eeh->logger, SERV, "could not find service id");
-                    return -1;
-                }
-                BIC_HEADER bich(iterFrom->first, iterTo->first, type);
-                BIC_SUMMON bicp;
-                bicp.info = "召唤信息";
-                bicp.sno = "ABYR-JP048";
-                bicp.code = 37164373;
-                
-                BIC_MESSAGE bicm(&bich, &bicp);
-                bicm.Serialize(&tobicmsg);
-            } else {
-                iterTo = std::find_if(eeh->m_services_id.begin(), eeh->m_services_id.end(),
-                        [](const decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "GIMMICK_PUPPET"; });
-                if (iterTo == eeh->m_services_id.end()) {
-                    EEHERRO(eeh->logger, SERV, "could not find service id");
-                    return -1;
-                }
-                BIC_HEADER bich(iterFrom->first, iterTo->first, type);
-                BIC_SUMMON bicp;
-                bicp.info = "召唤信息";
-                bicp.sno = "PP16-JP010";
-                bicp.code = 33776843;
-                
-                BIC_MESSAGE bicm(&bich, &bicp);
-                bicm.Serialize(&tobicmsg);
+        if (rand() % 2) {
+            iterTo = std::find_if(eeh->m_services_id.begin(), eeh->m_services_id.end(),
+                    [](const decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "MADOLCHE"; });
+            if (iterTo == eeh->m_services_id.end()) {
+                EEHERRO(eeh->logger, SERV, "could not find service id");
+                return -1;
             }
+        } else {
+            iterTo = std::find_if(eeh->m_services_id.begin(), eeh->m_services_id.end(),
+                    [](const decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "GIMMICK_PUPPET"; });
+            if (iterTo == eeh->m_services_id.end()) {
+                EEHERRO(eeh->logger, SERV, "could not find service id");
+                return -1;
+            }
+        }
+        
+        static BICTYPE type = BIC_TYPE_P2S_SUMMON;
+        std::string tobicmsg;
+        static int count = 0;
+            
+        BIC_HEADER bich(iterFrom->first, iterTo->first, type);
+        if (type == BIC_TYPE_P2S_SUMMON) { /** 1. 消息环回 */
+            BIC_HEADER bich(iterFrom->first, iterTo->first, type);
+            BIC_SUMMON bicp;
+            bicp.info = "召唤信息";
+            bicp.sno = "ABAB-XYZ8";
+            bicp.code = 12345678;
+            
+            BIC_MESSAGE bicm(&bich, &bicp);
+            bicm.Serialize(&tobicmsg);
+
+            if (++count > 5) {
+                type = BIC_TYPE_P2S_BOMBER;
+                count = 0;
+            }
+        } else if (type == BIC_TYPE_P2S_BOMBER) { /** 2. 杀服务测试 */
+            BIC_BOMBER bicp;
+            bicp.service_name = "销毁 " + eeh->m_services_id[iterTo->first]  + " 服务";
+            bicp.service_type = iterTo->first;
+            bicp.kill = true;
+            
+            BIC_MESSAGE bicm(&bich, &bicp);
+            bicm.Serialize(&tobicmsg);
+            
+            type = BIC_TYPE_P2S_BITRON;
+        } else if (type == BIC_TYPE_P2S_BITRON) { /** 3. 比特传输 */
+            BIC_BITRON bicp;
+            unsigned char buf[] = { 
+                0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x03, 0x00, 0x3e, 0x00, 0x01, 0x00, 0x00, 0x00, 0xa0, 0x3a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x70, 0x07, 0x1b, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x38, 0x00, 0x09, 0x00, 0x40, 0x00, 0x27, 0x00, 0x26, 0x00,
+                0x06, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0xf8, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf8, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00,
+                0x38, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x38, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x38, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+            };
+            bicp.bits.assign((char*)buf, sizeof(buf));
+            bicp.bitslen = sizeof(buf);
+            
+            BIC_MESSAGE bicm(&bich, &bicp);
+            bicm.Serialize(&tobicmsg);
+            
+            type = BIC_TYPE_P2S_SUMMON;
         } else {
             return -1;
         }
