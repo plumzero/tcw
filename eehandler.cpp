@@ -407,8 +407,7 @@ void EpollEvHandler::EEH_destroy()
     m_olinkers.clear();
     m_pipe_pairs.clear();           /** new add */
 
-    std::map<FD_t, EClient*>::iterator iter_m;
-    for (iter_m = m_clients.begin(); iter_m != m_clients.end(); iter_m++) {
+    for (auto iter_m = m_clients.begin(); iter_m != m_clients.end(); iter_m++) {
         if (iter_m->first > 0) {
             close(iter_m->first);
         }
@@ -492,8 +491,7 @@ EEHErrCode EpollEvHandler::EEH_del(EClient *ec)
         return EEH_OK;
 
     bool exist = false;
-    std::map<FD_t, EClient*>::iterator iter_m;
-    for (iter_m = m_clients.begin(); iter_m != m_clients.end(); iter_m++) {
+    for (auto iter_m = m_clients.begin(); iter_m != m_clients.end(); iter_m++) {
         if (iter_m->second == ec) {
             exist = true;
             break;
@@ -521,8 +519,7 @@ EEHErrCode EpollEvHandler::EEH_del(EClient *ec)
 
     if (bc->type == EEH_TYPE_TCP) {
         if (bc->is_server) {    /** as server */
-            std::list<EClient*>::iterator iter_l;
-            for (iter_l = bc->clients.begin(); iter_l != bc->clients.end(); iter_l++) {
+            for (auto iter_l = bc->clients.begin(); iter_l != bc->clients.end(); iter_l++) {
                 BaseClient *bcc = dynamic_cast<BaseClient*>(*iter_l);
                 if (bcc) {
                     bcc->sid = ROVER_ID;
@@ -539,10 +536,9 @@ EEHErrCode EpollEvHandler::EEH_del(EClient *ec)
         } else {    /** as connect client */
             if (bc->sid != ROVER_ID) {
                 FD_t sfd = 0;
-                std::map<FD_t, SID_t>::iterator iter_m;
-                for (iter_m = m_listeners.begin(); iter_m != m_listeners.end(); iter_m++) {
-                    if (iter_m->second == bc->sid) {
-                        sfd = iter_m->first;
+                for (auto iter_l = m_listeners.begin(); iter_l != m_listeners.end(); iter_l++) {
+                    if (iter_l->second == bc->sid) {
+                        sfd = iter_l->first;
                         break;
                     }
                 }
@@ -608,7 +604,7 @@ EEHErrCode EpollEvHandler::EEH_del(EClient *ec)
 EClient* EpollEvHandler::EEH_TCP_listen(std::string bind_ip, PORT_t service_port, 
                                         SID_t sid, ee_event_actions_t clients_action)
 {
-    for (std::map<FD_t, SID_t>::const_iterator it_m = m_listeners.begin(); it_m != m_listeners.end(); it_m++) {
+    for (auto it_m = m_listeners.begin(); it_m != m_listeners.end(); it_m++) {
         if (it_m->second == sid) {
             EEHERRO(logger, WARD, "server type(%d) exist!", sid);
             return nullptr;
@@ -793,7 +789,7 @@ EClient* EpollEvHandler::EEH_TCP_accept(EListener *el)
 
 EClient* EpollEvHandler::EEH_TCP_connect(std::string remote_ip, PORT_t remote_port, SID_t sid)
 {
-    for (std::map<FD_t, SID_t>::const_iterator it_m = m_olinkers.begin(); it_m != m_olinkers.end(); it_m++) {
+    for (auto it_m = m_olinkers.begin(); it_m != m_olinkers.end(); it_m++) {
         if (it_m->second == sid) {
             EEHERRO(logger, WARD, "linker type(%lu) exist!", sid);
             return nullptr;
@@ -866,7 +862,7 @@ std::pair<EClient*, EClient*> EpollEvHandler::EEH_PIPE_create(FD_t rfd, FD_t wfd
 {
     std::pair<EClient*, EClient*> pipe_pair(nullptr, nullptr);
     
-    for (std::map<FD_t, SID_t>::const_iterator it_m = m_ilinkers.begin(); it_m != m_ilinkers.end(); it_m++) {
+    for (auto it_m = m_ilinkers.begin(); it_m != m_ilinkers.end(); it_m++) {
         if (it_m->second == sid) {
             EEHERRO(logger, WARD, "linker type(%lu) exist!", sid);
             return pipe_pair;
@@ -928,8 +924,7 @@ void EpollEvHandler::EEH_clear_zombie()
         return ;
     }
     
-    std::map<pid_t, std::string>::iterator iter_m;
-    for (iter_m = m_info_process.begin(); iter_m != m_info_process.end(); iter_m++) {
+    for (auto iter_m = m_info_process.begin(); iter_m != m_info_process.end(); iter_m++) {
         int stat_loc;
         pid_t rpid;
         if ((rpid = waitpid(iter_m->first, &stat_loc, WNOHANG)) > 0) {
@@ -953,8 +948,8 @@ void EpollEvHandler::EEH_rebuild_child(int rfd, int wfd,
 {
     ECHO(INFO, "child process(pid=%d) would run service(%s)",  getpid(), specified_service.c_str());
     
-    EEHNS::EpollEvHandler eeh;
-    EEHNS::EEHErrCode rescode;
+    EpollEvHandler eeh;
+    EEHErrCode rescode;
     
     rescode = eeh.EEH_init(conf, specified_service);
     if (rescode != EEH_OK) {
@@ -971,10 +966,10 @@ void EpollEvHandler::EEH_rebuild_child(int rfd, int wfd,
         return ;
     }
     
-    EEHNS::SID_t sid = iterFind->first;
+    SID_t sid = iterFind->first;
     ECHO(INFO, "%s's id is %lu", specified_service.c_str(), sid);
 
-    std::pair<EEHNS::EClient*, EEHNS::EClient*> ec_pipe_pair = eeh.EEH_PIPE_create(rfd, wfd, sid);
+    std::pair<EClient*, EClient*> ec_pipe_pair = eeh.EEH_PIPE_create(rfd, wfd, sid);
     if (! ec_pipe_pair.first) {
         ECHO(ERRO, "EEH_PIPE_create failed");
         return ;
@@ -984,16 +979,16 @@ void EpollEvHandler::EEH_rebuild_child(int rfd, int wfd,
         return ;
     }
 
-    dynamic_cast<EEHNS::BaseClient*>(ec_pipe_pair.first)->set_actions(eeh.m_linkers_actions[specified_service]);
-    dynamic_cast<EEHNS::BaseClient*>(ec_pipe_pair.second)->set_actions(eeh.m_linkers_actions[specified_service]);
+    dynamic_cast<BaseClient*>(ec_pipe_pair.first)->set_actions(eeh.m_linkers_actions[specified_service]);
+    dynamic_cast<BaseClient*>(ec_pipe_pair.second)->set_actions(eeh.m_linkers_actions[specified_service]);
     
     rescode = eeh.EEH_add(ec_pipe_pair.first);
-    if (rescode != EEHNS::EEH_OK) {
+    if (rescode != EEH_OK) {
         ECHO(ERRO, "EEH_add failed");
         return ;
     }
     rescode = eeh.EEH_add(ec_pipe_pair.second);
-    if (rescode != EEHNS::EEH_OK) {
+    if (rescode != EEH_OK) {
         ECHO(ERRO, "EEH_add failed");
         return ;
     }
@@ -1171,8 +1166,7 @@ void EpollEvHandler::EEH_run()
             }
         }
         /** timer call */
-        std::map<FD_t, EClient*>::iterator it_m;
-        for (it_m = m_clients.begin(); it_m != m_clients.end(); it_m++) {
+        for (auto it_m = m_clients.begin(); it_m != m_clients.end(); it_m++) {
             BaseClient *bc = dynamic_cast<BaseClient*>(it_m->second);
             if (! bc) {
                 /** maybe it has not enough time to release, continue and wait for a while */

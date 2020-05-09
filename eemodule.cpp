@@ -95,103 +95,65 @@ ssize_t transfer_read_callback(int fd, void *buf, size_t size, void *userp)
         return -1;
     }
 
-    std::string bicmsg(rbuf, nb);
+    std::string msg(rbuf, nb);
     if (rbuf) {
         free(rbuf);
     }
 
     /** CRC32 check */
-    if (crc32calc(bicmsg.c_str(), bicmsg.size()) != ntohl(header.crc32)) {
+    if (crc32calc(msg.c_str(), msg.size()) != ntohl(header.crc32)) {
         EEHERRO(eeh->logger, FLOW, "crc32 check error");
         return -1;
     }
 
     BIC_HEADER  bich;
     BIC_MESSAGE bicmh(&bich, nullptr);
-    bicmh.ExtractHeader(bicmsg.c_str());
+    bicmh.ExtractHeader(msg.c_str());
 
-    BIC_BASE *bicp = nullptr;
     if (bich.type == BIC_TYPE_GUARDRAGON) {
         BIC_GUARDRAGON bicguard;
         BIC_MESSAGE bicmguard(nullptr, &bicguard);
         
-        bicmguard.ExtractPayload(bicmsg);
+        bicmguard.ExtractPayload(msg);
         EEHDBUG(eeh->logger, FLOW, "BIC_GUARDRAGON.heartbeat: %lu", bicguard.heartbeat);
         EEHDBUG(eeh->logger, FLOW, "BIC_GUARDRAGON.biubiu:    %s",  bicguard.biubiu.c_str());
         eeh->m_heartbeats[bc->sid] = now_time();
         return 0;
-    } else if (bich.type == BIC_TYPE_P2S_SUMMON || bich.type == BIC_TYPE_S2P_SUMMON) {
-        bicp = new BIC_SUMMON();
-    } else if (bich.type == BIC_TYPE_P2S_MONSTER || bich.type == BIC_TYPE_S2P_MONSTER) {
-        bicp = new BIC_MONSTER();
-    } else if (bich.type == BIC_TYPE_P2S_BITRON || bich.type == BIC_TYPE_S2P_BITRON) {
-        bicp = new BIC_BITRON();
-    } else if (bich.type == BIC_TYPE_P2S_BLOCKRON || bich.type == BIC_TYPE_S2P_BLOCKRON) {
-        bicp = new BIC_BLOCKRON();
-    } else if (bich.type == BIC_TYPE_P2S_BOMBER || bich.type == BIC_TYPE_S2P_BOMBER) {
-        bicp = new BIC_BOMBER();
-    } else {
-        EEHERRO(eeh->logger, FLOW, "undefined or unhandled msg(%d)", (int)bich.type);
-        return -1;
     }
-
-    BIC_MESSAGE bicmp(nullptr, bicp);
-    bicmp.ExtractPayload(bicmsg);
-    
-    std::string tobicmsg, tomsg;
-    BIC_HEADER tobich;
-    tobich = BIC_HEADER(bich.origin, bich.orient, bich.type);
     
     EEHDBUG(eeh->logger, FLOW, "origin=%s, orient=%s, type=%d, from_outward=%d",
                                 eeh->m_services_id[bich.origin].c_str(), 
                                 eeh->m_services_id[bich.orient].c_str(), bich.type, from_outward);
 
-    BIC_MESSAGE tobicm(&tobich, bicp);
-    tobicm.Serialize(&tobicmsg);
-    
-    if (tobicmsg.empty()) {
-        EEHERRO(eeh->logger, FLOW, "msg size is 0");
-        return -1;
-    }
-    add_header(&tomsg, tobicmsg);
-
-    if (bicp != nullptr) {
-        delete bicp;
-    }
-
-    int tofd = 0;
+	decltype (std::declval<std::map<EEHNS::FD_t, EEHNS::SID_t>>().begin()) iterTo;
     if (from_outward) {
-        std::map<EEHNS::FD_t, EEHNS::SID_t>::const_iterator it_m;
-        for (it_m = eeh->m_ilinkers.begin(); it_m != eeh->m_ilinkers.end(); it_m++) {
-            if (it_m->second == bich.orient) {
-                tofd = it_m->first;
-            }
-        }
+		iterTo = std::find_if(eeh->m_ilinkers.begin(), eeh->m_ilinkers.end(),
+								[&bich](const decltype(*eeh->m_ilinkers.begin())& ele){
+			return ele.second == bich.orient;
+		});
     } else {
-        std::map<EEHNS::FD_t, EEHNS::SID_t>::const_iterator it_m;
-        EEHDBUG(eeh->logger, FLOW, "m_olinkers.size=%lu", eeh->m_olinkers.size());
-        for (it_m = eeh->m_olinkers.begin(); it_m != eeh->m_olinkers.end(); it_m++) {
-            if (it_m->second == bich.orient) {
-                tofd = it_m->first;
-            }
-            EEHDBUG(eeh->logger, FLOW, "fd=%d, sid=%s", it_m->first, eeh->m_services_id[it_m->second].c_str());
-        }
+		iterTo = std::find_if(eeh->m_olinkers.begin(), eeh->m_olinkers.end(),
+								[&bich](const decltype(*eeh->m_olinkers.begin())& ele){
+			return ele.second == bich.orient;
+		});
     }
 
-    if (tofd <= 0) {
+    if (iterTo->first <= 0) {
         EEHERRO(eeh->logger, FLOW, "tofd is 0");
         return -1;
     }
 
-    EEHNS::BaseClient *tobc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[tofd]);
+    EEHNS::BaseClient *tobc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[iterTo->first]);
     if (! tobc) {
         return -1;
     }
 
-    eeh->m_linker_queues[tobc->sid].push(tomsg);
+    // std::string stream = std::string(hbuf, hbuf + sizeof(hbuf)) + msg;
+    
+    eeh->m_linker_queues[tobc->sid].emplace(std::string(hbuf, hbuf + sizeof(hbuf)) + msg);
 
     EEHDBUG(eeh->logger, FLOW, "pushed msg(type=%d, len=%lu, from=%s) to que(ownby=%s, size=%lu) and forward to %s", 
-                                bich.type, tomsg.size(), eeh->m_services_id[bich.origin].c_str(),
+                                bich.type, msg.size(), eeh->m_services_id[bich.origin].c_str(),
                                 eeh->m_services_id[tobc->sid].c_str(), eeh->m_linker_queues[tobc->sid].size(),
                                 eeh->m_services_id[bich.orient].c_str());
 
