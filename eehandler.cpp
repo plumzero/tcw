@@ -71,10 +71,15 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
     for (i = SIGRTMIN; i <= SIGRTMAX; i++) {
         sigaddset(&set, i);
     }
+    sigaddset(&set, SIGHUP);
     sigaddset(&set, SIGPIPE);
-    int ret = pthread_sigmask(SIG_SETMASK, &set, NULL);
+    sigaddset(&set, SIGQUIT);
+    sigaddset(&set, SIGTTOU);
+    sigaddset(&set, SIGTTIN);
+    sigaddset(&set, SIGTERM);
+    int ret = sigprocmask(SIG_BLOCK, &set, NULL);
     if (ret) {
-        ECHO(ERRO, "pthread_sigmask %s", strerror(errno));
+        ECHO(ERRO, "sigprocmask %s", strerror(errno));
         return EEH_ERROR;
     }
     signal(SIGINT, signal_release);
