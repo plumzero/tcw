@@ -761,7 +761,7 @@ int policy_timer_callback(void *args, void *userp)
             bicm.Serialize(&tobicmsg);
 
             if (++count > 5) {
-                type = BIC_TYPE_P2S_BOMBER;
+                // type = BIC_TYPE_P2S_BOMBER;
                 count = 0;
             }
         } else if (type == BIC_TYPE_P2S_BOMBER) { /** 2. 杀服务测试 */

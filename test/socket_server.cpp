@@ -11,8 +11,8 @@ int main(int argc, char *argv[])
     EEHNS::EpollEvHandler eeh;
     EEHNS::EEHErrCode rescode;
     
-    EEHNS::EpollEvHandler::EEH_set_services("DAEMON",         daemon_callback_module);
-    EEHNS::EpollEvHandler::EEH_set_services("POLICY",         policy_callback_module);
+    EEHNS::EpollEvHandler::EEH_set_callback("DAEMON",         daemon_callback_module);
+    EEHNS::EpollEvHandler::EEH_set_callback("POLICY",         policy_callback_module);
     
     rescode = eeh.EEH_init("server.ini");
     if (rescode != EEHNS::EEH_OK) {

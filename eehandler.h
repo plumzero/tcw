@@ -31,6 +31,7 @@ namespace EEHNS
         std::map<FD_t, SID_t>                               m_listeners;
     public:
         static std::map<std::string, ee_event_actions_t>    m_linkers_actions;  /** 服务名称, 执行动作 */
+        static std::map<std::string, std::function<void*(void*)>>   m_linkers_func;
         static bool                                         m_is_running;
         std::string                                         m_conf_name;        /** 记录配置名称 */
         std::string                                         m_daemon_name;      /** 守护进程名称 */
@@ -54,7 +55,8 @@ namespace EEHNS
 
         ee_event_block_t                    m_info_block;       /** 测试用 */
     public:
-        static EEHErrCode EEH_set_services(const std::string& service, const ee_event_actions_t& actions);
+        static EEHErrCode EEH_set_callback(const std::string& service, const ee_event_actions_t& actions);
+        static EEHErrCode EEH_set_func(const std::string& service, void* func(void*));
         EEHErrCode EEH_init(const std::string& conf, const std::string& service = "");
         void EEH_destroy();
         EEHErrCode EEH_add(EClient *ec);

@@ -34,6 +34,7 @@
 #include <utility>
 #include <functional>
 #include <algorithm>
+#include <thread>
 
 /** heading direction of bic message or as a ec service type */
 #define  HASH_ID_RESERVE_ZONE   10000000L

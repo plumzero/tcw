@@ -49,13 +49,21 @@ void signal_release(int signum)
     }
 }
     
-std::map<std::string, ee_event_actions_t> EpollEvHandler::m_linkers_actions{};
+std::map<std::string, ee_event_actions_t>           EpollEvHandler::m_linkers_actions{};
+std::map<std::string, std::function<void*(void*)>>  EpollEvHandler::m_linkers_func{};
 
 bool EpollEvHandler::m_is_running = false;
 
-EEHErrCode EpollEvHandler::EEH_set_services(const std::string& service, const ee_event_actions_t& actions)
+EEHErrCode EpollEvHandler::EEH_set_callback(const std::string& service, const ee_event_actions_t& actions)
 {
     m_linkers_actions[service] = actions;
+
+    return EEH_OK;
+}
+
+EEHErrCode EpollEvHandler::EEH_set_func(const std::string& service, void* func(void*))
+{
+    m_linkers_func[service] = std::bind(func, std::placeholders::_1);
 
     return EEH_OK;
 }
@@ -999,6 +1007,13 @@ void EpollEvHandler::EEH_rebuild_child(int rfd, int wfd,
     }
     
     eeh.m_info_process[getpid()] = specified_service;
+    
+    if (m_linkers_func.find(specified_service) != m_linkers_func.end()) {
+        std::string service{specified_service};
+        ECHO(INFO, "开启服务  ===========%s", specified_service.c_str());
+        std::thread th(m_linkers_func[specified_service], nullptr);
+        th.detach();
+    }
     
     eeh.EEH_run();
     eeh.EEH_destroy();
