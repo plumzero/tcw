@@ -253,11 +253,10 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
         return EEH_ERROR;
     }
     logger->log_set_global_level(loglevel);
-    logger->log_set_level(LOG_TYPE_WARD, loglevel);
-    logger->log_set_level(LOG_TYPE_FLOW, loglevel);
-    logger->log_set_level(LOG_TYPE_CHLD, loglevel);
-    logger->log_set_level(LOG_TYPE_SERV, loglevel);
+    logger->log_set_level(LOG_TYPE_HAND, loglevel);
+    logger->log_set_level(LOG_TYPE_MODU, loglevel);
     logger->log_set_level(LOG_TYPE_FUNC, loglevel);
+    logger->log_set_level(LOG_TYPE_TEST, loglevel);
 
     /** [4] caculate each service's sha1 id */
     decltype(m_ini.begin()) iterIni;
@@ -286,12 +285,12 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
             hash_id = hex2integral<uint64_t>(hex);
             
             if (hash_id < HASH_ID_RESERVE_ZONE) {
-                EEHWARN(logger, WARD, "hash_id(%lu) is small than %lu", hash_id, HASH_ID_RESERVE_ZONE);
+                EEHWARN(logger, HAND, "hash_id(%lu) is small than %lu", hash_id, HASH_ID_RESERVE_ZONE);
                 hash_id_error = true;
                 continue;
             }
             if (m_services_id.find(hash_id) != m_services_id.end()) {
-                EEHWARN(logger, WARD, "hash_id(%lu) already exist", hash_id);
+                EEHWARN(logger, HAND, "hash_id(%lu) already exist", hash_id);
                 hash_id_error = true;
                 continue;
             }
@@ -299,7 +298,7 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
             hash_id_error = false;
         } while (hash_id_error);
         
-        EEHDBUG(logger, WARD, "section %s's service id is: %lu", iterIni->first.c_str(), hash_id);
+        EEHDBUG(logger, HAND, "section %s's service id is: %lu", iterIni->first.c_str(), hash_id);
 
         m_services_id[hash_id] = iterIni->first;
         if (iterIni->first == specified_service) {
@@ -307,12 +306,12 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
         }
     }
     
-    EEHINFO(logger, WARD, "%s's id is %lu", specified_service.c_str(), m_id);
+    EEHINFO(logger, HAND, "%s's id is %lu", specified_service.c_str(), m_id);
     
     /** [5] create epoll instance */
     m_epi = epoll_create(EPOLL_MAX_NUM);
     if (m_epi < 0) {
-        EEHERRO(logger, WARD, "epoll_create: %s", strerror(errno));
+        EEHERRO(logger, HAND, "epoll_create: %s", strerror(errno));
         return EEH_ERROR;
     }
     
@@ -327,7 +326,7 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
             bool on;
             section = iterIni->first;
 
-            EEHINFO(logger, WARD, "deal with section %s", section.c_str());
+            EEHINFO(logger, HAND, "deal with section %s", section.c_str());
             
             for (const auto & kv : iterIni->second) {
                 key.clear();
@@ -337,7 +336,7 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
                 if (key == "listen" || key == "connect") addr = m_ini[section][key] | "";
                 if (key == "on") on = m_ini[section][key] | false;
             }
-            EEHDBUG(logger, WARD, "%s's info(as=%s, addr=%s, on=%d)", section.c_str(), as.c_str(), addr.c_str(), on);
+            EEHDBUG(logger, HAND, "%s's info(as=%s, addr=%s, on=%d)", section.c_str(), as.c_str(), addr.c_str(), on);
 
             if (! on) {
                 continue;
@@ -350,7 +349,7 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
             if (as == "server" || as == "client") {
                 size_t pos = addr.find(':');
                 if (pos == std::string::npos) {
-                    EEHERRO(logger, WARD, "%s format error", addr.c_str());
+                    EEHERRO(logger, HAND, "%s format error", addr.c_str());
                     return EEH_ERROR;
                 }
                 host = std::string(addr.begin(), addr.begin() + pos);
@@ -360,41 +359,41 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
             auto iterId = std::find_if(m_services_id.begin(), m_services_id.end(),
                             [&section](const decltype(*m_services_id.begin())& ele){ return ele.second == section; });
             if (iterId == m_services_id.end()) {
-                EEHERRO(logger, WARD, "could not find %s's id", section.c_str());
+                EEHERRO(logger, HAND, "could not find %s's id", section.c_str());
                 return EEH_ERROR;
             }
-            EEHDBUG(logger, WARD, "%s's id is %lu", section.c_str(), iterId->first);
+            EEHDBUG(logger, HAND, "%s's id is %lu", section.c_str(), iterId->first);
             
             if (as == "daemon") {
                 // do nothing
             } else if (as == "server") {
                 EClient* ec_listen = EEH_TCP_listen(host, port, iterId->first, m_linkers_actions[section]);
                 if (! ec_listen) {
-                    EEHERRO(logger, WARD, "EEH_TCP_listen failed");
+                    EEHERRO(logger, HAND, "EEH_TCP_listen failed");
                     return EEH_ERROR;
                 }
                 if (EEH_add(ec_listen) != EEH_OK) {
-                    EEHERRO(logger, WARD, "EEH_add failed");
+                    EEHERRO(logger, HAND, "EEH_add failed");
                     return EEH_ERROR;
                 }
-                EEHDBUG(logger, WARD, "%s as a %s listened on %s:%d",
+                EEHDBUG(logger, HAND, "%s as a %s listened on %s:%d",
                                         section.c_str(), as.c_str(), host.c_str(), port);
             } else if (as == "client") {                    
                 EClient* ec_client = EEH_TCP_connect(host, port, iterId->first);
                 if (! ec_client) {
-                    EEHERRO(logger, WARD, "EEH_TCP_connect failed");
+                    EEHERRO(logger, HAND, "EEH_TCP_connect failed");
                     return EEH_ERROR;
                 }
                 if (EEH_add(ec_client) != EEH_OK) {
-                    EEHERRO(logger, WARD, "EEH_add failed");
+                    EEHERRO(logger, HAND, "EEH_add failed");
                     return EEH_ERROR;
                 }
                 dynamic_cast<BaseClient*>(ec_client)->set_actions(m_linkers_actions[m_daemon_name]);
-                EEHDBUG(logger, WARD, "%s as a %s connected to %s:%d",
+                EEHDBUG(logger, HAND, "%s as a %s connected to %s:%d",
                                         section.c_str(), as.c_str(), host.c_str(), port);
             } else if (as == "child") {
                 m_heartbeats[iterId->first] = now_time();
-                EEHDBUG(logger, WARD, "%s would as a %s created by daemon", section.c_str(), as.c_str());
+                EEHDBUG(logger, HAND, "%s would as a %s created by daemon", section.c_str(), as.c_str());
             }
         }           
     } else {
@@ -406,14 +405,14 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
     m_is_running = false;
     m_conf_name = conf;
     
-    EEHINFO(logger, WARD, "eeh initialize success.");
+    EEHINFO(logger, HAND, "eeh initialize success.");
     
     return EEH_OK;
 }
 
 void EpollEvHandler::EEH_destroy()
 {
-    EEHINFO(logger, WARD, "%lu cs(%lu ls, %lu ils, %lu ols) would be destroyed.", 
+    EEHINFO(logger, HAND, "%lu cs(%lu ls, %lu ils, %lu ols) would be destroyed.", 
                     m_clients.size(), m_listeners.size(), m_ilinkers.size(), m_olinkers.size());
     
     m_listeners.clear();
@@ -441,7 +440,7 @@ void EpollEvHandler::EEH_destroy()
     if (m_epi > 0)
         close(m_epi);
 
-    EEHINFO(logger, WARD, "eehandler destroyed.");
+    EEHINFO(logger, HAND, "eehandler destroyed.");
     
     delete logger;
     logger = nullptr;
@@ -460,7 +459,7 @@ EEHErrCode EpollEvHandler::EEH_add(EClient *ec)
         return EEH_ERROR;
     
     if (epoll_ctl(m_epi, EPOLL_CTL_ADD, bc->fd, &bc->ev) == -1) {
-        EEHERRO(logger, WARD, "epoll_ctl(EPOLL_CTL_ADD): %s", strerror(errno));
+        EEHERRO(logger, HAND, "epoll_ctl(EPOLL_CTL_ADD): %s", strerror(errno));
         return EEH_ERROR;
     }
     
@@ -468,7 +467,7 @@ EEHErrCode EpollEvHandler::EEH_add(EClient *ec)
         m_clients[bc->fd] = ec;
     }
     
-    EEHINFO(logger, WARD, "eclient(%p, id=%d, fd=%d, t=%d, option=%d) add to eehandler.",
+    EEHINFO(logger, HAND, "eclient(%p, id=%d, fd=%d, t=%d, option=%d) add to eehandler.",
                                         bc, bc->id, bc->fd, bc->type, bc->prev_option);
     
     return EEH_OK;
@@ -486,13 +485,13 @@ EEHErrCode EpollEvHandler::EEH_mod(EClient *ec, OPTION_t op)
     if (bc->fd <= 0)
         return EEH_ERROR;
     
-    EEHINFO(logger, WARD, "eclient(%p, id=%d, fd=%d, t=%d) mod option(%d->%d).",
+    EEHINFO(logger, HAND, "eclient(%p, id=%d, fd=%d, t=%d) mod option(%d->%d).",
                                         bc, bc->id, bc->fd, bc->type, bc->ev.events, op);
     
     bc->ev.events = op;
             
     if (epoll_ctl(m_epi, EPOLL_CTL_MOD, bc->fd, &bc->ev) == -1) {
-        EEHERRO(logger, WARD, "epoll_ctl(EPOLL_CTL_MOD): %s", strerror(errno));
+        EEHERRO(logger, HAND, "epoll_ctl(EPOLL_CTL_MOD): %s", strerror(errno));
         return EEH_ERROR;
     }
     
@@ -519,7 +518,7 @@ EEHErrCode EpollEvHandler::EEH_del(EClient *ec)
     if (! bc)
         return EEH_OK;
     
-    EEHINFO(logger, WARD, "eclient(%p, id=%d, fd=%d, t=%d, is_server=%d) delete from eehandler.",
+    EEHINFO(logger, HAND, "eclient(%p, id=%d, fd=%d, t=%d, is_server=%d) delete from eehandler.",
                                                         bc, bc->id, bc->fd, bc->type, bc->is_server);
     
     if (bc->fd <= 0) {
@@ -527,7 +526,7 @@ EEHErrCode EpollEvHandler::EEH_del(EClient *ec)
     }
         
     if (epoll_ctl(m_epi, EPOLL_CTL_DEL, bc->fd, &bc->ev) == -1) {
-        EEHERRO(logger, WARD, "epoll_ctl(EPOLL_CTL_DEL): %s", strerror(errno));
+        EEHERRO(logger, HAND, "epoll_ctl(EPOLL_CTL_DEL): %s", strerror(errno));
         /** an exception occurs, but do nothing */
     }
 
@@ -543,7 +542,7 @@ EEHErrCode EpollEvHandler::EEH_del(EClient *ec)
             }
 
             if (m_listeners.erase(bc->fd) == 1) {
-                // EEHDBUG(logger, WARD, "erase success");
+                // EEHDBUG(logger, HAND, "erase success");
             } else {
                 /** an exception occurs, but do nothing */
             }
@@ -559,7 +558,7 @@ EEHErrCode EpollEvHandler::EEH_del(EClient *ec)
                 if (sfd > 0) {
                     BaseClient *bcs = dynamic_cast<BaseClient*>(m_clients[sfd]);
                     if (! bcs) {
-                        EEHERRO(logger, WARD, "unexcepted logical fatal occurred");
+                        EEHERRO(logger, HAND, "unexcepted logical fatal occurred");
                         return EEH_ERROR;
                     }
 
@@ -567,17 +566,17 @@ EEHErrCode EpollEvHandler::EEH_del(EClient *ec)
                     if (iter_find != bcs->clients.end()) {
                         bcs->clients.erase(iter_find);
                     } else {
-                        // EEHDBUG(logger, WARD, "could not find it");
+                        // EEHDBUG(logger, HAND, "could not find it");
                     }
                 } else {
-                    EEHINFO(logger, WARD, "eclient(%p, fd=%d) is an active connect client", bc, bc->fd);
+                    EEHINFO(logger, HAND, "eclient(%p, fd=%d) is an active connect client", bc, bc->fd);
                 }
             } else {
-                // EEHDBUG(logger, WARD, "tcp rover or other client, delete directly");
+                // EEHDBUG(logger, HAND, "tcp rover or other client, delete directly");
             }
         }
     } else {
-        // EEHDBUG(logger, WARD, "other eeh type");
+        // EEHDBUG(logger, HAND, "other eeh type");
     }
     
     if (m_ilinkers.erase(bc->fd) == 1) {
@@ -595,12 +594,12 @@ EEHErrCode EpollEvHandler::EEH_del(EClient *ec)
     }
     
     if (m_clients.erase(bc->fd) == 1) {
-        // EEHDBUG(logger, WARD, "erase success");
+        // EEHDBUG(logger, HAND, "erase success");
     } else {
         /** an exception occurs, but do nothing */
     }       
     if (bc->fd > 0) {
-        // EEHDBUG(logger, WARD, "close fd(%d)", bc->fd);
+        // EEHDBUG(logger, HAND, "close fd(%d)", bc->fd);
         close(bc->fd);
     } else {
         /** an exception occurs, but do nothing */
@@ -609,7 +608,7 @@ EEHErrCode EpollEvHandler::EEH_del(EClient *ec)
     delete ec;
     ec = nullptr;
     
-    EEHINFO(logger, WARD, "erase success. remain: cs=%lu(ls=%lu, ils=%lu, ols=%lu, pps=%lu)", 
+    EEHINFO(logger, HAND, "erase success. remain: cs=%lu(ls=%lu, ils=%lu, ols=%lu, pps=%lu)", 
         m_clients.size(), m_listeners.size(), m_ilinkers.size(), m_olinkers.size(), m_pipe_pairs.size());
     
     return EEH_OK;
@@ -620,7 +619,7 @@ EClient* EpollEvHandler::EEH_TCP_listen(std::string bind_ip, PORT_t service_port
 {
     for (auto it_m = m_listeners.begin(); it_m != m_listeners.end(); it_m++) {
         if (it_m->second == sid) {
-            EEHERRO(logger, WARD, "server type(%d) exist!", sid);
+            EEHERRO(logger, HAND, "server type(%d) exist!", sid);
             return nullptr;
         }
     }
@@ -646,7 +645,7 @@ EClient* EpollEvHandler::EEH_TCP_listen(std::string bind_ip, PORT_t service_port
     }
     
     if (getaddrinfo(bind_ip.c_str(), std::string(buf, n).c_str(), &hints, &addr_list) != 0) {
-        EEHERRO(logger, WARD, "getaddrinfo: %s", strerror(errno));
+        EEHERRO(logger, HAND, "getaddrinfo: %s", strerror(errno));
         return nullptr;
     }
     
@@ -690,7 +689,7 @@ EClient* EpollEvHandler::EEH_TCP_listen(std::string bind_ip, PORT_t service_port
         sys_err = errno;
         if (lfd > 0)
             close(lfd);
-        EEHERRO(logger, WARD, "listen(%s:%d): %s", bind_ip.c_str(), service_port, strerror(sys_err));
+        EEHERRO(logger, HAND, "listen(%s:%d): %s", bind_ip.c_str(), service_port, strerror(sys_err));
         
         freeaddrinfo(addr_list);
         return nullptr;
@@ -714,7 +713,7 @@ EClient* EpollEvHandler::EEH_TCP_listen(std::string bind_ip, PORT_t service_port
     tc->clients_do = clients_action;
     m_listeners[tc->fd] = sid;
     
-    EEHINFO(logger, WARD, "eclient(%p, id=%d, fd=%d) as TCP server(%s:%d) listend.", 
+    EEHINFO(logger, HAND, "eclient(%p, id=%d, fd=%d) as TCP server(%s:%d) listend.", 
                         tc, tc->id, tc->fd, tc->host.c_str(), tc->port);
     
     return tc;
@@ -733,11 +732,11 @@ EClient* EpollEvHandler::EEH_TCP_accept(EListener *el)
     
     if (getsockopt(bl->fd, SOL_SOCKET, SO_TYPE, (void*)&type, &type_len) != 0 || 
         (type != SOCK_STREAM)) {
-        EEHERRO(logger, WARD, "getsockopt(SOL_SOCKET, SO_TYPE): %s", strerror(errno));
+        EEHERRO(logger, HAND, "getsockopt(SOL_SOCKET, SO_TYPE): %s", strerror(errno));
         return nullptr;
     }
     
-    EEHINFO(logger, WARD, "listener(%p, fd=%d, id=%d, port=%d, prev_option=%d) would accept a connect.",
+    EEHINFO(logger, HAND, "listener(%p, fd=%d, id=%d, port=%d, prev_option=%d) would accept a connect.",
                             bl, bl->fd, bl->id, bl->port, bl->prev_option);
     
     struct sockaddr_in client_addr;
@@ -745,7 +744,7 @@ EClient* EpollEvHandler::EEH_TCP_accept(EListener *el)
     int try_times = 10;
     while ((cfd = accept(bl->fd, (struct sockaddr*)&client_addr, &client_addr_len)) == -1) {
         if (errno != EINTR && errno != ECONNABORTED) {
-            EEHERRO(logger, WARD, "accept: %s", strerror(errno));
+            EEHERRO(logger, HAND, "accept: %s", strerror(errno));
             return nullptr;
         }
         if (try_times-- == 0)
@@ -754,14 +753,14 @@ EClient* EpollEvHandler::EEH_TCP_accept(EListener *el)
     
     int on = 1;
     if (ioctl(cfd, FIONBIO, (const char *)&on) == -1) {
-        EEHERRO(logger, WARD, "ioctl(FIONBIO): %s", strerror(errno));
+        EEHERRO(logger, HAND, "ioctl(FIONBIO): %s", strerror(errno));
         close(cfd);
         return nullptr;
     }
     
     on = 1;
     if (setsockopt(cfd, IPPROTO_TCP, TCP_NODELAY, (void*)&on, sizeof(on)) != 0) {
-        EEHERRO(logger, WARD, "setsockopt(IPPROTO_TCP, TCP_NODELAY): %s", strerror(errno));
+        EEHERRO(logger, HAND, "setsockopt(IPPROTO_TCP, TCP_NODELAY): %s", strerror(errno));
         close(cfd);
         return nullptr;
     }
@@ -770,7 +769,7 @@ EClient* EpollEvHandler::EEH_TCP_accept(EListener *el)
     if (getnameinfo((struct sockaddr *)&client_addr, client_addr_len, 
                     hbuf, NI_MAXHOST, sbuf, NI_MAXSERV, NI_NUMERICSERV) != 0) {
         close(cfd);
-        EEHERRO(logger, WARD, "getnameinfo: %s", strerror(errno));
+        EEHERRO(logger, HAND, "getnameinfo: %s", strerror(errno));
         return nullptr;
     }
 
@@ -795,7 +794,7 @@ EClient* EpollEvHandler::EEH_TCP_accept(EListener *el)
     
     m_olinkers[tc->fd] = tc->sid;
     
-    EEHINFO(logger, WARD, "eclient(%p, id=%d, fd=%d) as TCP client(%s:%d) connected.", 
+    EEHINFO(logger, HAND, "eclient(%p, id=%d, fd=%d) as TCP client(%s:%d) connected.", 
                     tc, tc->id, tc->fd, tc->host.c_str(), tc->port);
     
     return tc;
@@ -805,14 +804,14 @@ EClient* EpollEvHandler::EEH_TCP_connect(std::string remote_ip, PORT_t remote_po
 {
     for (auto it_m = m_olinkers.begin(); it_m != m_olinkers.end(); it_m++) {
         if (it_m->second == sid) {
-            EEHERRO(logger, WARD, "linker type(%lu) exist!", sid);
+            EEHERRO(logger, HAND, "linker type(%lu) exist!", sid);
             return nullptr;
         }
     }
     
     int cfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (cfd == -1) {
-        EEHERRO(logger, WARD, "socket: %s", strerror(errno));
+        EEHERRO(logger, HAND, "socket: %s", strerror(errno));
         return nullptr;
     }
         
@@ -826,7 +825,7 @@ EClient* EpollEvHandler::EEH_TCP_connect(std::string remote_ip, PORT_t remote_po
     
     while (connect(cfd, (struct sockaddr*)&sai, sizeof(struct sockaddr_in)) == -1 && errno != EISCONN) {
         if (errno != EINTR) {
-            EEHERRO(logger, WARD, "connect: %s", strerror(errno));
+            EEHERRO(logger, HAND, "connect: %s", strerror(errno));
             close(cfd);         /// 后面添加一个 m_errcode, eeh 不背锅
             return nullptr;
         }
@@ -843,7 +842,7 @@ EClient* EpollEvHandler::EEH_TCP_connect(std::string remote_ip, PORT_t remote_po
     struct sockaddr_in client_addr;
     socklen_t client_addr_len = sizeof(struct sockaddr_in);
     if (getsockname(cfd, (struct sockaddr*)&client_addr, &client_addr_len) != 0) {
-        EEHERRO(logger, WARD, "getsockname: %s", strerror(errno));
+        EEHERRO(logger, HAND, "getsockname: %s", strerror(errno));
         close(cfd);
         return nullptr;
     }
@@ -866,7 +865,7 @@ EClient* EpollEvHandler::EEH_TCP_connect(std::string remote_ip, PORT_t remote_po
 
     m_olinkers[tc->fd] = tc->sid;
     
-    EEHINFO(logger, WARD, "eclient(%p, id=%d, fd=%d) as TCP client(%s:%d) connected.", 
+    EEHINFO(logger, HAND, "eclient(%p, id=%d, fd=%d) as TCP client(%s:%d) connected.", 
                     tc, tc->id, tc->fd, tc->host.c_str(), tc->port);
                     
     return tc;
@@ -878,7 +877,7 @@ std::pair<EClient*, EClient*> EpollEvHandler::EEH_PIPE_create(FD_t rfd, FD_t wfd
     
     for (auto it_m = m_ilinkers.begin(); it_m != m_ilinkers.end(); it_m++) {
         if (it_m->second == sid) {
-            EEHERRO(logger, WARD, "linker type(%lu) exist!", sid);
+            EEHERRO(logger, HAND, "linker type(%lu) exist!", sid);
             return pipe_pair;
         }
     }
@@ -907,7 +906,7 @@ std::pair<EClient*, EClient*> EpollEvHandler::EEH_PIPE_create(FD_t rfd, FD_t wfd
     
     rpc->sid = sid;
     
-    EEHINFO(logger, WARD, "eclient(%p, id=%d, fd=%d) as PIPE read client created.", rpc, rpc->id, rpc->fd);
+    EEHINFO(logger, HAND, "eclient(%p, id=%d, fd=%d) as PIPE read client created.", rpc, rpc->id, rpc->fd);
     
     PipeClient *wpc = new PipeClient(wfd);
     
@@ -925,7 +924,7 @@ std::pair<EClient*, EClient*> EpollEvHandler::EEH_PIPE_create(FD_t rfd, FD_t wfd
     m_ilinkers[wpc->fd] = wpc->sid;
     m_pipe_pairs[sid] = std::make_pair(rpc->fd, wpc->fd);
     
-    EEHINFO(logger, WARD, "eclient(%p, id=%d, fd=%d) as PIPE write client created.", wpc, wpc->id, wpc->fd);
+    EEHINFO(logger, HAND, "eclient(%p, id=%d, fd=%d) as PIPE write client created.", wpc, wpc->id, wpc->fd);
     
     pipe_pair = std::make_pair(rpc, wpc);
     
@@ -943,10 +942,10 @@ void EpollEvHandler::EEH_clear_zombie()
         pid_t rpid;
         if ((rpid = waitpid(iter_m->first, &stat_loc, WNOHANG)) > 0) {
             if (WIFEXITED(stat_loc)) {
-                EEHINFO(logger, WARD, "service %s(pid=%d) exited with code %d", 
+                EEHINFO(logger, HAND, "service %s(pid=%d) exited with code %d", 
                         iter_m->second.c_str(), iter_m->first, WEXITSTATUS(stat_loc));
             } else if (WIFSIGNALED(stat_loc)) {
-                EEHINFO(logger, WARD, "service %s(pid=%d) terminated abnormally with signal %d", 
+                EEHINFO(logger, HAND, "service %s(pid=%d) terminated abnormally with signal %d", 
                         iter_m->second.c_str(), iter_m->first, WTERMSIG(stat_loc));
             }
             if (m_info_process.erase(rpid) == 1) {
@@ -1035,17 +1034,17 @@ EEHErrCode EpollEvHandler::EEH_guard_child()
             continue;
         }
         
-        EEHINFO(logger, WARD, "would pull up the process (service=%s, sid=%lu)", m_services_id[sid].c_str(), sid);
+        EEHINFO(logger, HAND, "would pull up the process (service=%s, sid=%lu)", m_services_id[sid].c_str(), sid);
         int fd_prcw[2];     /** parent read and child write */
         int fd_pwcr[2];     /** parent write and child read */
         pid_t pid;
         
         if (pipe(fd_prcw) < 0) {
-            EEHERRO(logger, WARD, "pipe: %s", strerror(errno));
+            EEHERRO(logger, HAND, "pipe: %s", strerror(errno));
             return EEH_ERROR;
         }
         if (pipe(fd_pwcr) < 0) {
-            EEHERRO(logger, WARD, "pipe: %s", strerror(errno));
+            EEHERRO(logger, HAND, "pipe: %s", strerror(errno));
             if (fd_prcw[0] > 0) close(fd_prcw[0]);
             if (fd_prcw[1] > 0) close(fd_prcw[1]);
             return EEH_ERROR;
@@ -1057,7 +1056,7 @@ EEHErrCode EpollEvHandler::EEH_guard_child()
             if (fd_prcw[1] > 0) close(fd_prcw[1]);
             if (fd_pwcr[0] > 0) close(fd_pwcr[0]);
             if (fd_pwcr[1] > 0) close(fd_pwcr[1]);
-            EEHERRO(logger, WARD, "fork: %s", strerror(errno));
+            EEHERRO(logger, HAND, "fork: %s", strerror(errno));
             return EEH_ERROR;
         } else if (pid == 0) {
             DBUG("create a new process pid=%d(ppid=%d), now free the old stack", getpid(), getppid());
@@ -1080,11 +1079,11 @@ EEHErrCode EpollEvHandler::EEH_guard_child()
             std::pair<EClient*, EClient*> ec_pipe_pair = 
                                         EEH_PIPE_create(fd_prcw[0], fd_pwcr[1], sid);
             if (! ec_pipe_pair.first) {
-                EEHERRO(logger, WARD, "EEH_PIPE_create failed");
+                EEHERRO(logger, HAND, "EEH_PIPE_create failed");
                 return EEH_ERROR;
             }
             if (! ec_pipe_pair.second) {
-                EEHERRO(logger, WARD, "EEH_PIPE_create failed");
+                EEHERRO(logger, HAND, "EEH_PIPE_create failed");
                 return EEH_ERROR;
             }
             dynamic_cast<BaseClient*>(ec_pipe_pair.first)->set_actions(m_linkers_actions[m_daemon_name]);
@@ -1092,12 +1091,12 @@ EEHErrCode EpollEvHandler::EEH_guard_child()
             EEHErrCode rescode;
             rescode = EEH_add(ec_pipe_pair.first);
             if (rescode != EEH_OK) {
-                EEHERRO(logger, WARD, "EEH_add failed");
+                EEHERRO(logger, HAND, "EEH_add failed");
                 return EEH_ERROR;
             }
             rescode = EEH_add(ec_pipe_pair.second);
             if (rescode != EEH_OK) {
-                EEHERRO(logger, WARD, "EEH_add failed");
+                EEHERRO(logger, HAND, "EEH_add failed");
                 return EEH_ERROR;
             }
             m_info_process[pid] = m_services_id[sid];
@@ -1122,7 +1121,7 @@ void EpollEvHandler::EEH_run()
         EEH_clear_zombie();
         EEH_guard_child();
         
-        EEHINFO(logger, WARD, "epi(%d) waiting: %lu cs(%lu ls, %lu ils, %lu ols, %lu pps)", 
+        EEHINFO(logger, HAND, "epi(%d) waiting: %lu cs(%lu ls, %lu ils, %lu ols, %lu pps)", 
             m_epi, m_clients.size(), m_listeners.size(), m_ilinkers.size(), m_olinkers.size(), m_pipe_pairs.size());
         res = epoll_wait(m_epi, evs, EPOLL_MAX_NUM, 1000);
         if (res == -1) {
@@ -1137,7 +1136,7 @@ void EpollEvHandler::EEH_run()
             
             BaseClient *bc = dynamic_cast<BaseClient*>((BaseClient*)evs[i].data.ptr);
             
-            EEHINFO(logger, WARD, "eclient(%p, id=%d, fd=%d, t=%d, is_server=%d) would do action(%d)",
+            EEHINFO(logger, HAND, "eclient(%p, id=%d, fd=%d, t=%d, is_server=%d) would do action(%d)",
                                 bc, bc->id, bc->fd, bc->type, bc->is_server, what);
 
             if (what & (EPOLLHUP|EPOLLERR)) {
@@ -1166,10 +1165,10 @@ void EpollEvHandler::EEH_run()
                 EClient *ec = EEH_TCP_accept(m_clients[bc->fd]);
                 if (ec) {
                     if (EEH_add(ec) != EEH_OK) {
-                        EEHERRO(logger, WARD, "failed to add eclient");
+                        EEHERRO(logger, HAND, "failed to add eclient");
                     }
                 } else {
-                    EEHERRO(logger, WARD, "%s:%d accept connect error", bc->host.c_str(), bc->port);
+                    EEHERRO(logger, HAND, "%s:%d accept connect error", bc->host.c_str(), bc->port);
                 }
             } else if (bc->action == DO_READ) {
                 if (bc->read_callback) {
@@ -1182,7 +1181,7 @@ void EpollEvHandler::EEH_run()
                 EEH_mod(bc, bc->prev_option);
             } else if (bc->action == DO_CLOSE) {
                 if (EEH_del(bc) != EEH_OK) {
-                    EEHERRO(logger, WARD, "failed to delete eclient(%p)", bc);
+                    EEHERRO(logger, HAND, "failed to delete eclient(%p)", bc);
                 }
             }
         }

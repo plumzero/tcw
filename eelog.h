@@ -18,12 +18,10 @@ namespace EEHNS {
 
 /** index of fundmental log type */
 #define LOG_TYPE_GLOB               0
-#define LOG_TYPE_WARD               1
-#define LOG_TYPE_FLOW               2
-#define LOG_TYPE_CHLD               3
-#define LOG_TYPE_SERV               4
-#define LOG_TYPE_FUNC               5
-#define LOG_TYPE_TEST               6
+#define LOG_TYPE_HAND               1
+#define LOG_TYPE_MODU               2
+#define LOG_TYPE_FUNC               3
+#define LOG_TYPE_TEST               4
 /** index of user's application log type */
 #define LOG_TYPE_USER_MIX          21
 #define LOG_TYPE_USER_XYZ          22
@@ -85,13 +83,11 @@ private:
 };
 
 static const struct log_type_reg_table reg_table[] = {
-    { LOG_TYPE_GLOB,     "Global" },
-    { LOG_TYPE_WARD,     "Guard"  },
-    { LOG_TYPE_FLOW,     "Flow"   },
-    { LOG_TYPE_CHLD,     "Child"  },
-    { LOG_TYPE_SERV,     "Server" },
-    { LOG_TYPE_FUNC,     "Func"   },
-    { LOG_TYPE_TEST,     "Test"   },
+    { LOG_TYPE_GLOB,     "Global"   },
+    { LOG_TYPE_HAND,     "Handler"  },
+    { LOG_TYPE_MODU,     "Module"   },
+    { LOG_TYPE_FUNC,     "Function" },
+    { LOG_TYPE_TEST,     "Test"     },
 
     { LOG_TYPE_USER_MIX, "mix user application" },
     { LOG_TYPE_USER_XYZ, "xyz user application" },

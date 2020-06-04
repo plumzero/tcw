@@ -139,8 +139,6 @@ void* print_string(void* args)
                                     eeh->m_services_id[tobich.orient].c_str());
         
         eeh->EEH_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
-        EEHDBUG(eeh->logger, FUNC, "========================> deal with message over");
-        ECHO(INFO, "========================> deal with message over");
     }
 
     return nullptr;
