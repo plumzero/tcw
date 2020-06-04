@@ -186,6 +186,19 @@ public:
     std::string     receipt;
 };
 
+class BIC_BETWEEN : public BIC_BASE
+{
+public:
+    BIC_BETWEEN() {}
+    virtual ~BIC_BETWEEN(){}
+    virtual void Serialize(std::string *s);
+    virtual void Structuralize(const std::string &s);
+public:
+    std::string  from_service;
+    std::string  to_service;
+    std::string  information;
+};
+
 /********************************* 消息类型工厂类，非线程安全(暂不使用) *********************************/
 
 class BIC_FACTORY

@@ -21,6 +21,9 @@ typedef enum _bic_type {
     BIC_TYPE_S2P_ARCHIVERON,
     BIC_TYPE_S2P_BOMBER,
 
+    BIC_TYPE_P2C_BETWEEN,
+    BIC_TYPE_C2C_BETWEEN,
+
 } BICTYPE;
 
 #endif // ! __Basic_Instruction_Command_TYPE_H__

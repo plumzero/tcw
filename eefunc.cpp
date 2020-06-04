@@ -28,8 +28,9 @@ void* print_string(void* args)
         BIC_BASE *tobicp = nullptr;
         BICTYPE totype{BIC_TYPE_NONE};
         
+        EEHNS::SID_t tosid = bich.origin;
+        
         if (bich.type == BIC_TYPE_P2S_SUMMON) {
-            EEHDBUG(eeh->logger, FUNC, "1. ===============> message type is BIC_TYPE_P2S_SUMMON");
             BIC_SUMMON bic;
             BIC_MESSAGE bicsummon(nullptr, &bic);
             
@@ -51,22 +52,7 @@ void* print_string(void* args)
             
             tobicp = monster;
             totype = BIC_TYPE_S2P_MONSTER;
-        } else if (bich.type == BIC_TYPE_P2S_BITRON) {
-            EEHDBUG(eeh->logger, FUNC, "2. ===============> message type is BIC_TYPE_P2S_BITRON");
-            BIC_BITRON bic;
-            BIC_MESSAGE bicbit(nullptr, &bic);
-            
-            bicbit.ExtractPayload(msg);
-            
-            EEHDBUG(eeh->logger, FUNC, "BIC_BITRON.bitslen: %d", bic.bitslen);
-            uint32_t i;
-            for (i = 0; i < bic.bitslen; ) {
-                printf(" %02x", static_cast<int>((unsigned char)bic.bits[i]));
-                if (++i % 16 == 0) printf("\n");
-            }
-            if (i % 16 != 0) printf("\n");
         } else if (bich.type == BIC_TYPE_P2S_BOMBER) {
-            EEHDBUG(eeh->logger, FUNC, "3. ===============> message type is BIC_TYPE_P2S_BOMBER");
             BIC_BOMBER bic;
             BIC_MESSAGE bicbomb(nullptr, &bic);
             
@@ -89,6 +75,39 @@ void* print_string(void* args)
             
             tobicp = bomb;
             totype = BIC_TYPE_S2P_BOMBER;
+        } else if (bich.type == BIC_TYPE_P2C_BETWEEN) {
+            BIC_BETWEEN bic;
+            BIC_MESSAGE bicbetween(nullptr, &bic);
+            
+            bicbetween.ExtractPayload(msg);
+            
+            EEHDBUG(eeh->logger, FUNC, "BIC_BETWEEN.from_service: %s", bic.from_service.c_str());
+            EEHDBUG(eeh->logger, FUNC, "BIC_BETWEEN.to_service:   %s", bic.to_service.c_str());
+            EEHDBUG(eeh->logger, FUNC, "BIC_BETWEEN.information:  %s", bic.information.c_str());
+            
+            BIC_BETWEEN* between = new BIC_BETWEEN();
+            between->from_service = eeh->m_services_id[eeh->m_id]; 
+            between->to_service = eeh->m_services_id[eeh->m_id] == "MADOLCHE" ? "GIMMICK_PUPPET" : "MADOLCHE";
+            between->information = "这个消息来自子进程服务端";
+            
+            tobicp = between;
+            totype = BIC_TYPE_C2C_BETWEEN;
+            
+            auto iterTo = std::find_if(eeh->m_services_id.begin(), eeh->m_services_id.end(),
+                            [&eeh](const decltype(*eeh->m_services_id.begin())& ele){
+                                return eeh->m_services_id[eeh->m_id] == "MADOLCHE" ? 
+                                        ele.second == "GIMMICK_PUPPET" : ele.second == "MADOLCHE"; });
+            tosid = iterTo->first;
+        } else if (bich.type == BIC_TYPE_C2C_BETWEEN) {
+            ECHO(INFO, "===========================================================>");
+            BIC_BETWEEN bic;
+            BIC_MESSAGE bicbetween(nullptr, &bic);
+            
+            bicbetween.ExtractPayload(msg);
+            
+            EEHDBUG(eeh->logger, FUNC, "BIC_BETWEEN.from_service: %s", bic.from_service.c_str());
+            EEHDBUG(eeh->logger, FUNC, "BIC_BETWEEN.to_service:   %s", bic.to_service.c_str());
+            EEHDBUG(eeh->logger, FUNC, "BIC_BETWEEN.information:  %s", bic.information.c_str());            
         } else {
             EEHERRO(eeh->logger, FUNC, "undefined or unhandled msg(%d)", (int)bich.type);
         }
@@ -98,10 +117,10 @@ void* print_string(void* args)
         }
         
         EEHDBUG(eeh->logger, FUNC, "done! msg(type=%d) would send from(%s) to(%s)",
-                    totype, eeh->m_services_id[eeh->m_id].c_str(), eeh->m_services_id[bich.origin].c_str());
+                    totype, eeh->m_services_id[eeh->m_id].c_str(), eeh->m_services_id[tosid].c_str());
         
         std::string tomsg;
-        BIC_HEADER tobich(eeh->m_id, bich.origin, totype);
+        BIC_HEADER tobich(eeh->m_id, tosid, totype);
         BIC_MESSAGE tobicm(&tobich, tobicp);
         tobicm.Serialize(&tomsg);
         if (tomsg.empty()) {

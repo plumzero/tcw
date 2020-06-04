@@ -362,6 +362,33 @@ void BIC_BOMBER::Structuralize(const std::string &s)
     RAJ_parse_json(doc, "receipt", this->receipt);
 }
 
+void BIC_BETWEEN::Serialize(std::string *s)
+{
+    rapidjson::StringBuffer sb;
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(sb);
+
+    writer.StartObject();
+
+    RAJ_write_json(writer, "from_service", this->from_service);
+    RAJ_write_json(writer, "to_service",   this->to_service);
+    RAJ_write_json(writer, "information",  this->information);
+    
+    writer.EndObject();
+
+    s->assign(sb.GetString(), sb.GetSize());
+}
+
+void BIC_BETWEEN::Structuralize(const std::string &s)
+{
+    rapidjson::Document doc;
+
+    doc.Parse(s.c_str());
+    
+    RAJ_parse_json(doc, "from_service", this->from_service);
+    RAJ_parse_json(doc, "to_service",   this->to_service);
+    RAJ_parse_json(doc, "information",  this->information);
+}
+
 /********************************* 消息类型工厂类，非线程安全(暂不使用) *********************************/
 
 std::map<BICTYPE, BIC_BASE*> BIC_FACTORY::bicmap = std::map<BICTYPE, BIC_BASE*>();
