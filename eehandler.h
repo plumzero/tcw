@@ -46,14 +46,16 @@ namespace EEHNS
         std::map<FD_t, SID_t>                               m_olinkers;         /** 主动对外写连接映射 */
         std::map<SID_t, std::pair<FD_t, FD_t>>              m_pipe_pairs;       /** 管道符对 */
         /** 记录 m_ilinkers 和 m_olinkers 的写入队列 */
-        std::map<SID_t, std::queue<std::string>>            m_linker_queues;
+        /** A服务对应一个 queue, 其他服务会将生成或转发的消息输入到此队列，之后将队列内容写到A服务对应的套接字中 */
+        std::map<SID_t, std::queue<std::string>>            m_linker_queues;    /** 服务ID，待写队列 */
         std::map<SID_t, uint64_t>                           m_heartbeats;
-        // std::map<SID_t, std::pair<std::string, ee_event_actions_t>> m_linkers_map;
         std::map<pid_t, std::string>                        m_info_process; /** 进程ID, 服务名称(处理僵尸进程) */
         Logger*                                             logger;
         tortellini::ini                                     m_ini;
-
-        ee_event_block_t                    m_info_block;       /** 测试用 */
+        /** 应用层(eefunc)通信支持。 */
+        std::queue<std::string>                             m_messages;     /** 消费队列 */
+        std::mutex                                          m_mutex;
+        std::condition_variable                             m_cond;
     public:
         static EEHErrCode EEH_set_callback(const std::string& service, const ee_event_actions_t& actions);
         static EEHErrCode EEH_set_func(const std::string& service, void* func(void*));
@@ -65,7 +67,7 @@ namespace EEHNS
         void EEH_run();
         void EEH_clear_zombie();
         EEHErrCode EEH_guard_child();
-        static void EEH_rebuild_child(int rfd, int wfd, const std::string& conf, const std::string& specified_service);
+        void EEH_rebuild_child(int rfd, int wfd, const std::string& conf, const std::string& specified_service);
         
         // TCP handler
         EClient* EEH_TCP_listen(std::string bind_ip, PORT_t service_port, SID_t sid, ee_event_actions_t clients_action);

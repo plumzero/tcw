@@ -34,7 +34,10 @@
 #include <utility>
 #include <functional>
 #include <algorithm>
+#include <chrono>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 
 /** heading direction of bic message or as a ec service type */
 #define  HASH_ID_RESERVE_ZONE   10000000L
@@ -53,7 +56,7 @@ namespace EEHNS
     typedef int ID_t;
     typedef int PORT_t;
     typedef int OPTION_t;
-    typedef uint64_t SID_t;	
+    typedef uint64_t SID_t; 
 };
 
 namespace

@@ -22,7 +22,8 @@ namespace EEHNS {
 #define LOG_TYPE_FLOW               2
 #define LOG_TYPE_CHLD               3
 #define LOG_TYPE_SERV               4
-#define LOG_TYPE_TEST               5
+#define LOG_TYPE_FUNC               5
+#define LOG_TYPE_TEST               6
 /** index of user's application log type */
 #define LOG_TYPE_USER_MIX          21
 #define LOG_TYPE_USER_XYZ          22
@@ -89,6 +90,7 @@ static const struct log_type_reg_table reg_table[] = {
     { LOG_TYPE_FLOW,     "Flow"   },
     { LOG_TYPE_CHLD,     "Child"  },
     { LOG_TYPE_SERV,     "Server" },
+    { LOG_TYPE_FUNC,     "Func"   },
     { LOG_TYPE_TEST,     "Test"   },
 
     { LOG_TYPE_USER_MIX, "mix user application" },

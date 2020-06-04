@@ -20,7 +20,7 @@ typedef enum _bic_type {
     BIC_TYPE_S2P_BLOCKRON,
     BIC_TYPE_S2P_ARCHIVERON,
     BIC_TYPE_S2P_BOMBER,
-    
+
 } BICTYPE;
 
 #endif // ! __Basic_Instruction_Command_TYPE_H__

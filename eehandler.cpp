@@ -1010,8 +1010,8 @@ void EpollEvHandler::EEH_rebuild_child(int rfd, int wfd,
     
     if (m_linkers_func.find(specified_service) != m_linkers_func.end()) {
         std::string service{specified_service};
-        ECHO(INFO, "开启服务  ===========%s", specified_service.c_str());
-        std::thread th(m_linkers_func[specified_service], nullptr);
+        ECHO(INFO, "开启服务 eeh.m_id=%lu ===========%s", eeh.m_id, specified_service.c_str());
+        std::thread th(m_linkers_func[specified_service], &eeh);
         th.detach();
     }
     

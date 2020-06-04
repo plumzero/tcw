@@ -2,9 +2,7 @@
 #ifndef __Epoll_Ev_FUNC_H__
 #define __Epoll_Ev_FUNC_H__
 
-#include <iostream>
-#include <thread>
-#include <chrono>
+#include "include.h"
 
 void* print_string(void* args);
 
