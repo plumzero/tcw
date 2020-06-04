@@ -10,16 +10,13 @@ void* print_string(void* args)
     EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)args;
 
     while (true) {
-        ECHO(INFO, "now you in the print_string function...");
         /** lock it passively */
         std::unique_lock<std::mutex> lock(eeh->m_mutex);
         if (! eeh->m_cond.wait_for(lock, std::chrono::seconds(2), [&eeh](){ return ! eeh->m_messages.empty(); })) {
-            /** 加个打印 */
-            ECHO(INFO, "sid=%lu call wait_for the lock unlocked messages size=%lu", eeh->m_id, eeh->m_messages.size());
+            EEHDBUG(eeh->logger, FUNC, "thread msg queue is empty");
             continue;
         }
-        
-        ECHO(INFO, "======================================>wait it! deal with this message");
+        EEHDBUG(eeh->logger, FUNC, "deal with thread msg queue(size=%lu)", eeh->m_messages.size());
         
         std::string msg = std::move(eeh->m_messages.front());
         eeh->m_messages.pop();
@@ -32,7 +29,7 @@ void* print_string(void* args)
         BICTYPE totype{BIC_TYPE_NONE};
         
         if (bich.type == BIC_TYPE_P2S_SUMMON) {
-            ECHO(INFO, "=================> message type is BIC_TYPE_P2S_SUMMON");
+            EEHDBUG(eeh->logger, FUNC, "1. ===============> message type is BIC_TYPE_P2S_SUMMON");
             BIC_SUMMON bic;
             BIC_MESSAGE bicsummon(nullptr, &bic);
             
@@ -55,7 +52,7 @@ void* print_string(void* args)
             tobicp = monster;
             totype = BIC_TYPE_S2P_MONSTER;
         } else if (bich.type == BIC_TYPE_P2S_BITRON) {
-            ECHO(INFO, "=================> message type is BIC_TYPE_P2S_BITRON");
+            EEHDBUG(eeh->logger, FUNC, "2. ===============> message type is BIC_TYPE_P2S_BITRON");
             BIC_BITRON bic;
             BIC_MESSAGE bicbit(nullptr, &bic);
             
@@ -69,7 +66,7 @@ void* print_string(void* args)
             }
             if (i % 16 != 0) printf("\n");
         } else if (bich.type == BIC_TYPE_P2S_BOMBER) {
-            ECHO(INFO, "=================> message type is BIC_TYPE_P2S_BOMBER");
+            EEHDBUG(eeh->logger, FUNC, "3. ===============> message type is BIC_TYPE_P2S_BOMBER");
             BIC_BOMBER bic;
             BIC_MESSAGE bicbomb(nullptr, &bic);
             
@@ -142,7 +139,8 @@ void* print_string(void* args)
                                     eeh->m_services_id[tobich.orient].c_str());
         
         eeh->EEH_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
-        ECHO(INFO, "-------------> alreadly deal with message");
+        EEHDBUG(eeh->logger, FUNC, "========================> deal with message over");
+        ECHO(INFO, "========================> deal with message over");
     }
 
     return nullptr;

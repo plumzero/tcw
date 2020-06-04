@@ -257,6 +257,7 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
     logger->log_set_level(LOG_TYPE_FLOW, loglevel);
     logger->log_set_level(LOG_TYPE_CHLD, loglevel);
     logger->log_set_level(LOG_TYPE_SERV, loglevel);
+    logger->log_set_level(LOG_TYPE_FUNC, loglevel);
 
     /** [4] caculate each service's sha1 id */
     decltype(m_ini.begin()) iterIni;
@@ -281,7 +282,7 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
             }
             SHA1Final(&sha1_ctx, sha1hash);
             
-            std::string hex = bin2hex(std::string(sha1hash, sha1hash + 8));
+            std::string hex = bin2hex(std::string(sha1hash, sha1hash + sizeof(uint64_t)));
             hash_id = hex2integral<uint64_t>(hex);
             
             if (hash_id < HASH_ID_RESERVE_ZONE) {
@@ -298,7 +299,7 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
             hash_id_error = false;
         } while (hash_id_error);
         
-        EEHDBUG(logger, WARD, "section %s's hash id is: %lu", iterIni->first.c_str(), hash_id);
+        EEHDBUG(logger, WARD, "section %s's service id is: %lu", iterIni->first.c_str(), hash_id);
 
         m_services_id[hash_id] = iterIni->first;
         if (iterIni->first == specified_service) {
@@ -1010,7 +1011,7 @@ void EpollEvHandler::EEH_rebuild_child(int rfd, int wfd,
     
     if (m_linkers_func.find(specified_service) != m_linkers_func.end()) {
         std::string service{specified_service};
-        ECHO(INFO, "开启服务 eeh.m_id=%lu ===========%s", eeh.m_id, specified_service.c_str());
+        ECHO(INFO, "service(name=%s, id=%lu) is starting...", specified_service.c_str(), eeh.m_id);
         std::thread th(m_linkers_func[specified_service], &eeh);
         th.detach();
     }

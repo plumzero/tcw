@@ -47,13 +47,15 @@ namespace EEHNS
         std::map<SID_t, std::pair<FD_t, FD_t>>              m_pipe_pairs;       /** 管道符对 */
         /** 记录 m_ilinkers 和 m_olinkers 的写入队列 */
         /** A服务对应一个 queue, 其他服务会将生成或转发的消息输入到此队列，之后将队列内容写到A服务对应的套接字中 */
+        /** 进程间消费队列 */
         std::map<SID_t, std::queue<std::string>>            m_linker_queues;    /** 服务ID，待写队列 */
         std::map<SID_t, uint64_t>                           m_heartbeats;
-        std::map<pid_t, std::string>                        m_info_process; /** 进程ID, 服务名称(处理僵尸进程) */
+        std::map<pid_t, std::string>                        m_info_process;     /** 进程ID, 服务名称(处理僵尸进程) */
         Logger*                                             logger;
         tortellini::ini                                     m_ini;
         /** 应用层(eefunc)通信支持。 */
-        std::queue<std::string>                             m_messages;     /** 消费队列 */
+        /** 线程间消费队列。因为是线程间，所以不需要带服务id */
+        std::queue<std::string>                             m_messages;
         std::mutex                                          m_mutex;
         std::condition_variable                             m_cond;
     public:

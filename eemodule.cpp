@@ -251,173 +251,6 @@ ee_event_actions_t daemon_callback_module = {
     daemon_timer_callback,
 };
 
-// static int child_handle_message(int fd, std::string msg, void *userp)
-// {
-    // EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
-
-    // EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[fd]);
-    // if (! bc) {
-        // return -1;
-    // }
-
-    // /** 简单的消息过滤做一下 */
-    // BIC_HEADER  bich;
-    // BIC_MESSAGE bicm(&bich, nullptr);
-    // bicm.ExtractHeader(msg);
-
-    // if (bc->sid != bich.orient) {
-        // EEHERRO(eeh->logger, CHLD, "not belong here, discard the message");
-        // return 0;
-    // }
-
-    // EEHDBUG(eeh->logger, CHLD, "received msg(type=%d, len=%lu) from origin(sid=%s) to orient(sid=%s)",
-                                // bich.type, msg.size(),
-                                // eeh->m_services_id[bich.origin].c_str(), eeh->m_services_id[bich.orient].c_str());
-
-    // /** 接收层不再处理消息，统一交给具体应用层处理 */
-    // BIC_BASE *tobicp = nullptr;
-    // BICTYPE totype;
-    
-    // if (bich.type == BIC_TYPE_P2S_SUMMON) {
-        // BIC_SUMMON bic;
-        // BIC_MESSAGE bicsummon(nullptr, &bic);
-        
-        // bicsummon.ExtractPayload(msg);
-        
-        // EEHDBUG(eeh->logger, CHLD, "BIC_SUMMON.info:  %s", bic.info.c_str());
-        // EEHDBUG(eeh->logger, CHLD, "BIC_SUMMON.sno:   %s", bic.sno.c_str());
-        // EEHDBUG(eeh->logger, CHLD, "BIC_SUMMON.code:  %lu", bic.code);
-        
-        // BIC_MONSTER* monster = new BIC_MONSTER();
-        // monster->name = eeh->m_services_id[bc->sid];
-        // monster->type = "service";
-        // monster->attribute = "process";
-        // monster->race = "Fairy";
-        // monster->level = 4;
-        // monster->attack = 2200;
-        // monster->defense = 2100;
-        // monster->description = "访问的是 " + eeh->m_services_id[bc->sid] + " 服务";
-        
-        // tobicp = monster;
-        // totype = BIC_TYPE_S2P_MONSTER;
-    // } else if (bich.type == BIC_TYPE_P2S_BITRON) {
-        // BIC_BITRON bic;
-        // BIC_MESSAGE bicbit(nullptr, &bic);
-        
-        // bicbit.ExtractPayload(msg);
-        
-        // EEHDBUG(eeh->logger, CHLD, "BIC_BITRON.bitslen: %d", bic.bitslen);
-        // uint32_t i;
-        // for (i = 0; i < bic.bitslen; ) {
-            // printf(" %02x", static_cast<int>((unsigned char)bic.bits[i]));
-            // if (++i % 16 == 0) printf("\n");
-        // }
-        // if (i % 16 != 0) printf("\n");
-        
-        // return 0;
-    // } else if (bich.type == BIC_TYPE_P2S_BLOCKRON) {
-        // BIC_BLOCKRON bic;
-        // BIC_MESSAGE bicblock(nullptr, &bic);
-        
-        // bicblock.ExtractPayload(msg);
-        
-        // EEHDBUG(eeh->logger, CHLD, "BIC_BLOCKRON.fname:     %s", bic.fname.c_str());
-        // EEHDBUG(eeh->logger, CHLD, "BIC_BLOCKRON.fsize:     %u", bic.fsize);
-        // EEHDBUG(eeh->logger, CHLD, "BIC_BLOCKRON.offset:    %u", bic.offset);
-        // EEHDBUG(eeh->logger, CHLD, "BIC_BLOCKRON.blocksize: %u", bic.blocksize);
-        
-        // std::ofstream ofs;
-        // std::string ofile(bic.fname + "_bak");
-        // if (bic.offset == 0) {
-            // ofs.open(ofile.c_str(), std::ofstream::out | std::ofstream::trunc);
-        // } else {
-            // ofs.open(ofile.c_str(), std::ofstream::out | std::ofstream::app);
-        // }
-        
-        // if (! ofs.is_open()) {
-            // EEHERRO(eeh->logger, CHLD, "open(\"%s\"): %s", ofile.c_str(), strerror(errno));
-            // return -1;
-        // }
-        
-        // ofs.write(bic.block.c_str(), bic.blocksize);
-        
-        // ofs.close();
-        
-        // return 0;
-    // } else if (bich.type == BIC_TYPE_P2S_BOMBER) {
-        // BIC_BOMBER bic;
-        // BIC_MESSAGE bicbomb(nullptr, &bic);
-        
-        // bicbomb.ExtractPayload(msg);
-        
-        // EEHDBUG(eeh->logger, CHLD, "BIC_BOMBER.service_name: %s", bic.service_name.c_str());
-        // EEHDBUG(eeh->logger, CHLD, "BIC_BOMBER.service_type: %d", bic.service_type);
-        // EEHDBUG(eeh->logger, CHLD, "BIC_BOMBER.kill:         %s", bic.kill ? "true" : "false");
-        
-        // BIC_BOMBER* bomb = new BIC_BOMBER();
-        // bomb->service_name = bic.service_name;
-        // bomb->service_type = bic.service_type;
-        // bomb->kill = bic.kill;
-        // bomb->rescode = 1;
-        // bomb->receipt = eeh->m_services_id[bc->sid] + " 服务将在 1 秒内被销毁";
-        
-        // signal(SIGALRM, EEHNS::signal_release);
-        // alarm(2);
-        // EEHDBUG(eeh->logger, CHLD, "pid %d would be destructed in 2 seconds", getpid());
-        
-        // tobicp = bomb;
-        // totype = BIC_TYPE_S2P_BOMBER;
-    // } else {
-        // EEHERRO(eeh->logger, CHLD, "undefined or unhandled msg(%d)", (int)bich.type);
-        // return -1;
-    // }
-    
-    // BIC_HEADER tobich(eeh->m_id, bich.origin, totype);
-    // BIC_MESSAGE tobicm(&tobich, tobicp);
-    
-    // EEHDBUG(eeh->logger, CHLD, "done! msg(type=%d) would send from(%s) to(%s)",
-                                // totype, eeh->m_services_id[eeh->m_id].c_str(),
-                                // eeh->m_services_id[bich.origin].c_str());
-    
-    // std::string tobicmsg;
-    // tobicm.Serialize(&tobicmsg);
-    
-    // std::string tomsg;
-    // if (tobicmsg.empty()) {
-        // EEHERRO(eeh->logger, CHLD, "msg size is 0");
-        // return -1;
-    // }
-    // add_header(&tomsg, tobicmsg);
-    
-    // if (tobicp != nullptr) {
-        // delete tobicp;
-    // }
-    
-    // int tofd(0);
-    // if (eeh->m_pipe_pairs.find(bc->sid) != eeh->m_pipe_pairs.end()) {
-        // tofd = eeh->m_pipe_pairs[bc->sid].second;
-    // } else {
-        // EEHERRO(eeh->logger, CHLD, "an exceptions occurs");
-        // return -1;
-    // }
-    
-    // EEHNS::BaseClient *tobc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[tofd]);
-    // if (! tobc) {
-        // return -1;
-    // }
-        
-    // eeh->m_linker_queues[tobc->sid].push(tomsg);
-
-    // EEHDBUG(eeh->logger, CHLD, "pushed msg(type=%d, len=%lu, from=%s) to que(ownby=%s, size=%lu) and forward to %s", 
-                                // totype, tomsg.size(), eeh->m_services_id[tobich.origin].c_str(),
-                                // eeh->m_services_id[tobc->sid].c_str(), eeh->m_linker_queues[tobc->sid].size(),
-                                // eeh->m_services_id[tobich.orient].c_str());
-        
-    // eeh->EEH_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
-
-    // return 0;
-// }
-
 /** do nothing, read purely */
 ssize_t child_read_callback(int fd, void *buf, size_t size, void *userp)
 {
@@ -459,7 +292,7 @@ ssize_t child_read_callback(int fd, void *buf, size_t size, void *userp)
         return -1;
     }
     
-    /** 简单的消息过滤做一下 */
+    /** filter the received message simply */
     std::string msg(rbuf, nb);
     if (rbuf) {
         free(rbuf);
@@ -477,23 +310,14 @@ ssize_t child_read_callback(int fd, void *buf, size_t size, void *userp)
     EEHDBUG(eeh->logger, CHLD, "received msg(type=%d, len=%lu) from origin(sid=%s) to orient(sid=%s)",
                                 bich.type, msg.size(),
                                 eeh->m_services_id[bich.origin].c_str(), eeh->m_services_id[bich.orient].c_str());
-    
-    ECHO(INFO, "===========================> received message");
+
     /** received it and do nothing, instead of passing it to application layer. */
     std::unique_lock<std::mutex> guard(eeh->m_mutex);   /** locked passively */
     eeh->m_messages.push(std::move(msg));
     eeh->m_cond.notify_one();
-    ECHO(INFO, "===========================> received message, and notify it over sid=%lu", eeh->m_id);
-    
-    // int ret = child_handle_message(fd, std::string(rbuf, nb), userp);
-    // if (ret == 0) {
-        // EEHDBUG(eeh->logger, CHLD, "%s: success handled msg(len=%ld) from ec(%p, t=%d)",
-                                    // eeh->m_services_id[eeh->m_id].c_str(), nb, bc, bc->type);
-    // } else {
-        // EEHERRO(eeh->logger, CHLD, "%s: failure handled msg(len=%ld) from ec(%p, t=%d)",
-                                    // eeh->m_services_id[eeh->m_id].c_str(), nb, bc, bc->type);
-    // }
-    
+
+    EEHDBUG(eeh->logger, CHLD, "notified to deal with msg queue(size=%lu)", eeh->m_messages.size());
+
     return 0; 
 }
 
