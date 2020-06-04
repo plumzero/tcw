@@ -5,7 +5,7 @@
 #include "eehelper.h"
 #include "eelog.h"
 
-void* print_string(void* args)
+void* test_function(void* args)
 {
     EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)args;
 
@@ -99,7 +99,6 @@ void* print_string(void* args)
                                         ele.second == "GIMMICK_PUPPET" : ele.second == "MADOLCHE"; });
             tosid = iterTo->first;
         } else if (bich.type == BIC_TYPE_C2C_BETWEEN) {
-            ECHO(INFO, "===========================================================>");
             BIC_BETWEEN bic;
             BIC_MESSAGE bicbetween(nullptr, &bic);
             

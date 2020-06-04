@@ -226,20 +226,20 @@ int daemon_timer_callback(void *args, void *userp)
             tobicp.biubiu = "Hello World, " + eeh->m_services_id[bc->sid];;
             BIC_MESSAGE tobicm(&tobich, &tobicp);
 
-            std::string tobicmsg;
-            tobicm.Serialize(&tobicmsg);
-
             std::string tomsg;
-            if (tobicmsg.empty()) {
+            tobicm.Serialize(&tomsg);
+
+            std::string tostream;
+            if (tomsg.empty()) {
                 EEHERRO(eeh->logger, MODU, "msg size is 0");
                 return -1;
             }
-            add_header(&tomsg, tobicmsg);
+            add_header(&tostream, tomsg);
 
-            eeh->m_linker_queues[bc->sid].push(tomsg);
+            eeh->m_linker_queues[bc->sid].push(tostream);
 
             EEHDBUG(eeh->logger, MODU, "pushed msg(type=%d, len=%lu, from=%s) to que(ownby=%s, size=%lu) and heartbeat to %s", 
-                                        BIC_TYPE_GUARDRAGON, tomsg.size(), eeh->m_services_id[tobich.origin].c_str(),
+                                        BIC_TYPE_GUARDRAGON, tostream.size(), eeh->m_services_id[tobich.origin].c_str(),
                                         eeh->m_services_id[bc->sid].c_str(), eeh->m_linker_queues[bc->sid].size(),
                                         eeh->m_services_id[tobich.orient].c_str());
             
@@ -386,20 +386,20 @@ int child_timer_callback(void *args, void *userp)
         tobicp.biubiu = "Hello World, " + eeh->m_services_id[bc->sid];
         BIC_MESSAGE tobicm(&tobich, &tobicp);
 
-        std::string tobicmsg;
-        tobicm.Serialize(&tobicmsg);
-
         std::string tomsg;
-        if (tobicmsg.empty()) {
+        tobicm.Serialize(&tomsg);
+
+        std::string tostream;
+        if (tomsg.empty()) {
             EEHERRO(eeh->logger, MODU, "msg size is 0");
             return -1;
         }
-        add_header(&tomsg, tobicmsg);
+        add_header(&tostream, tomsg);
 
-        eeh->m_linker_queues[bc->sid].push(tomsg);
+        eeh->m_linker_queues[bc->sid].push(tostream);
 
         EEHDBUG(eeh->logger, MODU, "pushed msg(type=%d, len=%lu, from=%s) to que(ownby=%s, size=%lu) and heartbeat to %s", 
-                                    BIC_TYPE_GUARDRAGON, tomsg.size(), eeh->m_services_id[tobich.origin].c_str(),
+                                    BIC_TYPE_GUARDRAGON, tostream.size(), eeh->m_services_id[tobich.origin].c_str(),
                                     eeh->m_services_id[bc->sid].c_str(), eeh->m_linker_queues[bc->sid].size(),
                                     eeh->m_services_id[tobich.orient].c_str());
         
@@ -599,7 +599,7 @@ int policy_timer_callback(void *args, void *userp)
         }
         
         static BICTYPE type = BIC_TYPE_P2C_BETWEEN; // BIC_TYPE_P2S_SUMMON;
-        std::string tobicmsg;
+        std::string tomsg;
         static int count = 0;
             
         BIC_HEADER bich(iterFrom->first, iterTo->first, type);
@@ -611,7 +611,7 @@ int policy_timer_callback(void *args, void *userp)
             bicp.code = 12345678;
             
             BIC_MESSAGE bicm(&bich, &bicp);
-            bicm.Serialize(&tobicmsg);
+            bicm.Serialize(&tomsg);
 
             if (++count > 5) {
                 // type = BIC_TYPE_P2S_BOMBER;    /** 1.1 环回测试后转杀服务测试 */
@@ -625,7 +625,7 @@ int policy_timer_callback(void *args, void *userp)
             bicp.kill = true;
             
             BIC_MESSAGE bicm(&bich, &bicp);
-            bicm.Serialize(&tobicmsg);
+            bicm.Serialize(&tomsg);
             
             type = BIC_TYPE_P2S_SUMMON;
         } else if (type == BIC_TYPE_P2C_BETWEEN) { 
@@ -635,25 +635,25 @@ int policy_timer_callback(void *args, void *userp)
             bicp.information = "这个消息来自策略服务端";
             
             BIC_MESSAGE bicm(&bich, &bicp);
-            bicm.Serialize(&tobicmsg);
+            bicm.Serialize(&tomsg);
             
             // type = BIC_TYPE_P2S_SUMMON;
         } else {
             return -1;
         }
         
-        std::string tomsg;
+        std::string tostream;
         
-        if (tobicmsg.empty()) {
+        if (tomsg.empty()) {
             EEHERRO(eeh->logger, MODU, "msg size is 0");
             return -1;
         }
-        add_header(&tomsg, tobicmsg);
+        add_header(&tostream, tomsg);
         
-        eeh->m_linker_queues[bc->sid].push(tomsg);
+        eeh->m_linker_queues[bc->sid].push(tostream);
         
         EEHDBUG(eeh->logger, MODU, "pushed msg(type=%d, len=%lu, from=%s) to que(ownby=%s, size=%lu) and send to %s", 
-                                    type, tomsg.size(), eeh->m_services_id[iterFrom->first].c_str(),
+                                    type, tostream.size(), eeh->m_services_id[iterFrom->first].c_str(),
                                     eeh->m_services_id[bc->sid].c_str(), eeh->m_linker_queues[bc->sid].size(),
                                     eeh->m_services_id[iterTo->first].c_str());
         

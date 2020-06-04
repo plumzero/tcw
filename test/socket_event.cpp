@@ -17,8 +17,8 @@ int main(int argc, char *argv[])
     EEHNS::EpollEvHandler::EEH_set_callback("GIMMICK_PUPPET", child_callback_module);
     EEHNS::EpollEvHandler::EEH_set_callback("SYNCHRON",       null_callback_module);
     
-    EEHNS::EpollEvHandler::EEH_set_func("MADOLCHE",       print_string);
-    EEHNS::EpollEvHandler::EEH_set_func("GIMMICK_PUPPET", print_string);
+    EEHNS::EpollEvHandler::EEH_set_func("MADOLCHE",       test_function);
+    EEHNS::EpollEvHandler::EEH_set_func("GIMMICK_PUPPET", test_function);
     
     rescode = eeh.EEH_init("event.ini");
     if (rescode != EEHNS::EEH_OK) {

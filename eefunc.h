@@ -4,6 +4,6 @@
 
 #include "include.h"
 
-void* print_string(void* args);
+void* test_function(void* args);
 
 #endif // ! __Epoll_Ev_FUNC_H__
