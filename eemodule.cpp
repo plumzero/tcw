@@ -136,6 +136,13 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
                                 [&bich](const decltype(*eeh->m_olinkers.begin())& ele){
             return ele.second == bich.orient;
         });
+        if (iterTo == eeh->m_olinkers.end()) {
+            EEHINFO(eeh->logger, MODU, "IPC between internal child process");
+            iterTo = std::find_if(eeh->m_ilinkers.begin(), eeh->m_ilinkers.end(),
+                            [&bich](const decltype(*eeh->m_ilinkers.begin())& ele){
+                return ele.second == bich.orient;
+            });
+        }
     }
 
     if (iterTo->first <= 0) {
@@ -591,7 +598,7 @@ int policy_timer_callback(void *args, void *userp)
             }
         }
         
-        static BICTYPE type = BIC_TYPE_P2S_SUMMON;
+        static BICTYPE type = BIC_TYPE_P2C_BETWEEN; // BIC_TYPE_P2S_SUMMON;
         std::string tobicmsg;
         static int count = 0;
             
@@ -630,7 +637,7 @@ int policy_timer_callback(void *args, void *userp)
             BIC_MESSAGE bicm(&bich, &bicp);
             bicm.Serialize(&tobicmsg);
             
-            type = BIC_TYPE_P2S_SUMMON;
+            // type = BIC_TYPE_P2S_SUMMON;
         } else {
             return -1;
         }
