@@ -25,6 +25,11 @@ void* test_function(void* args)
         BIC_MESSAGE bicm(&bich, nullptr);
         bicm.ExtractHeader(msg);
         
+        if (eeh->m_id != bich.orient) {
+            EEHERRO(eeh->logger, MODU, "not belong here, discard this message");
+            continue;
+        }
+        
         BIC_BASE *tobicp = nullptr;
         BICTYPE totype{BIC_TYPE_NONE};
         

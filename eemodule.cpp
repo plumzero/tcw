@@ -299,24 +299,12 @@ ssize_t child_read_callback(int fd, void *buf, size_t size, void *userp)
         return -1;
     }
     
-    /** filter the received message simply */
     std::string msg(rbuf, nb);
     if (rbuf) {
         free(rbuf);
     }
     
-    BIC_HEADER  bich;
-    BIC_MESSAGE bicm(&bich, nullptr);
-    bicm.ExtractHeader(msg);
-    
-    if (bc->sid != bich.orient) {
-        EEHERRO(eeh->logger, MODU, "not belong here, discard the message");
-        return 0;
-    }
-
-    EEHDBUG(eeh->logger, MODU, "received msg(type=%d, len=%lu) from origin(sid=%s) to orient(sid=%s)",
-                                bich.type, msg.size(),
-                                eeh->m_services_id[bich.origin].c_str(), eeh->m_services_id[bich.orient].c_str());
+    EEHDBUG(eeh->logger, MODU, "received msg(len=%lu)", msg.size());
 
     /** received it and do nothing, instead of passing it to application layer. */
     std::unique_lock<std::mutex> guard(eeh->m_mutex);   /** locked passively */
