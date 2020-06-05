@@ -79,7 +79,7 @@ void* test_function(void* args)
         uint64_t tosid{0};
         int32_t  mtype{0};
         if (check_message(msg, &tosid, &mtype, args) != 0) {
-            EEHERRO(eeh->logger, MODU, "not belong here, discard this message");
+            EEHERRO(eeh->logger, FUNC, "not belong here, discard this message");
             continue;
         }
         
