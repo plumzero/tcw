@@ -5,6 +5,61 @@
 #include "eehelper.h"
 #include "eelog.h"
 
+int check_message(const std::string& msg, uint64_t* tosid, int32_t* mtype, void* args)
+{
+    EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)args;
+    
+    BIC_HEADER bich;
+    BIC_MESSAGE bicm(&bich, nullptr);
+    bicm.ExtractHeader(msg);
+    
+    if (eeh->m_id != bich.orient) {
+        return -1;
+    }
+    
+    *tosid = bich.origin;
+    *mtype = bich.type;
+    
+    return 0;
+}
+
+int send_message(const int32_t mtype, const uint64_t tosid, BIC_BASE* tobicp, void* args)
+{
+    EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)args;
+
+    if (mtype == BIC_TYPE_NONE || ! tobicp) {
+        throw std::runtime_error("type or msg body is null");
+    }
+    
+    std::string tomsg;
+    BIC_HEADER tobich(eeh->m_id, tosid, (BICTYPE)mtype);
+    BIC_MESSAGE tobicm(&tobich, tobicp);
+    tobicm.Serialize(&tomsg);
+
+    std::string tostream;
+    add_header(&tostream, tomsg);
+    if (tobicp != nullptr) {
+        delete tobicp;
+    }
+    int tofd{0};
+    if (eeh->m_pipe_pairs.find(eeh->m_id) != eeh->m_pipe_pairs.end()) {
+        tofd = eeh->m_pipe_pairs[eeh->m_id].second;
+    } else {
+        throw std::runtime_error("pipe pair not found");
+    }
+    
+    EEHNS::BaseClient* tobc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[tofd]);
+    if (! tobc) {
+        throw std::runtime_error("could not find the client");
+    }
+    
+    eeh->m_linker_queues[tobc->sid].push(tostream);
+
+    eeh->EEH_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
+
+    return 0;
+}
+
 void* test_function(void* args)
 {
     EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)args;
@@ -20,22 +75,18 @@ void* test_function(void* args)
         
         std::string msg = std::move(eeh->m_messages.front());
         eeh->m_messages.pop();
-        
-        BIC_HEADER bich;
-        BIC_MESSAGE bicm(&bich, nullptr);
-        bicm.ExtractHeader(msg);
-        
-        if (eeh->m_id != bich.orient) {
+
+        uint64_t tosid{0};
+        int32_t  mtype{0};
+        if (check_message(msg, &tosid, &mtype, args) != 0) {
             EEHERRO(eeh->logger, MODU, "not belong here, discard this message");
             continue;
         }
         
         BIC_BASE *tobicp = nullptr;
         BICTYPE totype{BIC_TYPE_NONE};
-        
-        EEHNS::SID_t tosid = bich.origin;
-        
-        if (bich.type == BIC_TYPE_P2S_SUMMON) {
+                
+        if (mtype == BIC_TYPE_P2S_SUMMON) {
             BIC_SUMMON bic;
             BIC_MESSAGE bicsummon(nullptr, &bic);
             
@@ -57,7 +108,7 @@ void* test_function(void* args)
             
             tobicp = monster;
             totype = BIC_TYPE_S2P_MONSTER;
-        } else if (bich.type == BIC_TYPE_P2S_BOMBER) {
+        } else if (mtype == BIC_TYPE_P2S_BOMBER) {
             BIC_BOMBER bic;
             BIC_MESSAGE bicbomb(nullptr, &bic);
             
@@ -80,7 +131,7 @@ void* test_function(void* args)
             
             tobicp = bomb;
             totype = BIC_TYPE_S2P_BOMBER;
-        } else if (bich.type == BIC_TYPE_P2C_BETWEEN) {
+        } else if (mtype == BIC_TYPE_P2C_BETWEEN) {
             BIC_BETWEEN bic;
             BIC_MESSAGE bicbetween(nullptr, &bic);
             
@@ -103,7 +154,7 @@ void* test_function(void* args)
                                 return eeh->m_services_id[eeh->m_id] == "MADOLCHE" ? 
                                         ele.second == "GIMMICK_PUPPET" : ele.second == "MADOLCHE"; });
             tosid = iterTo->first;
-        } else if (bich.type == BIC_TYPE_C2C_BETWEEN) {
+        } else if (mtype == BIC_TYPE_C2C_BETWEEN) {
             BIC_BETWEEN bic;
             BIC_MESSAGE bicbetween(nullptr, &bic);
             
@@ -113,55 +164,18 @@ void* test_function(void* args)
             EEHDBUG(eeh->logger, FUNC, "BIC_BETWEEN.to_service:   %s", bic.to_service.c_str());
             EEHDBUG(eeh->logger, FUNC, "BIC_BETWEEN.information:  %s", bic.information.c_str());            
         } else {
-            EEHERRO(eeh->logger, FUNC, "undefined or unhandled msg(%d)", (int)bich.type);
+            EEHERRO(eeh->logger, FUNC, "undefined or unhandled msg(%d)", (int)mtype);
         }
-        
-        if (totype == BIC_TYPE_NONE || ! tobicp) {
-            continue;
-        }
-        
-        EEHDBUG(eeh->logger, FUNC, "done! msg(type=%d) would send from(%s) to(%s)",
-                    totype, eeh->m_services_id[eeh->m_id].c_str(), eeh->m_services_id[tosid].c_str());
-        
-        std::string tomsg;
-        BIC_HEADER tobich(eeh->m_id, tosid, totype);
-        BIC_MESSAGE tobicm(&tobich, tobicp);
-        tobicm.Serialize(&tomsg);
-        if (tomsg.empty()) {
-            EEHWARN(eeh->logger, FUNC, "msg size is 0, but let's continue...");
-            if (tobicp != nullptr) {
-                delete tobicp;
+
+        try {
+            if (send_message(totype, tosid, tobicp, args) == 0) {
+                EEHDBUG(eeh->logger, FUNC, "pushed msg(type=%d) to que and forward to %s",
+                                            totype, eeh->m_services_id[tosid].c_str());
             }
-            return nullptr;     // for test
-            // continue;        // for production
         }
-        std::string tostream;
-        add_header(&tostream, tomsg);
-        if (tobicp != nullptr) {
-            delete tobicp;
+        catch(std::exception& e) {
+            EEHERRO(eeh->logger, FUNC, "an exception occurs: %s", e.what());
         }
-        int tofd{0};
-        if (eeh->m_pipe_pairs.find(eeh->m_id) != eeh->m_pipe_pairs.end()) {
-            tofd = eeh->m_pipe_pairs[eeh->m_id].second;
-        } else {
-            EEHERRO(eeh->logger, FUNC, "an exception occurs");
-            return nullptr;
-        }
-        
-        EEHNS::BaseClient* tobc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[tofd]);
-        if (! tobc) {
-            EEHERRO(eeh->logger, FUNC, "could not find the client");
-            return nullptr;
-        }
-        
-        eeh->m_linker_queues[tobc->sid].push(tostream);
-            
-        EEHDBUG(eeh->logger, FUNC, "pushed msg(type=%d, len=%lu, from=%s) to que(ownby=%s, size=%lu) and forward to %s", 
-                                    totype, tostream.size(), eeh->m_services_id[tobich.origin].c_str(),
-                                    eeh->m_services_id[tobc->sid].c_str(), eeh->m_linker_queues[tobc->sid].size(),
-                                    eeh->m_services_id[tobich.orient].c_str());
-        
-        eeh->EEH_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
     }
 
     return nullptr;
