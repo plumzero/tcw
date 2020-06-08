@@ -619,6 +619,9 @@ EClient* EpollEvHandler::EEH_TCP_listen(std::string bind_ip, PORT_t service_port
 {
     for (auto it_m = m_listeners.begin(); it_m != m_listeners.end(); it_m++) {
         if (it_m->second == sid) {
+            /** It's an error return. If it already had, the client should not return with nullptr.
+             *  But I think it should not via to here, so just do like this;
+             */
             EEHERRO(logger, HAND, "server type(%d) exist!", sid);
             return nullptr;
         }
@@ -804,6 +807,9 @@ EClient* EpollEvHandler::EEH_TCP_connect(std::string remote_ip, PORT_t remote_po
 {
     for (auto it_m = m_olinkers.begin(); it_m != m_olinkers.end(); it_m++) {
         if (it_m->second == sid) {
+            /** It's an error return. If it already had, the client should not return with nullptr.
+             *  But I think it should not via to here, so just do like this;
+             */
             EEHERRO(logger, HAND, "linker type(%lu) exist!", sid);
             return nullptr;
         }
@@ -878,6 +884,9 @@ std::pair<EClient*, EClient*> EpollEvHandler::EEH_PIPE_create(FD_t rfd, FD_t wfd
     for (auto it_m = m_ilinkers.begin(); it_m != m_ilinkers.end(); it_m++) {
         if (it_m->second == sid) {
             EEHERRO(logger, HAND, "linker type(%lu) exist!", sid);
+            /** It's an error return. If it already had, the pipe_pair should not return with nullptr.
+             *  But I think it should not via to here, so just do like this;
+             */
             return pipe_pair;
         }
     }
