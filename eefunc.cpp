@@ -66,8 +66,8 @@ void* test_function(void* args)
 
     while (true) {
         /** wait for the message to deal with */
-        std::unique_lock<std::mutex> lock(eeh->m_mutex);
-        if (! eeh->m_cond.wait_for(lock, std::chrono::seconds(2), [&eeh](){ return ! eeh->m_messages.empty(); })) {
+        std::unique_lock<std::mutex> guard(eeh->m_mutex);
+        if (! eeh->m_cond.wait_for(guard, std::chrono::seconds(2), [&eeh](){ return ! eeh->m_messages.empty(); })) {
             EEHDBUG(eeh->logger, FUNC, "thread msg queue is empty");
             continue;
         }
@@ -75,6 +75,7 @@ void* test_function(void* args)
         
         std::string msg = std::move(eeh->m_messages.front());
         eeh->m_messages.pop();
+        guard.unlock();
 
         uint64_t tosid{0};
         int32_t  mtype{0};
