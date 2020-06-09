@@ -236,22 +236,29 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
         ECHO(INFO, "build service %s as child", specified_service.c_str());
     }
     /** [3] build log */
+    std::string logdir = m_ini[""]["LogDir"] | "./";
+    uint32_t logsize = m_ini[""]["LogSize"] | (uint32_t)10;
+    
+    try {
+        std::string logname = specified_service + ".log";
+        logger = new Logger(logdir.c_str(), logname.c_str());
+        ECHO(INFO, "process(id=%lu) log file(dir=%s,name=%s,size=%uM) created",
+                    (unsigned long)getpid(), logdir.c_str(), logname.c_str(), logsize);
+    } catch (std::exception& e) {
+        ECHO(ERRO, "an exception caught: %s", e.what());
+        logger = new Logger();
+    }
+
     std::string whatlevel = m_ini[""]["LogLevel"] | "INFO";
     std::transform(whatlevel.begin(), whatlevel.end(), whatlevel.begin(), [](char c) {
         return std::toupper((int)c);
     });
+    
     int loglevel = whatlevel == "DBUG" ? LOG_LEVEL_DBUG :
                    whatlevel == "INFO" ? LOG_LEVEL_INFO :
                    whatlevel == "WARN" ? LOG_LEVEL_WARN :
                    whatlevel == "ERRO" ? LOG_LEVEL_ERRO : LOG_LEVEL_INFO;
-    try {
-        std::string logname = specified_service + ".log";
-        logger = new Logger("./", logname.c_str());
-        ECHO(INFO, "current process(id=%lu) log file(%s) created", (unsigned long)getpid(), logname.c_str());
-    } catch (std::exception& e) {
-        ECHO(ERRO, "created log failed: %s", e.what());
-        return EEH_ERROR;
-    }
+
     logger->log_set_global_level(loglevel);
     logger->log_set_level(LOG_TYPE_HAND, loglevel);
     logger->log_set_level(LOG_TYPE_MODU, loglevel);

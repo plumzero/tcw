@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <stdexcept>
 
 namespace EEHNS {
 
@@ -55,6 +56,8 @@ public:
            const char* name, 
            uint32_t limit_size = 1, 
            uint32_t level = LOG_LEVEL_DBUG);
+    Logger(uint32_t level = LOG_LEVEL_DBUG);
+           
     ~Logger();
 public:
     void      log_init(void);
