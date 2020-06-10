@@ -241,7 +241,7 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
     
     try {
         std::string logname = specified_service + ".log";
-        logger = new Logger(logdir.c_str(), logname.c_str());
+        logger = new Logger(logdir.c_str(), logname.c_str(), logsize);
         ECHO(INFO, "process(id=%lu) log file(dir=%s,name=%s,size=%uM) created",
                     (unsigned long)getpid(), logdir.c_str(), logname.c_str(), logsize);
     } catch (std::exception& e) {

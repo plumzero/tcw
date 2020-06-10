@@ -23,6 +23,10 @@ typedef enum _bic_type {
 
     BIC_TYPE_P2C_BETWEEN,
     BIC_TYPE_C2C_BETWEEN,
+    
+    BIC_TYPE_A2A_START,
+    BIC_TYPE_A2B_BETWEEN,
+    BIC_TYPE_B2C_BETWEEN,
 
 } BICTYPE;
 

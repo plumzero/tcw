@@ -199,14 +199,41 @@ public:
     std::string  information;
 };
 
-/********************************* 消息类型工厂类，非线程安全(暂不使用) *********************************/
-
-class BIC_FACTORY
+class BIC_A2A_START : public BIC_BASE
 {
-private:
-    static std::map<BICTYPE, BIC_BASE*> bicmap;
 public:
-    static BIC_BASE* getObject(BICTYPE type);
+    BIC_A2A_START() {}
+    virtual ~BIC_A2A_START(){}
+    virtual void Serialize(std::string *s);
+    virtual void Structuralize(const std::string &s);
+public:
+    bool         is_start;
+    std::string  information;
 };
+
+class BIC_A2B_BETWEEN : public BIC_BASE
+{
+public:
+    BIC_A2B_BETWEEN() {}
+    virtual ~BIC_A2B_BETWEEN(){}
+    virtual void Serialize(std::string *s);
+    virtual void Structuralize(const std::string &s);
+public:
+    bool         send;
+    std::string  information;
+};
+
+class BIC_B2C_BETWEEN : public BIC_BASE
+{
+public:
+    BIC_B2C_BETWEEN() {}
+    virtual ~BIC_B2C_BETWEEN(){}
+    virtual void Serialize(std::string *s);
+    virtual void Structuralize(const std::string &s);
+public:
+    bool         send;
+    std::string  information;
+};
+
 
 #endif // !__Basic_Instruction_Command_H__
