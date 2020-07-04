@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdexcept>
+#include <mutex>
 
 namespace EEHNS {
 
@@ -83,6 +84,7 @@ private:
     FILE*            m_pFile;
     struct log_type* m_pLogTypes;
     size_t           m_nLogTypesSize;
+    std::mutex       m_mtx;
 };
 
 static const struct log_type_reg_table reg_table[] = {

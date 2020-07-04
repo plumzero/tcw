@@ -73,13 +73,15 @@ Logger::Logger(uint32_t level)
 }
 
 Logger::~Logger() { 
+    std::lock_guard<std::mutex> locker(m_mtx);
     log_free();
     if (m_pFile != stdout) free((void*)m_szPath);
-    if (m_pFile != stdout) fclose(m_pFile);
+    if (m_pFile != stdout && m_pFile != nullptr) fclose(m_pFile);
 }
 
 int Logger::log_open_stream(FILE *f)
 {
+    std::lock_guard<std::mutex> locker(m_mtx);
     m_pFile = f;
     return 0;
 }
@@ -240,6 +242,7 @@ void Logger::log_free(void)
 
 int Logger::log_vlog(uint32_t level, uint32_t logtype, const char *format, va_list ap)
 {
+    std::lock_guard<std::mutex> locker(m_mtx);
     int ret;
     char tbuf[64] = { 0 };
 
