@@ -1,7 +1,7 @@
 
 #include "bic.h"
 
-/********************************* 基类，消息头类，消息封装类 *********************************/
+/********************************* Base, Message-Header, Message-Wrapper *********************************/
 
 void BIC_MESSAGE::Serialize(std::string *s)
 {
@@ -80,7 +80,7 @@ void BIC_MESSAGE::ExtractPayload(const std::string &s)
     payload->Structuralize(sp);
 }
 
-/**************************************** 测试类 ****************************************/
+/**************************************** for test ****************************************/
 
 void BIC_TEST::Serialize(std::string *s)
 {
@@ -155,7 +155,7 @@ void BIC_TEST::Structuralize(const std::string &s)
     RAJ_parse_json(doc, "map_int_map_int_int", this->map_int_map_int_int);
 }
 
-/********************************* 消息类，由程序员定义 *********************************/
+/********************************* Message, defined by programer *********************************/
 
 void BIC_HEADER::Serialize(std::string *s)
 {

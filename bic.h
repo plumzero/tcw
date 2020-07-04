@@ -8,15 +8,10 @@
 #include "include.h"
 #include "bic_type.h"
 
-/*!
- *  version 1.0 带模板的版本，分离或进行类型转换时限制较多，抛弃；
- *  version 2.0 非模板版本，引用版本，当前版本；
- */
-
 typedef uint64_t      BICORIGIN;      /** who sended this message */
 typedef uint64_t      BICORIENT;      /** who would recv this message */
 
-/********************************* 基类，消息头类，消息封装类 *********************************/
+/********************************* Base, Message-Header, Message-Wrapper *********************************/
 
 class BIC_BASE
 {
@@ -57,7 +52,7 @@ public:
     BIC_BASE       *payload;
 };
 
-/**************************************** 测试类 ****************************************/
+/**************************************** for test ****************************************/
 
 class BIC_TEST : public BIC_BASE
 {
@@ -98,7 +93,7 @@ public:
     /// ... continue
 };
 
-/********************************* 消息类，由程序员定义 *********************************/
+/********************************* Message, defined by programer *********************************/
 
 class BIC_GUARDRAGON : public BIC_BASE
 {

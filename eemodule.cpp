@@ -6,15 +6,6 @@
 #include "eehelper.h"
 #include "eelog.h"
 
-/****************************** 程序员定义和实现 ******************************/
-
-/**
- * 随笔:
- *   1. 禁止使用 static 变量；
- *   2. 子进程使用 exit 退出，进程内启动进程通过 signal 退出；
- *   3. 除了服务回调之外，最好不要再使用其他回调；
- */
-
 ssize_t null_read_callback(int fd, void *buf, size_t size, void *userp)
 {
     (void) fd;

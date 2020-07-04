@@ -3,14 +3,6 @@
 #include "eelog.h"
 #include "sha1.h"
 
-/**
- * 随笔:
- *   1. 对稳定信号(signal∈[SIGRTMIN, SIGRTMAX])的屏蔽是没必要的;
- *   2. nginx 对线程池的实现中，没有对 SIGILL, SIGFPE, SIGSEGV, SIGBUS 信号进行屏蔽;
- *   3. 通信端作为服务端时，一般对 SIGPIPE 信号进行屏蔽;
- *   4. 不要对一些结构体(尤其是包含 std::string 成员变量的结构体)使用 memset;
- */
-
 namespace EEHNS {
 
 void signal_exit(int signum)
