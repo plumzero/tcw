@@ -242,7 +242,6 @@ void Logger::log_free(void)
 
 int Logger::log_vlog(uint32_t level, uint32_t logtype, const char *format, va_list ap)
 {
-    std::lock_guard<std::mutex> locker(m_mtx);
     int ret;
     char tbuf[64] = { 0 };
 
@@ -252,7 +251,9 @@ int Logger::log_vlog(uint32_t level, uint32_t logtype, const char *format, va_li
         return -1;
     if (level > m_pLogTypes[logtype].log_type_level)
         return 0;
-    
+
+    std::lock_guard<std::mutex> locker(m_mtx); 
+ 
     char bakpath[PATH_MAX] = { 0 };
     if (m_pFile != stdout && ftell(m_pFile) > m_nLimitSize * 1024 * 1024) {
         fclose(m_pFile);
