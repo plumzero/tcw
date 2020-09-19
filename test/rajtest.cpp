@@ -1,7 +1,7 @@
 
 #include "include.h"
-#include "raj.h"
 #include "bic.h"
+#include <rapidjson/raj.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>

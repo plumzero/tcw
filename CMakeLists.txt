@@ -1,22 +1,45 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 2.8.0)
 
 project("eeh" C CXX)
 
-include(CheckCXXCompilerFlag)
+#
+# Version
+#
+set(eeh_VERSION_MAJOR 3)
+set(eeh_VERSION_MINOR 1.0)
+set(eeh_VERSION ${eeh_VERSION_MAJOR}.${eeh_VERSION_MINOR})
+set(PACKAGE_VERSION ${eeh_VERSION})
+set(VERSION "${eeh_VERSION}")
 
+#
 # if u wanna release, do like this `cmake -DCMAKE_BUILD_TYPE=Release`
+#
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
+#
+# Build Options
+#
+option(BUILD_TESTS  "Build all available test suites"    ON)
 
-if (CMAKE_BUILD_TYPE MATCHES "Debug")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -g -O0 -Wall -W ")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-all --param=ssp-buffer-size=4")
-elseif(CMAKE_BUILD_TYPE MATCHES "Release")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O2 -w")
+#
+# Configuration
+#
+include("${PROJECT_SOURCE_DIR}/cmake/configuration.cmake")
+
+#
+# Modules
+#
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/modules")
+
+#
+# Build
+#
+include("${PROJECT_SOURCE_DIR}/cmake/manifest.cmake")
+
+include_directories(.)
+
+if (BUILD_TESTS)
+    add_subdirectory(test)
 endif()
-
-add_subdirectory(test)
