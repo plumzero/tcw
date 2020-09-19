@@ -27,9 +27,7 @@ struct ee_event_block_t {
 
 /****************************** 程序员声明 ******************************/
 
-extern ee_event_actions_t null_callback_module;
 extern ee_event_actions_t daemon_callback_module;
 extern ee_event_actions_t child_callback_module;
-extern ee_event_actions_t policy_callback_module;
 
 #endif // ! __Epoll_Ev_MODULE_H__

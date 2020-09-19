@@ -389,6 +389,31 @@ void BIC_BETWEEN::Structuralize(const std::string &s)
     RAJ_parse_json(doc, "information",  this->information);
 }
 
+void BIC_P2P_START::Serialize(std::string *s)
+{
+    rapidjson::StringBuffer sb;
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(sb);
+
+    writer.StartObject();
+
+    RAJ_write_json(writer, "is_start",     this->is_start);
+    RAJ_write_json(writer, "information",  this->information);
+    
+    writer.EndObject();
+
+    s->assign(sb.GetString(), sb.GetSize());
+}
+
+void BIC_P2P_START::Structuralize(const std::string &s)
+{
+    rapidjson::Document doc;
+
+    doc.Parse(s.c_str());
+    
+    RAJ_parse_json(doc, "is_start",     this->is_start);
+    RAJ_parse_json(doc, "information",  this->information);
+}
+
 void BIC_A2A_START::Serialize(std::string *s)
 {
     rapidjson::StringBuffer sb;

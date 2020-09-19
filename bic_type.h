@@ -7,6 +7,7 @@ typedef enum _bic_type {
     BIC_TYPE_NONE,
     BIC_TYPE_GUARDRAGON,
     
+    BIC_TYPE_P2P_START,
     BIC_TYPE_P2S_SUMMON,
     BIC_TYPE_P2S_MONSTER,
     BIC_TYPE_P2S_BITRON,

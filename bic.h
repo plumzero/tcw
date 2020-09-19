@@ -194,6 +194,19 @@ public:
     std::string  information;
 };
 
+class BIC_P2P_START : public BIC_BASE
+{
+public:
+    BIC_P2P_START() {}
+    virtual ~BIC_P2P_START(){}
+    virtual void Serialize(std::string *s);
+    virtual void Structuralize(const std::string &s);
+public:
+    bool         is_start;
+    std::string  information;
+};
+
+
 class BIC_A2A_START : public BIC_BASE
 {
 public:

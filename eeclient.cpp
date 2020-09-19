@@ -18,9 +18,9 @@ namespace EEHNS
         port = 0;
         sid = 0;
         is_server = false;
-        clients_do = null_callback_module;
+        clients_do = child_callback_module;
         
-        set_actions(null_callback_module);
+        set_actions(child_callback_module);
     }
     BaseClient::~BaseClient()
     {

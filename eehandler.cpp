@@ -166,7 +166,7 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
         return EEH_ERROR;
     }
     // check each service(`client` not include) which on=yes whether has its corresponding actions
-    iterFind = std::find_if(m_ini.begin(), m_ini.end(), [this](decltype(*m_ini.begin())& ele) {
+    std::for_each(m_ini.begin(), m_ini.end(), [this](decltype(*m_ini.begin())& ele) {
         std::string key, as, section = ele.first;
         bool on;
         for (const auto & kv : ele.second) {
@@ -177,13 +177,12 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
             if (key == "on") on = m_ini[section][key] | false;
         }
         std::transform(as.begin(), as.end(), as.begin(), [](char c) { return tolower((int)c); });
-        return ! section.empty() && (as == "daemon" || as == "child" || as == "server") && on
-                                 && m_linkers_actions.find(section) == m_linkers_actions.end();
+        if (as == "daemon" && on) {
+            m_linkers_actions[section] = daemon_callback_module;
+        } else if ((as == "child" || as == "server") && on) {
+            m_linkers_actions[section] = child_callback_module;
+        }
     });
-    if (iterFind != m_ini.end()) {
-        ECHO(ERRO, "%s's actions is not set", iterFind->first.c_str());
-        return EEH_ERROR;
-    }
     // find specified service whether exist or not(specified_service="" means as daemon)
     m_is_daemon = false;
     if (specified_service.empty()) {
@@ -219,7 +218,7 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
                 if (key == "as") as = m_ini[section][key] | "";
             }
             std::transform(as.begin(), as.end(), as.begin(), [](char c) { return tolower((int)c); });
-            return ! section.empty() && as == "child" && section == specified_service;
+            return ! section.empty() && (as == "child" || as == "server") && section == specified_service;
         });
         if (iterFind == m_ini.end()) {
             ECHO(ERRO, "could not found %s service as child", specified_service.c_str());
@@ -375,6 +374,7 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
                     EEHERRO(logger, HAND, "EEH_add failed");
                     return EEH_ERROR;
                 }
+                m_heartbeats[iterId->first] = now_time();
                 EEHDBUG(logger, HAND, "%s as a %s listened on %s:%d",
                                         section.c_str(), as.c_str(), host.c_str(), port);
             } else if (as == "client") {                    

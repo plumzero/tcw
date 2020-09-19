@@ -324,7 +324,144 @@ void* step_3_function(void* args)
     return nullptr;
 }
 
-void* test_function(void* args)
+void* server_function(void* args)
+{
+    EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)args;
+
+    {
+        BIC_HEADER tobich(eeh->m_id, eeh->m_id, BIC_TYPE_P2P_START);
+        BIC_P2P_START bicstart;
+        bicstart.is_start = true;
+        bicstart.information = "create a message and ready to send";
+        BIC_MESSAGE tobicm(&tobich, &bicstart);
+        std::string tomsg;
+        tobicm.Serialize(&tomsg);
+        /** try lock */
+        std::unique_lock<std::mutex> guard(eeh->m_mutex, std::defer_lock);
+        if (guard.try_lock()) {
+            eeh->m_messages.push(std::move(tomsg));
+        } else {
+            // do nothing
+        }
+        ECHO(INFO, "%s 生成一条消息，准备发往 %s 服务",
+                    eeh->m_services_id[eeh->m_id].c_str(), eeh->m_services_id[eeh->m_id].c_str());
+    }
+    
+    srand(time(nullptr));
+            
+    decltype(eeh->m_services_id.begin()) iterTo;
+
+    if (rand() % 2) {
+        iterTo = std::find_if(eeh->m_services_id.begin(), eeh->m_services_id.end(),
+                [](decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "MADOLCHE"; });
+        if (iterTo == eeh->m_services_id.end()) {
+            EEHERRO(eeh->logger, MODU, "could not find service id");
+            return nullptr;
+        }
+    } else {
+        iterTo = std::find_if(eeh->m_services_id.begin(), eeh->m_services_id.end(),
+                [](decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "GIMMICK_PUPPET"; });
+        if (iterTo == eeh->m_services_id.end()) {
+            EEHERRO(eeh->logger, MODU, "could not find service id");
+            return nullptr;
+        }
+    }
+
+    while (true) {
+        /** wait for the message to deal with */
+        std::unique_lock<std::mutex> guard(eeh->m_mutex);
+        if (! eeh->m_cond.wait_for(guard, std::chrono::seconds(2), [&eeh](){ return ! eeh->m_messages.empty(); })) {
+            EEHDBUG(eeh->logger, FUNC, "thread msg queue is empty");
+            continue;
+        }
+        EEHDBUG(eeh->logger, FUNC, "deal with thread msg queue(size=%lu)", eeh->m_messages.size());
+        
+        std::string msg = std::move(eeh->m_messages.front());
+        eeh->m_messages.pop();
+        guard.unlock();
+        
+        uint64_t fromsid{0};
+        uint64_t tosid{0};
+        int32_t  mtype{0};
+        if (check_message(msg, &fromsid, &tosid, &mtype, args) != 0) {
+            EEHERRO(eeh->logger, FUNC, "not belong here, discard this message");
+            continue;
+        }
+        
+        BIC_BASE *tobicp = nullptr;
+        BICTYPE totype{BIC_TYPE_NONE};
+        /** deal with the message, defined by programmer */
+        switch (mtype) {
+            case BIC_TYPE_P2P_START:
+            {                
+                BIC_SUMMON* bicsumon = new BIC_SUMMON();
+                bicsumon->info = "召唤信息";
+                bicsumon->sno = "ABAB-XYZ8";
+                bicsumon->code = 12345678;
+                
+                tosid = iterTo->first;
+                tobicp = bicsumon;
+                totype = BIC_TYPE_P2S_SUMMON;
+            }
+            break;
+            case BIC_TYPE_S2P_MONSTER:
+            {
+                BIC_MONSTER bicp;
+                BIC_MESSAGE bicm(nullptr, &bicp);
+                
+                bicm.ExtractPayload(msg);
+                
+                EEHDBUG(eeh->logger, MODU, "BIC_MONSTER.name:        %s", bicp.name.c_str());
+                EEHDBUG(eeh->logger, MODU, "BIC_MONSTER.type:        %s", bicp.type.c_str());
+                EEHDBUG(eeh->logger, MODU, "BIC_MONSTER.attribute:   %s", bicp.attribute.c_str());
+                EEHDBUG(eeh->logger, MODU, "BIC_MONSTER.race:        %s", bicp.race.c_str());
+                EEHDBUG(eeh->logger, MODU, "BIC_MONSTER.level:       %u", bicp.level);
+                EEHDBUG(eeh->logger, MODU, "BIC_MONSTER.attack:      %u", bicp.attack);
+                EEHDBUG(eeh->logger, MODU, "BIC_MONSTER.defense:     %u", bicp.defense);
+                EEHDBUG(eeh->logger, MODU, "BIC_MONSTER.description: %s", bicp.description.c_str());
+                
+                BIC_BOMBER* bicbomber = new BIC_BOMBER();
+                bicbomber->service_name = "销毁 " + eeh->m_services_id[iterTo->first]  + " 服务";
+                bicbomber->service_type = iterTo->first;
+                bicbomber->kill = true;
+                
+                tobicp = bicbomber;
+                totype = BIC_TYPE_P2S_BOMBER;
+            }
+            break;
+            case BIC_TYPE_S2P_BOMBER:
+            {
+                BIC_BOMBER bicp;
+                BIC_MESSAGE bicm(nullptr, &bicp);
+                
+                bicm.ExtractPayload(msg);
+                
+                EEHDBUG(eeh->logger, MODU, "BIC_BOMBER.service_name: %s", bicp.service_name.c_str());
+                EEHDBUG(eeh->logger, MODU, "BIC_BOMBER.service_type: %d", bicp.service_type);
+                EEHDBUG(eeh->logger, MODU, "BIC_BOMBER.kill:         %s", bicp.kill ? "true" : "false");
+                EEHDBUG(eeh->logger, MODU, "BIC_BOMBER.rescode:      %d", bicp.rescode);
+                EEHDBUG(eeh->logger, MODU, "BIC_BOMBER.receipt:      %s", bicp.receipt.c_str());
+            }
+            break;
+            default:
+                EEHERRO(eeh->logger, FUNC, "undefined or unhandled msg(%d)", (int)mtype);
+        }
+        /** try send message if needed */
+        try {
+            if (send_message(totype, tosid, tobicp, args) == 0) {
+                EEHDBUG(eeh->logger, FUNC, "pushed msg(type=%d) to que and forward to %s",
+                                            totype, eeh->m_services_id[tosid].c_str());
+            }
+        }
+        catch(std::exception& e) {
+            EEHERRO(eeh->logger, FUNC, "an exception occurs: %s", e.what());
+        }
+    }
+
+    return nullptr;
+}
+
+void* client_function(void* args)
 {
     EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)args;
 
@@ -402,44 +539,6 @@ void* test_function(void* args)
                 
                 tobicp = bomb;
                 totype = BIC_TYPE_S2P_BOMBER;
-            }
-            break;
-            case BIC_TYPE_P2C_BETWEEN:
-            {
-                BIC_BETWEEN bic;
-                BIC_MESSAGE bicbetween(nullptr, &bic);
-                
-                bicbetween.ExtractPayload(msg);
-                
-                EEHDBUG(eeh->logger, FUNC, "BIC_BETWEEN.from_service: %s", bic.from_service.c_str());
-                EEHDBUG(eeh->logger, FUNC, "BIC_BETWEEN.to_service:   %s", bic.to_service.c_str());
-                EEHDBUG(eeh->logger, FUNC, "BIC_BETWEEN.information:  %s", bic.information.c_str());
-                
-                BIC_BETWEEN* between = new BIC_BETWEEN();
-                between->from_service = eeh->m_services_id[eeh->m_id]; 
-                between->to_service = eeh->m_services_id[eeh->m_id] == "MADOLCHE" ? "GIMMICK_PUPPET" : "MADOLCHE";
-                between->information = "这个消息来自子进程服务端";
-                
-                tobicp = between;
-                totype = BIC_TYPE_C2C_BETWEEN;
-                
-                auto iterTo = std::find_if(eeh->m_services_id.begin(), eeh->m_services_id.end(),
-                                [&eeh](decltype(*eeh->m_services_id.begin())& ele){
-                                    return eeh->m_services_id[eeh->m_id] == "MADOLCHE" ? 
-                                            ele.second == "GIMMICK_PUPPET" : ele.second == "MADOLCHE"; });
-                tosid = iterTo->first;
-            }
-            break;
-            case BIC_TYPE_C2C_BETWEEN:
-            {
-                BIC_BETWEEN bic;
-                BIC_MESSAGE bicbetween(nullptr, &bic);
-                
-                bicbetween.ExtractPayload(msg);
-                
-                EEHDBUG(eeh->logger, FUNC, "BIC_BETWEEN.from_service: %s", bic.from_service.c_str());
-                EEHDBUG(eeh->logger, FUNC, "BIC_BETWEEN.to_service:   %s", bic.to_service.c_str());
-                EEHDBUG(eeh->logger, FUNC, "BIC_BETWEEN.information:  %s", bic.information.c_str());
             }
             break;
             default:
