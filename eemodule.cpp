@@ -119,18 +119,18 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
     decltype (std::declval<std::map<EEHNS::FD_t, EEHNS::SID_t>>().begin()) iterTo;
     if (from_outward) {
         iterTo = std::find_if(eeh->m_ilinkers.begin(), eeh->m_ilinkers.end(),
-                                [&bich](const decltype(*eeh->m_ilinkers.begin())& ele){
+                                [&bich](decltype(*eeh->m_ilinkers.begin())& ele){
             return ele.second == bich.orient;
         });
     } else {
         iterTo = std::find_if(eeh->m_olinkers.begin(), eeh->m_olinkers.end(),
-                                [&bich](const decltype(*eeh->m_olinkers.begin())& ele){
+                                [&bich](decltype(*eeh->m_olinkers.begin())& ele){
             return ele.second == bich.orient;
         });
         if (iterTo == eeh->m_olinkers.end()) {
             EEHINFO(eeh->logger, MODU, "IPC between internal child process");
             iterTo = std::find_if(eeh->m_ilinkers.begin(), eeh->m_ilinkers.end(),
-                            [&bich](const decltype(*eeh->m_ilinkers.begin())& ele){
+                            [&bich](decltype(*eeh->m_ilinkers.begin())& ele){
                 return ele.second == bich.orient;
             });
         }
@@ -556,21 +556,21 @@ int policy_timer_callback(void *args, void *userp)
         decltype(eeh->m_services_id.begin()) iterFrom, iterTo;
 
         iterFrom = std::find_if(eeh->m_services_id.begin(), eeh->m_services_id.end(),
-                [](const decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "POLICY"; });
+                [](decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "POLICY"; });
         if (iterFrom == eeh->m_services_id.end()) {
             EEHERRO(eeh->logger, MODU, "could not find service id");
             return -1;
         }
         if (rand() % 2) {
             iterTo = std::find_if(eeh->m_services_id.begin(), eeh->m_services_id.end(),
-                    [](const decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "MADOLCHE"; });
+                    [](decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "MADOLCHE"; });
             if (iterTo == eeh->m_services_id.end()) {
                 EEHERRO(eeh->logger, MODU, "could not find service id");
                 return -1;
             }
         } else {
             iterTo = std::find_if(eeh->m_services_id.begin(), eeh->m_services_id.end(),
-                    [](const decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "GIMMICK_PUPPET"; });
+                    [](decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "GIMMICK_PUPPET"; });
             if (iterTo == eeh->m_services_id.end()) {
                 EEHERRO(eeh->logger, MODU, "could not find service id");
                 return -1;

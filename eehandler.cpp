@@ -98,7 +98,7 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
     ifs >> m_ini;
     ifs.close();
     // check daemon count
-    size_t count = std::count_if(m_ini.begin(), m_ini.end(), [this](const decltype(*m_ini.begin())& ele) {
+    size_t count = std::count_if(m_ini.begin(), m_ini.end(), [this](decltype(*m_ini.begin())& ele) {
         std::string key, as, section = ele.first;
         bool on;
         for (const auto & kv : ele.second) {
@@ -116,7 +116,7 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
         return EEH_ERROR;
     }
     // check 'as' option whether illegal or not if have
-    auto iterFind = std::find_if(m_ini.begin(), m_ini.end(), [this](const decltype(*m_ini.begin())& ele) {
+    auto iterFind = std::find_if(m_ini.begin(), m_ini.end(), [this](decltype(*m_ini.begin())& ele) {
         std::string key, as, section = ele.first;
         for (const auto & kv : ele.second) {
             key.clear();
@@ -132,7 +132,7 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
         return EEH_ERROR;
     }
     // check 'listen' key whether non or not if have
-    iterFind = std::find_if(m_ini.begin(), m_ini.end(), [this](const decltype(*m_ini.begin())& ele) {
+    iterFind = std::find_if(m_ini.begin(), m_ini.end(), [this](decltype(*m_ini.begin())& ele) {
         std::string key, as, listen, section = ele.first;
         for (const auto & kv : ele.second) {
             key.clear();
@@ -149,7 +149,7 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
         return EEH_ERROR;
     }        
     // check 'connect' key whether non or not if have
-    iterFind = std::find_if(m_ini.begin(), m_ini.end(), [this](const decltype(*m_ini.begin())& ele) {
+    iterFind = std::find_if(m_ini.begin(), m_ini.end(), [this](decltype(*m_ini.begin())& ele) {
         std::string key, as, connect, section = ele.first;
         for (const auto & kv : ele.second) {
             key.clear();
@@ -166,7 +166,7 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
         return EEH_ERROR;
     }
     // check each service(`client` not include) which on=yes whether has its corresponding actions
-    iterFind = std::find_if(m_ini.begin(), m_ini.end(), [this](const decltype(*m_ini.begin())& ele) {
+    iterFind = std::find_if(m_ini.begin(), m_ini.end(), [this](decltype(*m_ini.begin())& ele) {
         std::string key, as, section = ele.first;
         bool on;
         for (const auto & kv : ele.second) {
@@ -187,7 +187,7 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
     // find specified service whether exist or not(specified_service="" means as daemon)
     m_is_daemon = false;
     if (specified_service.empty()) {
-        iterFind = std::find_if(m_ini.begin(), m_ini.end(), [this](const decltype(*m_ini.begin())& ele) {
+        iterFind = std::find_if(m_ini.begin(), m_ini.end(), [this](decltype(*m_ini.begin())& ele) {
             std::string key, as, section = ele.first;
             bool on;
             for (const auto & kv : ele.second) {
@@ -210,7 +210,7 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
         ECHO(INFO, "daemon service name is %s", specified_service.c_str());
     } else {
         iterFind = std::find_if(m_ini.begin(), m_ini.end(), 
-                                [this, &specified_service](const decltype(*m_ini.begin())& ele) {
+                                [this, &specified_service](decltype(*m_ini.begin())& ele) {
             std::string key, as, section = ele.first;
             for (const auto & kv : ele.second) {
                 key.clear();
@@ -356,7 +356,7 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
             }
 
             auto iterId = std::find_if(m_services_id.begin(), m_services_id.end(),
-                            [&section](const decltype(*m_services_id.begin())& ele){ return ele.second == section; });
+                            [&section](decltype(*m_services_id.begin())& ele){ return ele.second == section; });
             if (iterId == m_services_id.end()) {
                 EEHERRO(logger, HAND, "could not find %s's id", section.c_str());
                 return EEH_ERROR;
@@ -979,7 +979,7 @@ void EpollEvHandler::EEH_rebuild_child(int rfd, int wfd,
     }
     
     auto iterFind = std::find_if(eeh.m_services_id.begin(), eeh.m_services_id.end(),
-                    [&specified_service](const decltype(*eeh.m_services_id.begin())& ele) {
+                    [&specified_service](decltype(*eeh.m_services_id.begin())& ele) {
         return ele.second == specified_service;
     });
     if (iterFind == eeh.m_services_id.end()) {

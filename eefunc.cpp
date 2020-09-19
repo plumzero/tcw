@@ -128,7 +128,7 @@ void* step_1_function(void* args)
                 
                 auto iterTo = std::find_if(
                     eeh->m_services_id.begin(), eeh->m_services_id.end(),
-                    [&eeh](const decltype(*eeh->m_services_id.begin())& ele) {
+                    [&eeh](decltype(*eeh->m_services_id.begin())& ele) {
                         return ele.second == "STEP-2";
                     });
                 if (iterTo == eeh->m_services_id.end()) {
@@ -209,7 +209,7 @@ void* step_2_function(void* args)
                 
                 auto iterTo = std::find_if(
                     eeh->m_services_id.begin(), eeh->m_services_id.end(),
-                    [&eeh](const decltype(*eeh->m_services_id.begin())& ele) {
+                    [&eeh](decltype(*eeh->m_services_id.begin())& ele) {
                         return ele.second == "STEP-3";
                     });
                 if (iterTo == eeh->m_services_id.end()) {
@@ -424,7 +424,7 @@ void* test_function(void* args)
                 totype = BIC_TYPE_C2C_BETWEEN;
                 
                 auto iterTo = std::find_if(eeh->m_services_id.begin(), eeh->m_services_id.end(),
-                                [&eeh](const decltype(*eeh->m_services_id.begin())& ele){
+                                [&eeh](decltype(*eeh->m_services_id.begin())& ele){
                                     return eeh->m_services_id[eeh->m_id] == "MADOLCHE" ? 
                                             ele.second == "GIMMICK_PUPPET" : ele.second == "MADOLCHE"; });
                 tosid = iterTo->first;
