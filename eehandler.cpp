@@ -46,13 +46,6 @@ std::map<std::string, std::function<void*(void*)>>  EpollEvHandler::m_linkers_fu
 
 bool EpollEvHandler::m_is_running = false;
 
-EEHErrCode EpollEvHandler::EEH_set_callback(const std::string& service, const ee_event_actions_t& actions)
-{
-    m_linkers_actions[service] = actions;
-
-    return EEH_OK;
-}
-
 EEHErrCode EpollEvHandler::EEH_set_func(const std::string& service, void* func(void*))
 {
     m_linkers_func[service] = std::bind(func, std::placeholders::_1);

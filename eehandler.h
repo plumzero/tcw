@@ -59,7 +59,6 @@ namespace EEHNS
         std::mutex                                          m_mutex;
         std::condition_variable                             m_cond;
     public:
-        static EEHErrCode EEH_set_callback(const std::string& service, const ee_event_actions_t& actions);
         static EEHErrCode EEH_set_func(const std::string& service, void* func(void*));
         EEHErrCode EEH_init(const std::string& conf, const std::string& service = "");
         void EEH_destroy();
