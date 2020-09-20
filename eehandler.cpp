@@ -256,38 +256,25 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
             continue;
         }
 
-        uint64_t hash_id{0};
-        bool hash_id_error{false};
-        do {
-            uint8_t sha1hash[20]{0};
-            SHA1Context sha1_ctx;
-            SHA1Init(&sha1_ctx);
-            
-            if (! hash_id_error) {
-                SHA1Update(&sha1_ctx, iterIni->first.c_str(), iterIni->first.size());
-            } else {
-                std::string strhex = integral2hex(hash_id);
-                std::string strbin = hex2bin(strhex);
-                SHA1Update(&sha1_ctx, strbin.c_str(), strbin.size());
-            }
-            SHA1Final(&sha1_ctx, sha1hash);
-            
-            std::string hex = bin2hex(std::string(sha1hash, sha1hash + sizeof(uint64_t)));
-            hash_id = hex2integral<uint64_t>(hex);
-            
-            if (hash_id < HASH_ID_RESERVE_ZONE) {
-                EEHWARN(logger, HAND, "hash_id(%lu) is small than %lu", hash_id, HASH_ID_RESERVE_ZONE);
-                hash_id_error = true;
-                continue;
-            }
-            if (m_services_id.find(hash_id) != m_services_id.end()) {
-                EEHWARN(logger, HAND, "hash_id(%lu) already exist", hash_id);
-                hash_id_error = true;
-                continue;
-            }
-            
-            hash_id_error = false;
-        } while (hash_id_error);
+        uint64_t hash_id{0};            
+        uint8_t sha1hash[20]{0};
+        SHA1Context sha1_ctx;
+        
+        SHA1Init(&sha1_ctx);
+        SHA1Update(&sha1_ctx, iterIni->first.c_str(), iterIni->first.size());
+        SHA1Final(&sha1_ctx, sha1hash);
+        
+        std::string hex = bin2hex(std::string(sha1hash, sha1hash + sizeof(uint64_t)));
+        hash_id = hex2integral<uint64_t>(hex);
+        
+        if (hash_id < HASH_ID_RESERVE_ZONE) {
+            EEHWARN(logger, HAND, "hash_id(%lu) is small than %lu", hash_id, HASH_ID_RESERVE_ZONE);
+            return EEH_ERROR;
+        }
+        if (m_services_id.find(hash_id) != m_services_id.end()) {
+            EEHWARN(logger, HAND, "hash_id(%lu) already exist", hash_id);
+            return EEH_ERROR;
+        }
         
         EEHDBUG(logger, HAND, "section %s's service id is: %lu", iterIni->first.c_str(), hash_id);
 
