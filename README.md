@@ -162,6 +162,11 @@
 - 使用时只需要对三个部分进行添加或修改:配置，自定义服务，main函数。
 
 # TODO
+## 具体
+- 为每种活跃(on=yes)服务(connect, server, child)预先设置好队列
+- 将 JSON(包括 BIC_HEADER 和 BIC_MESSAGE)从 eemodule 中移除
+- 不再使用 BIC_HEADER
+
 ## 近期功能
 - 心跳/守护与业务分离，增加一条管道
 - 去掉定时器回调

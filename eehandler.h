@@ -34,7 +34,7 @@ namespace EEHNS
         static std::map<std::string, std::function<void*(void*)>>   m_linkers_func;
         static bool                                         m_is_running;
         std::string                                         m_conf_name;        /** 记录配置名称 */
-        std::string                                         m_daemon_name;      /** 守护进程名称 */
+        SID_t                                               m_daemon_id;        /** 守护进程 id */
         bool                                                m_is_daemon;        /** 当前进程是否为守护进程 */
         /** 一个服务可能对应多个 SID, 所以这样映射 */
         std::unordered_map<SID_t, std::string>              m_services_id;      /** 服务 id, 服务名称 */
@@ -68,7 +68,7 @@ namespace EEHNS
         void EEH_run();
         void EEH_clear_zombie();
         EEHErrCode EEH_guard_child();
-        void EEH_rebuild_child(int rfd, int wfd, const std::string& conf, const std::string& specified_service);
+        void EEH_rebuild_child(int rfd, int wfd, const std::string& conf, const std::string& specified_service, const SID_t daemon_id);
         
         // TCP handler
         EClient* EEH_TCP_listen(std::string bind_ip, PORT_t service_port, SID_t sid, ee_event_actions_t clients_action);

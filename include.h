@@ -47,7 +47,9 @@ typedef struct __attribute__ ((__packed__)) {
     uint8_t     ver[2];             /** 0-major 1-revised */
     uint16_t    bodysize;           /** payload size */
     uint32_t    crc32;
-    uint32_t    pholder;            /** placeholder */
+    uint64_t    origin;
+    uint64_t    orient;
+    uint64_t    pholder;            /** placeholder */
 } NegoHeader;
 
 namespace EEHNS

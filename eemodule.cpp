@@ -10,20 +10,28 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
     (void) buf;
     (void) size;
     
+    ECHO(INFO, "fd=%d", fd);
+    
     EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)userp;
     
     EEHNS::BaseClient *bc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[fd]);
     if (! bc) {
         return -1;
     }
+    
+    ECHO(INFO, "bc=%p", bc);
 
     EEHDBUG(eeh->logger, MODU, "do read from ec(%p, t=%d, s=%s)", bc, bc->type, eeh->m_services_id[bc->sid].c_str());
     bool from_outward = false;
     if (eeh->m_olinkers.find(fd) != eeh->m_olinkers.end()) {
         from_outward = true;
+        ECHO(INFO, "=====================================");
     } else {
         from_outward = false;
+        ECHO(INFO, "=====================================");
     }
+    
+    ECHO(INFO, "====================== eeh->m_olinkers.size=%lu", eeh->m_olinkers.size());
 
     char hbuf[NEGOHSIZE];
     ssize_t nh = read(fd, hbuf, NEGOHSIZE);
@@ -76,7 +84,7 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
         eeh->m_heartbeats[bc->sid] = now_time();
         return 0;
     }
-    
+    ECHO(INFO, "=====================================");
     EEHDBUG(eeh->logger, MODU, "origin=%s, orient=%s, type=%d, from_outward=%d",
                                 eeh->m_services_id[bich.origin].c_str(), 
                                 eeh->m_services_id[bich.orient].c_str(), bich.type, from_outward);
@@ -93,6 +101,7 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
             return ele.second == bich.orient;
         });
         if (iterTo == eeh->m_olinkers.end()) {
+            ECHO(INFO, "+++++++++++++++++++++++++++++++++++++++++++++++ bich.orient=%lu", bich.orient);
             EEHINFO(eeh->logger, MODU, "IPC between internal child process");
             iterTo = std::find_if(eeh->m_ilinkers.begin(), eeh->m_ilinkers.end(),
                             [&bich](decltype(*eeh->m_ilinkers.begin())& ele){
@@ -100,17 +109,22 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
             });
         }
     }
-
+    ECHO(INFO, "=====================================");
     if (iterTo->first <= 0) {
         EEHERRO(eeh->logger, MODU, "tofd is 0");
         return -1;
     }
-
+    ECHO(INFO, "===> iterTo->first=%d, eeh->m_linker_queues.size=%lu", iterTo->first, eeh->m_linker_queues.size());
+    for (const auto & ele : eeh->m_linker_queues) {
+        ECHO(INFO, "-----> sid=%lu, size=%lu", ele.first, eeh->m_linker_queues[ele.first].size());
+    }
+    
     EEHNS::BaseClient *tobc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[iterTo->first]);
     if (! tobc) {
+        ECHO(INFO, "=====================================");
         return -1;
     }
-
+    ECHO(INFO, "=====================================");
     /** recover it to the original message(header + BIC_MESSAGE) */
     eeh->m_linker_queues[tobc->sid].emplace(std::string(hbuf, hbuf + sizeof(hbuf)) + msg);
 
@@ -118,7 +132,7 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
                                 bich.type, msg.size(), eeh->m_services_id[bich.origin].c_str(),
                                 eeh->m_services_id[tobc->sid].c_str(), eeh->m_linker_queues[tobc->sid].size(),
                                 eeh->m_services_id[bich.orient].c_str());
-
+    ECHO(INFO, "=====================================");
     eeh->EEH_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
 
     return 0;
@@ -179,7 +193,7 @@ int daemon_timer_callback(void *args, void *userp)
 
             BIC_HEADER tobich(eeh->m_id, bc->sid, BIC_TYPE_GUARDRAGON);
             BIC_GUARDRAGON tobicp;
-            tobicp.biubiu = "Hello World, " + eeh->m_services_id[bc->sid];;
+            tobicp.biubiu = "Hello World, I am " + eeh->m_services_id[eeh->m_id];;
             BIC_MESSAGE tobicm(&tobich, &tobicp);
 
             std::string tomsg;
@@ -193,7 +207,7 @@ int daemon_timer_callback(void *args, void *userp)
             add_header(&tostream, tomsg);
 
             eeh->m_linker_queues[bc->sid].push(tostream);
-
+            
             EEHDBUG(eeh->logger, MODU, "pushed msg(type=%d, len=%lu, from=%s) to que(ownby=%s, size=%lu) and heartbeat to %s", 
                                         BIC_TYPE_GUARDRAGON, tostream.size(), eeh->m_services_id[tobich.origin].c_str(),
                                         eeh->m_services_id[bc->sid].c_str(), eeh->m_linker_queues[bc->sid].size(),
@@ -296,8 +310,11 @@ ssize_t child_write_callback(int fd, const void *buf, size_t count, void *userp)
     EEHDBUG(eeh->logger, MODU, "do write to ec(%p, t=%d, s=%s, queue_size=%lu)", 
                                 bc, bc->type,
                                 eeh->m_services_id[sid].c_str(), eeh->m_linker_queues[sid].size());
-    
+        
     while (eeh->m_linker_queues[sid].size() > 0) {
+        
+        ECHO(INFO, "linker_queues.size=%lu", eeh->m_linker_queues.size());
+        
         std::string msg(eeh->m_linker_queues[sid].front());
         size_t nt = write(fd, msg.c_str(), msg.size());
         if (nt != msg.size()) {
@@ -305,6 +322,10 @@ ssize_t child_write_callback(int fd, const void *buf, size_t count, void *userp)
             return -1;
         }
         eeh->m_linker_queues[sid].pop();
+        
+        ECHO(INFO, "bc=%p, fd=%d, sid=%lu, service=%s", bc, fd, sid, eeh->m_services_id[sid].c_str());
+        ECHO(INFO, "msg.size=%lu, msg=%s", msg.size(), msg.c_str() + 12);
+        
         EEHDBUG(eeh->logger, MODU, "forwarded msg(len=%lu) to peer end of ec(%p, t=%d)", nt, bc, bc->type);
     }
     
@@ -324,10 +345,10 @@ int child_timer_callback(void *args, void *userp)
             return 0;
         }
         bc->heartbeat = now_time();
-
-        BIC_HEADER tobich(eeh->m_id, bc->sid, BIC_TYPE_GUARDRAGON);
+        
+        BIC_HEADER tobich(eeh->m_id, eeh->m_daemon_id, BIC_TYPE_GUARDRAGON);
         BIC_GUARDRAGON tobicp;
-        tobicp.biubiu = "Hello World, " + eeh->m_services_id[bc->sid];
+        tobicp.biubiu = "Hello World, I am " + eeh->m_services_id[eeh->m_id];
         BIC_MESSAGE tobicm(&tobich, &tobicp);
 
         std::string tomsg;
@@ -341,6 +362,9 @@ int child_timer_callback(void *args, void *userp)
         add_header(&tostream, tomsg);
 
         eeh->m_linker_queues[bc->sid].push(tostream);
+
+        ECHO(INFO, "timer: eeh->m_id=%lu(%s), bc->sid=%lu(%s)", eeh->m_id, eeh->m_services_id[eeh->m_id].c_str(), bc->sid, eeh->m_services_id[bc->sid].c_str());
+        ECHO(INFO, "timer: bc=%p, bc->fd=%d", bc, bc->fd);
 
         EEHDBUG(eeh->logger, MODU, "pushed msg(type=%d, len=%lu, from=%s) to que(ownby=%s, size=%lu) and heartbeat to %s", 
                                     BIC_TYPE_GUARDRAGON, tostream.size(), eeh->m_services_id[tobich.origin].c_str(),
