@@ -60,7 +60,7 @@ int send_message(const int32_t mtype, const uint64_t tosid, BIC_BASE* tobicp, vo
     
     eeh->m_linker_queues[tobc->sid].push(tostream);
 
-    ECHO(INFO, "tobc=%p, tofd=%d, linker_queues.size=%lu", tobc, tobc->fd, eeh->m_linker_queues.size());
+    ECHO(INFO, "tobc=%p, tofd=%d, tobc->sid=%lu, linker_queues.size=%lu", tobc, tobc->fd, tobc->sid, eeh->m_linker_queues.size());
 
     eeh->EEH_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
 

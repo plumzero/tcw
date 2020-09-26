@@ -41,12 +41,13 @@ on=yes
 as=server
 listen=127.0.0.1:10012
 
-[POLICY]
+[POLICY-CLIENT]
 ; connect 服务只作为守护进程与外接连接的服务，所以其回调动作应该是守护进程的动作
 ; 所以不需要为 connect 服务独立设置动作
 on=yes
 as=client
 connect=127.0.0.1:10036
+service=POLICY
 
 )INI";
 

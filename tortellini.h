@@ -320,6 +320,10 @@ public:
         inline std::remove_reference<decltype(_mapref)>::type::const_iterator end() const {
             return _mapref.end();
         }
+        
+        inline std::remove_reference<decltype(_mapref)>::type::const_iterator find(const std::string key) const {
+            return _mapref.find(key);
+        }
     };
 
 private:

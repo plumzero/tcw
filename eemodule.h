@@ -10,23 +10,6 @@ typedef struct _struct_ee_event_actions {
     int    (*do_timer)(void* args, void *userp);
 } ee_event_actions_t;
 
-struct ee_event_block_t {
-    int          use;
-    
-    int          bictype;
-    std::string  name;
-    uint32_t     size;
-    uint32_t     offset;
-    uint32_t     blocksize;
-    std::string *bicmsg;
-    
-    ee_event_block_t()
-        : use(0), bictype(0), name(""), size(0), offset(0), blocksize(0), bicmsg(nullptr) {}
-    ~ee_event_block_t(){}
-};
-
-/****************************** 程序员声明 ******************************/
-
 extern ee_event_actions_t daemon_callback_module;
 extern ee_event_actions_t child_callback_module;
 

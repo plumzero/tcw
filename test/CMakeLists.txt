@@ -3,11 +3,11 @@ cmake_minimum_required(VERSION 2.8.0)
 #
 # Build Options
 #
-option(BUILD_EXE_RAJTEST        "build executable rajtest"          ON)
+option(BUILD_EXE_RAJTEST        "build executable rajtest"          OFF)
 option(BUILD_EXE_SOCKET_EVENT   "build executable socket_event"     ON)
 option(BUILD_EXE_SOCKET_SERVER  "build executable socket_server"    ON)
 option(BUILD_EXE_GUARD_DAEMON   "build executable guard_daemon"     ON)
-option(BUILD_EXE_SOCKET_CLIENT  "build executable socket_client"    ON)
+option(BUILD_EXE_SOCKET_CLIENT  "build executable socket_client"    OFF)
 
 #
 # Rapidjson module Required
