@@ -1,6 +1,6 @@
 
-#ifndef __Epoll_Event_LOG_H__
-#define __Epoll_Event_LOG_H__
+#ifndef __TCW_LOG_H__
+#define __TCW_LOG_H__
 
 #include <stdint.h>
 #include <stdio.h>
@@ -16,7 +16,7 @@
 #include <stdexcept>
 #include <mutex>
 
-namespace EEHNS {
+namespace tcw {
 
 /** index of fundmental log type */
 #define LOG_TYPE_GLOB               0
@@ -100,4 +100,4 @@ static const struct log_type_reg_table reg_table[] = {
 
 };
 
-#endif // ! __Epoll_Event_LOG_H__
+#endif // ! __TCW_LOG_H__

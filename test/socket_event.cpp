@@ -68,21 +68,21 @@ int main(int argc, char *argv[])
     ofs << iss.rdbuf();
     ofs.close();
     
-    EEHNS::EpollEvHandler eeh;
-    EEHNS::EEHErrCode rescode;
+    tcw::EventHandler eeh;
+    tcw::RetCode rescode;
     
-    EEHNS::EpollEvHandler::EEH_set_func("MADOLCHE",       client_function);
-    EEHNS::EpollEvHandler::EEH_set_func("GIMMICK_PUPPET", client_function);
+    tcw::EventHandler::tcw_register_service("MADOLCHE",       client_function);
+    tcw::EventHandler::tcw_register_service("GIMMICK_PUPPET", client_function);
     
-    rescode = eeh.EEH_init(ini.c_str());
-    if (rescode != EEHNS::EEH_OK) {
-        ECHO(ERRO, "EEH_init failed");
+    rescode = eeh.tcw_init(ini.c_str());
+    if (rescode != tcw::OK) {
+        ECHO(ERRO, "tcw_init failed");
         return -1;
     }
     
-    eeh.EEH_run();
+    eeh.tcw_run();
 
-    eeh.EEH_destroy();
+    eeh.tcw_destroy();
     
     return 0;
 }

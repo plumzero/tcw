@@ -1,7 +1,7 @@
 
 #include "eelog.h"
 
-namespace EEHNS {
+namespace tcw {
 
 Logger::Logger(const char* dir, 
                const char* name,

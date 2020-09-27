@@ -1,12 +1,12 @@
 
 #include "eeclient.h"
 
-namespace EEHNS
+namespace tcw
 {
     static int s_eeh_id = 0;    /** maybe chaos */
     
     /** BaseClient */
-    BaseClient::BaseClient(EEHType t) 
+    BaseClient::BaseClient(ClientType t) 
         : fd(-1), action(DO_NONE), prev_option(0)
     {
         type = t;
@@ -25,7 +25,7 @@ namespace EEHNS
     BaseClient::~BaseClient()
     {
     }
-    void BaseClient::set_actions(ee_event_actions_t actions)
+    void BaseClient::set_actions(event_actions_t actions)
     {
         using namespace std::placeholders;
         this->read_callback  = std::bind(actions.do_read, _1, _2, _3, _4);
@@ -34,11 +34,11 @@ namespace EEHNS
     }
     /** TcpClient */
     TcpClient::TcpClient() 
-        : BaseClient(EEH_TYPE_TCP)
+        : BaseClient(CLIENT_TYPE_TCP)
     {
     }
     TcpClient::TcpClient(FD_t fd, std::string host, PORT_t port, bool is_server)
-        : BaseClient(EEH_TYPE_TCP) 
+        : BaseClient(CLIENT_TYPE_TCP) 
     {
         this->fd = fd;
         this->host = host;
@@ -51,7 +51,7 @@ namespace EEHNS
     }
     /** UdpClient */
     UdpClient::UdpClient() 
-        : BaseClient(EEH_TYPE_UDP)
+        : BaseClient(CLIENT_TYPE_UDP)
     {
     }
     UdpClient::~UdpClient()
@@ -60,7 +60,7 @@ namespace EEHNS
     }
     /** PipeClient */
     PipeClient::PipeClient(FD_t fd)
-        : BaseClient(EEH_TYPE_PIPE)
+        : BaseClient(CLIENT_TYPE_PIPE)
     {
         this->fd = fd;  
     }
@@ -70,7 +70,7 @@ namespace EEHNS
     }
     /** FileClient */
     FileClient::FileClient() 
-        : BaseClient(EEH_TYPE_FILE)
+        : BaseClient(CLIENT_TYPE_FILE)
     {
     }
     FileClient::~FileClient()

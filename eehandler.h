@@ -1,6 +1,6 @@
 
-#ifndef __Epoll_Event_HANDLER_H__
-#define __Epoll_Event_HANDLER_H__
+#ifndef __TCW_EVENT_HANDLER_H__
+#define __TCW_EVENT_HANDLER_H__
 
 #include "include.h"
 #include "eeclient.h"
@@ -11,26 +11,26 @@
 
 #define EPOLL_MAX_NUM       12
 
-namespace EEHNS
+namespace tcw
 {   
     void signal_release(int signum);
     
     class Logger;
 
     typedef enum {
-        EEH_OK          = 0,
-        EEH_ERROR       = -1,
-    } EEHErrCode;
+        OK          = 0,
+        ERROR       = -1,
+    } RetCode;
 
     typedef EClient  EListener;
 
-    class EpollEvHandler final
+    class EventHandler final
     {
     private:
         int                                                 m_epi;
         std::map<FD_t, SID_t>                               m_listeners;
     public:
-        static std::map<std::string, ee_event_actions_t>    m_linkers_actions;  /** 服务名称, 执行动作 */
+        static std::map<std::string, event_actions_t>    m_linkers_actions;  /** 服务名称, 执行动作 */
         static std::map<std::string, std::function<void*(void*)>>   m_linkers_func;
         static bool                                         m_is_running;
         std::string                                         m_conf_name;        /** 记录配置名称 */
@@ -59,24 +59,24 @@ namespace EEHNS
         std::mutex                                          m_mutex;
         std::condition_variable                             m_cond;
     public:
-        static EEHErrCode EEH_set_func(const std::string& service, void* func(void*));
-        EEHErrCode EEH_init(const std::string& conf, const std::string& service = "");
-        void EEH_destroy();
-        EEHErrCode EEH_add(EClient *ec);
-        EEHErrCode EEH_mod(EClient *ec, OPTION_t op);
-        EEHErrCode EEH_del(EClient *ec);
-        void EEH_run();
-        void EEH_clear_zombie();
-        EEHErrCode EEH_guard_child();
-        void EEH_rebuild_child(int rfd, int wfd, const std::string& conf, const std::string& specified_service, const SID_t daemon_id);
+        static RetCode tcw_register_service(const std::string& service, void* func(void*));
+        RetCode tcw_init(const std::string& conf, const std::string& service = "");
+        void tcw_destroy();
+        RetCode tcw_add(EClient *ec);
+        RetCode tcw_mod(EClient *ec, OPTION_t op);
+        RetCode tcw_del(EClient *ec);
+        void tcw_run();
+        void tcw_clear_zombie();
+        RetCode tcw_guard_child();
+        void tcw_rebuild_child(int rfd, int wfd, const std::string& conf, const std::string& specified_service, const SID_t daemon_id);
         
         // TCP handler
-        EClient* EEH_TCP_listen(std::string bind_ip, PORT_t service_port, SID_t sid, ee_event_actions_t clients_action);
-        EClient* EEH_TCP_accept(EListener *el);
-        EClient* EEH_TCP_connect(std::string remote_ip, PORT_t remote_port, SID_t sid);
+        EClient* tcw_tcp_listen(std::string bind_ip, PORT_t service_port, SID_t sid, event_actions_t clients_action);
+        EClient* tcw_tcp__accept(EListener *el);
+        EClient* tcw_tcp_connect(std::string remote_ip, PORT_t remote_port, SID_t sid);
         // Pipe handler
-        std::pair<EClient*, EClient*> EEH_PIPE_create(FD_t rfd, FD_t wfd, SID_t sid);
+        std::pair<EClient*, EClient*> tcw_pipe_create(FD_t rfd, FD_t wfd, SID_t sid);
     };
 };
 
-#endif // !__Epoll_Event_HANDLER_H__
+#endif // !__TCW_EVENT_HANDLER_H__

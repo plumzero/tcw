@@ -1,6 +1,6 @@
 
-#ifndef __Epoll_Event_HELPER_H__
-#define __Epoll_Event_HELPER_H__
+#ifndef __TCW_HELPER_H__
+#define __TCW_HELPER_H__
 
 #include "include.h"
 
@@ -30,4 +30,4 @@ size_t add_header(std::string *out, const std::string &body);
 
 uint64_t now_time();
 
-#endif // !__Epoll_Event_HELPER_H__
+#endif // !__TCW_HELPER_H__

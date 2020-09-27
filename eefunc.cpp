@@ -7,7 +7,7 @@
 
 int check_message(const std::string& msg, uint64_t* fromsid, uint64_t* tosid, int32_t* mtype, void* args)
 {
-    EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)args;
+    tcw::EventHandler *eeh = (tcw::EventHandler *)args;
     
     BIC_HEADER bich;
     BIC_MESSAGE bicm(&bich, nullptr);
@@ -26,7 +26,7 @@ int check_message(const std::string& msg, uint64_t* fromsid, uint64_t* tosid, in
 
 int send_message(const int32_t mtype, const uint64_t tosid, BIC_BASE* tobicp, void* args)
 {
-    EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)args;
+    tcw::EventHandler *eeh = (tcw::EventHandler *)args;
 
     if (mtype == BIC_TYPE_NONE || ! tobicp) {
         return -1;
@@ -50,21 +50,21 @@ int send_message(const int32_t mtype, const uint64_t tosid, BIC_BASE* tobicp, vo
         throw std::runtime_error("pipe pair not found");
     }
 
-    EEHNS::BaseClient* tobc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[tofd]);
+    tcw::BaseClient* tobc = dynamic_cast<tcw::BaseClient*>(eeh->m_clients[tofd]);
     if (! tobc) {
         throw std::runtime_error("could not find the client");
     }
 
     eeh->m_linker_queues[tobc->sid].push(tostream);
 
-    eeh->EEH_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
+    eeh->tcw_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
 
     return 0;
 }
 
 void* step_1_function(void* args)
 {
-    EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)args;
+    tcw::EventHandler *eeh = (tcw::EventHandler *)args;
     
     {
         BIC_HEADER tobich(eeh->m_id, eeh->m_id, BIC_TYPE_A2A_START);
@@ -90,10 +90,10 @@ void* step_1_function(void* args)
         /** wait for the message to deal with */
         std::unique_lock<std::mutex> guard(eeh->m_mutex);
         if (! eeh->m_cond.wait_for(guard, std::chrono::seconds(2), [&eeh](){ return ! eeh->m_messages.empty(); })) {
-            EEHDBUG(eeh->logger, FUNC, "thread msg queue is empty");
+            Dbug(eeh->logger, FUNC, "thread msg queue is empty");
             continue;
         }
-        EEHDBUG(eeh->logger, FUNC, "deal with thread msg queue(size=%lu)", eeh->m_messages.size());
+        Dbug(eeh->logger, FUNC, "deal with thread msg queue(size=%lu)", eeh->m_messages.size());
         
         std::string msg = std::move(eeh->m_messages.front());
         eeh->m_messages.pop();
@@ -103,7 +103,7 @@ void* step_1_function(void* args)
         uint64_t tosid{0};
         int32_t  mtype{0};
         if (check_message(msg, &fromsid, &tosid, &mtype, args) != 0) {
-            EEHERRO(eeh->logger, FUNC, "not belong here, discard this message");
+            Erro(eeh->logger, FUNC, "not belong here, discard this message");
             continue;
         }
         
@@ -118,8 +118,8 @@ void* step_1_function(void* args)
                 
                 bicm.ExtractPayload(msg);
                 
-                EEHDBUG(eeh->logger, FUNC, "BIC_A2A_START.is_start: %d", bic.is_start);
-                EEHDBUG(eeh->logger, FUNC, "BIC_A2A_START.information: %s", bic.information.c_str());
+                Dbug(eeh->logger, FUNC, "BIC_A2A_START.is_start: %d", bic.is_start);
+                Dbug(eeh->logger, FUNC, "BIC_A2A_START.information: %s", bic.information.c_str());
                 
                 BIC_A2B_BETWEEN* payload = new BIC_A2B_BETWEEN();
                 payload->send = true;
@@ -135,7 +135,7 @@ void* step_1_function(void* args)
                     });
                 if (iterTo == eeh->m_services_id.end()) {
                     /** it should not happen. */
-                    EEHERRO(eeh->logger, FUNC,
+                    Erro(eeh->logger, FUNC,
                             "could not find destination service");
                     tosid = 0;
                 } else {
@@ -146,17 +146,17 @@ void* step_1_function(void* args)
             }
             break;
             default:
-                EEHERRO(eeh->logger, FUNC, "undefined or unhandled msg(%d)", (int)mtype);
+                Erro(eeh->logger, FUNC, "undefined or unhandled msg(%d)", (int)mtype);
         }
         /** try send message if needed */
         try {
             if (send_message(totype, tosid, tobicp, args) == 0) {
-                EEHDBUG(eeh->logger, FUNC, "pushed msg(type=%d) to que and forward to %s",
+                Dbug(eeh->logger, FUNC, "pushed msg(type=%d) to que and forward to %s",
                                             totype, eeh->m_services_id[tosid].c_str());
             }
         }
         catch(std::exception& e) {
-            EEHERRO(eeh->logger, FUNC, "an exception occurs: %s", e.what());
+            Erro(eeh->logger, FUNC, "an exception occurs: %s", e.what());
         }
     }
 
@@ -165,16 +165,16 @@ void* step_1_function(void* args)
 
 void* step_2_function(void* args)
 {
-    EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)args;
+    tcw::EventHandler *eeh = (tcw::EventHandler *)args;
     
     while (true) {
         /** wait for the message to deal with */
         std::unique_lock<std::mutex> guard(eeh->m_mutex);
         if (! eeh->m_cond.wait_for(guard, std::chrono::seconds(2), [&eeh](){ return ! eeh->m_messages.empty(); })) {
-            EEHDBUG(eeh->logger, FUNC, "thread msg queue is empty");
+            Dbug(eeh->logger, FUNC, "thread msg queue is empty");
             continue;
         }
-        EEHDBUG(eeh->logger, FUNC, "deal with thread msg queue(size=%lu)", eeh->m_messages.size());
+        Dbug(eeh->logger, FUNC, "deal with thread msg queue(size=%lu)", eeh->m_messages.size());
         
         std::string msg = std::move(eeh->m_messages.front());
         eeh->m_messages.pop();
@@ -184,7 +184,7 @@ void* step_2_function(void* args)
         uint64_t tosid{0};
         int32_t  mtype{0};
         if (check_message(msg, &fromsid, &tosid, &mtype, args) != 0) {
-            EEHERRO(eeh->logger, FUNC, "not belong here, discard this message");
+            Erro(eeh->logger, FUNC, "not belong here, discard this message");
             continue;
         }
         
@@ -199,8 +199,8 @@ void* step_2_function(void* args)
                 
                 bicm.ExtractPayload(msg);
                 
-                EEHDBUG(eeh->logger, FUNC, "BIC_A2B_BETWEEN.send: %d", bic.send);
-                EEHDBUG(eeh->logger, FUNC, "BIC_A2B_BETWEEN.information: %s", bic.information.c_str());
+                Dbug(eeh->logger, FUNC, "BIC_A2B_BETWEEN.send: %d", bic.send);
+                Dbug(eeh->logger, FUNC, "BIC_A2B_BETWEEN.information: %s", bic.information.c_str());
                 
                 BIC_B2C_BETWEEN* payload = new BIC_B2C_BETWEEN();
                 payload->send = true;
@@ -216,7 +216,7 @@ void* step_2_function(void* args)
                     });
                 if (iterTo == eeh->m_services_id.end()) {
                     /** it should not happen. */
-                    EEHERRO(eeh->logger, FUNC,
+                    Erro(eeh->logger, FUNC,
                             "could not find destination service");
                     tosid = 0;
                 } else {
@@ -227,17 +227,17 @@ void* step_2_function(void* args)
             }
             break;
             default:
-                EEHERRO(eeh->logger, FUNC, "undefined or unhandled msg(%d)", (int)mtype);
+                Erro(eeh->logger, FUNC, "undefined or unhandled msg(%d)", (int)mtype);
         }
         /** try send message if needed */
         try {
             if (send_message(totype, tosid, tobicp, args) == 0) {
-                EEHDBUG(eeh->logger, FUNC, "pushed msg(type=%d) to que and forward to %s",
+                Dbug(eeh->logger, FUNC, "pushed msg(type=%d) to que and forward to %s",
                                             totype, eeh->m_services_id[tosid].c_str());
             }
         }
         catch(std::exception& e) {
-            EEHERRO(eeh->logger, FUNC, "an exception occurs: %s", e.what());
+            Erro(eeh->logger, FUNC, "an exception occurs: %s", e.what());
         }
     }
 
@@ -246,16 +246,16 @@ void* step_2_function(void* args)
 
 void* step_3_function(void* args)
 {
-    EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)args;
+    tcw::EventHandler *eeh = (tcw::EventHandler *)args;
     
     while (true) {
         /** wait for the message to deal with */
         std::unique_lock<std::mutex> guard(eeh->m_mutex);
         if (! eeh->m_cond.wait_for(guard, std::chrono::seconds(2), [&eeh](){ return ! eeh->m_messages.empty(); })) {
-            EEHDBUG(eeh->logger, FUNC, "thread msg queue is empty");
+            Dbug(eeh->logger, FUNC, "thread msg queue is empty");
             continue;
         }
-        EEHDBUG(eeh->logger, FUNC, "deal with thread msg queue(size=%lu)", eeh->m_messages.size());
+        Dbug(eeh->logger, FUNC, "deal with thread msg queue(size=%lu)", eeh->m_messages.size());
         
         std::string msg = std::move(eeh->m_messages.front());
         eeh->m_messages.pop();
@@ -265,7 +265,7 @@ void* step_3_function(void* args)
         uint64_t tosid{0};
         int32_t  mtype{0};
         if (check_message(msg, &fromsid, &tosid, &mtype, args) != 0) {
-            EEHERRO(eeh->logger, FUNC, "not belong here, discard this message");
+            Erro(eeh->logger, FUNC, "not belong here, discard this message");
             continue;
         }
         
@@ -280,8 +280,8 @@ void* step_3_function(void* args)
                 
                 bicm.ExtractPayload(msg);
                 
-                EEHDBUG(eeh->logger, FUNC, "BIC_B2C_BETWEEN.send: %d", bic.send);
-                EEHDBUG(eeh->logger, FUNC, "BIC_B2C_BETWEEN.information: %s", bic.information.c_str());
+                Dbug(eeh->logger, FUNC, "BIC_B2C_BETWEEN.send: %d", bic.send);
+                Dbug(eeh->logger, FUNC, "BIC_B2C_BETWEEN.information: %s", bic.information.c_str());
                 
                 // BIC_B2C_BETWEEN* payload = new BIC_B2C_BETWEEN();
                 // payload->send = true;
@@ -297,7 +297,7 @@ void* step_3_function(void* args)
                     // });
                 // if (iterTo == eeh->m_services_id.end()) {
                     // /** it should not happen. */
-                    // EEHERRO(eeh->logger, FUNC,
+                    // Erro(eeh->logger, FUNC,
                             // "could not find destination service");
                     // tosid = 0;
                 // } else {
@@ -309,17 +309,17 @@ void* step_3_function(void* args)
             }
             break;
             default:
-                EEHERRO(eeh->logger, FUNC, "undefined or unhandled msg(%d)", (int)mtype);
+                Erro(eeh->logger, FUNC, "undefined or unhandled msg(%d)", (int)mtype);
         }
         /** try send message if needed */
         try {
             if (send_message(totype, tosid, tobicp, args) == 0) {
-                EEHDBUG(eeh->logger, FUNC, "pushed msg(type=%d) to que and forward to %s",
+                Dbug(eeh->logger, FUNC, "pushed msg(type=%d) to que and forward to %s",
                                             totype, eeh->m_services_id[tosid].c_str());
             }
         }
         catch(std::exception& e) {
-            EEHERRO(eeh->logger, FUNC, "an exception occurs: %s", e.what());
+            Erro(eeh->logger, FUNC, "an exception occurs: %s", e.what());
         }
     }
 
@@ -328,7 +328,7 @@ void* step_3_function(void* args)
 
 void* server_function(void* args)
 {
-    EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)args;
+    tcw::EventHandler *eeh = (tcw::EventHandler *)args;
 
     while (true) {
         {
@@ -358,14 +358,14 @@ void* server_function(void* args)
             iterTo = std::find_if(eeh->m_services_id.begin(), eeh->m_services_id.end(),
                     [](decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "MADOLCHE"; });
             if (iterTo == eeh->m_services_id.end()) {
-                EEHERRO(eeh->logger, FUNC, "could not find service id");
+                Erro(eeh->logger, FUNC, "could not find service id");
                 return nullptr;
             }
         } else {
             iterTo = std::find_if(eeh->m_services_id.begin(), eeh->m_services_id.end(),
                     [](decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "GIMMICK_PUPPET"; });
             if (iterTo == eeh->m_services_id.end()) {
-                EEHERRO(eeh->logger, FUNC, "could not find service id");
+                Erro(eeh->logger, FUNC, "could not find service id");
                 return nullptr;
             }
         }
@@ -373,10 +373,10 @@ void* server_function(void* args)
         /** wait for the message to deal with */
         std::unique_lock<std::mutex> guard(eeh->m_mutex);
         if (! eeh->m_cond.wait_for(guard, std::chrono::seconds(2), [&eeh](){ return ! eeh->m_messages.empty(); })) {
-            EEHDBUG(eeh->logger, FUNC, "thread msg queue is empty");
+            Dbug(eeh->logger, FUNC, "thread msg queue is empty");
             continue;
         }
-        EEHDBUG(eeh->logger, FUNC, "deal with thread msg queue(size=%lu)", eeh->m_messages.size());
+        Dbug(eeh->logger, FUNC, "deal with thread msg queue(size=%lu)", eeh->m_messages.size());
         
         std::string msg = std::move(eeh->m_messages.front());
         eeh->m_messages.pop();
@@ -386,7 +386,7 @@ void* server_function(void* args)
         uint64_t tosid{0};
         int32_t  mtype{0};
         if (check_message(msg, &fromsid, &tosid, &mtype, args) != 0) {
-            EEHERRO(eeh->logger, FUNC, "not belong here, discard this message");
+            Erro(eeh->logger, FUNC, "not belong here, discard this message");
             continue;
         }
         
@@ -416,14 +416,14 @@ void* server_function(void* args)
                 
                 bicm.ExtractPayload(msg);
                 
-                EEHDBUG(eeh->logger, FUNC, "BIC_MONSTER.name:        %s", bicp.name.c_str());
-                EEHDBUG(eeh->logger, FUNC, "BIC_MONSTER.type:        %s", bicp.type.c_str());
-                EEHDBUG(eeh->logger, FUNC, "BIC_MONSTER.attribute:   %s", bicp.attribute.c_str());
-                EEHDBUG(eeh->logger, FUNC, "BIC_MONSTER.race:        %s", bicp.race.c_str());
-                EEHDBUG(eeh->logger, FUNC, "BIC_MONSTER.level:       %u", bicp.level);
-                EEHDBUG(eeh->logger, FUNC, "BIC_MONSTER.attack:      %u", bicp.attack);
-                EEHDBUG(eeh->logger, FUNC, "BIC_MONSTER.defense:     %u", bicp.defense);
-                EEHDBUG(eeh->logger, FUNC, "BIC_MONSTER.description: %s", bicp.description.c_str());
+                Dbug(eeh->logger, FUNC, "BIC_MONSTER.name:        %s", bicp.name.c_str());
+                Dbug(eeh->logger, FUNC, "BIC_MONSTER.type:        %s", bicp.type.c_str());
+                Dbug(eeh->logger, FUNC, "BIC_MONSTER.attribute:   %s", bicp.attribute.c_str());
+                Dbug(eeh->logger, FUNC, "BIC_MONSTER.race:        %s", bicp.race.c_str());
+                Dbug(eeh->logger, FUNC, "BIC_MONSTER.level:       %u", bicp.level);
+                Dbug(eeh->logger, FUNC, "BIC_MONSTER.attack:      %u", bicp.attack);
+                Dbug(eeh->logger, FUNC, "BIC_MONSTER.defense:     %u", bicp.defense);
+                Dbug(eeh->logger, FUNC, "BIC_MONSTER.description: %s", bicp.description.c_str());
                 
                 ECHO(INFO, "%s 收到来自 %s 服务的消息(type=%d)，一个测试流程结束。", eeh->m_services_id[eeh->m_id].c_str(), 
                             eeh->m_services_id[tosid].c_str(), BIC_TYPE_S2P_MONSTER);
@@ -444,25 +444,25 @@ void* server_function(void* args)
                 
                 bicm.ExtractPayload(msg);
                 
-                EEHDBUG(eeh->logger, FUNC, "BIC_BOMBER.service_name: %s", bicp.service_name.c_str());
-                EEHDBUG(eeh->logger, FUNC, "BIC_BOMBER.service_type: %d", bicp.service_type);
-                EEHDBUG(eeh->logger, FUNC, "BIC_BOMBER.kill:         %s", bicp.kill ? "true" : "false");
-                EEHDBUG(eeh->logger, FUNC, "BIC_BOMBER.rescode:      %d", bicp.rescode);
-                EEHDBUG(eeh->logger, FUNC, "BIC_BOMBER.receipt:      %s", bicp.receipt.c_str());
+                Dbug(eeh->logger, FUNC, "BIC_BOMBER.service_name: %s", bicp.service_name.c_str());
+                Dbug(eeh->logger, FUNC, "BIC_BOMBER.service_type: %d", bicp.service_type);
+                Dbug(eeh->logger, FUNC, "BIC_BOMBER.kill:         %s", bicp.kill ? "true" : "false");
+                Dbug(eeh->logger, FUNC, "BIC_BOMBER.rescode:      %d", bicp.rescode);
+                Dbug(eeh->logger, FUNC, "BIC_BOMBER.receipt:      %s", bicp.receipt.c_str());
             }
             break;
             default:
-                EEHERRO(eeh->logger, FUNC, "undefined or unhandled msg(%d)", (int)mtype);
+                Erro(eeh->logger, FUNC, "undefined or unhandled msg(%d)", (int)mtype);
         }
         /** try send message if needed */
         try {
             if (send_message(totype, tosid, tobicp, args) == 0) {
-                EEHDBUG(eeh->logger, FUNC, "pushed msg(type=%d) to que and forward to %s",
+                Dbug(eeh->logger, FUNC, "pushed msg(type=%d) to que and forward to %s",
                                             totype, eeh->m_services_id[tosid].c_str());
             }
         }
         catch(std::exception& e) {
-            EEHERRO(eeh->logger, FUNC, "an exception occurs: %s", e.what());
+            Erro(eeh->logger, FUNC, "an exception occurs: %s", e.what());
         }
     }
 
@@ -471,7 +471,7 @@ void* server_function(void* args)
 
 void* client_function(void* args)
 {
-    EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)args;
+    tcw::EventHandler *eeh = (tcw::EventHandler *)args;
 
     while (true) {
         {
@@ -496,10 +496,10 @@ void* client_function(void* args)
         /** wait for the message to deal with */
         std::unique_lock<std::mutex> guard(eeh->m_mutex);
         if (! eeh->m_cond.wait_for(guard, std::chrono::seconds(2), [&eeh](){ return ! eeh->m_messages.empty(); })) {
-            EEHDBUG(eeh->logger, FUNC, "thread msg queue is empty");
+            Dbug(eeh->logger, FUNC, "thread msg queue is empty");
             continue;
         }
-        EEHDBUG(eeh->logger, FUNC, "deal with thread msg queue(size=%lu)", eeh->m_messages.size());
+        Dbug(eeh->logger, FUNC, "deal with thread msg queue(size=%lu)", eeh->m_messages.size());
         
         std::string msg = std::move(eeh->m_messages.front());
         eeh->m_messages.pop();
@@ -509,7 +509,7 @@ void* client_function(void* args)
         uint64_t tosid{0};
         int32_t  mtype{0};
         if (check_message(msg, &fromsid, &tosid, &mtype, args) != 0) {
-            EEHERRO(eeh->logger, FUNC, "not belong here, discard this message");
+            Erro(eeh->logger, FUNC, "not belong here, discard this message");
             continue;
         }
         
@@ -532,7 +532,7 @@ void* client_function(void* args)
                 auto iterTo = std::find_if(eeh->m_services_id.begin(), eeh->m_services_id.end(),
                         [](decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "POLICY"; });
                 if (iterTo == eeh->m_services_id.end()) {
-                    EEHERRO(eeh->logger, FUNC, "could not find service id");
+                    Erro(eeh->logger, FUNC, "could not find service id");
                     return nullptr;
                 }
                 
@@ -548,9 +548,9 @@ void* client_function(void* args)
                 
                 bicsummon.ExtractPayload(msg);
                 
-                EEHDBUG(eeh->logger, FUNC, "BIC_SUMMON.info:  %s", bic.info.c_str());
-                EEHDBUG(eeh->logger, FUNC, "BIC_SUMMON.sno:   %s", bic.sno.c_str());
-                EEHDBUG(eeh->logger, FUNC, "BIC_SUMMON.code:  %lu", bic.code);
+                Dbug(eeh->logger, FUNC, "BIC_SUMMON.info:  %s", bic.info.c_str());
+                Dbug(eeh->logger, FUNC, "BIC_SUMMON.sno:   %s", bic.sno.c_str());
+                Dbug(eeh->logger, FUNC, "BIC_SUMMON.code:  %lu", bic.code);
                 
                 BIC_MONSTER* monster = new BIC_MONSTER();
                 monster->name = eeh->m_services_id[eeh->m_id];
@@ -577,9 +577,9 @@ void* client_function(void* args)
                 
                 bicbomb.ExtractPayload(msg);
                 
-                EEHDBUG(eeh->logger, FUNC, "BIC_BOMBER.service_name: %s", bic.service_name.c_str());
-                EEHDBUG(eeh->logger, FUNC, "BIC_BOMBER.service_type: %d", bic.service_type);
-                EEHDBUG(eeh->logger, FUNC, "BIC_BOMBER.kill:         %s", bic.kill ? "true" : "false");
+                Dbug(eeh->logger, FUNC, "BIC_BOMBER.service_name: %s", bic.service_name.c_str());
+                Dbug(eeh->logger, FUNC, "BIC_BOMBER.service_type: %d", bic.service_type);
+                Dbug(eeh->logger, FUNC, "BIC_BOMBER.kill:         %s", bic.kill ? "true" : "false");
                 
                 BIC_BOMBER* bomb = new BIC_BOMBER();
                 bomb->service_name = bic.service_name;
@@ -588,26 +588,26 @@ void* client_function(void* args)
                 bomb->rescode = 1;
                 bomb->receipt = eeh->m_services_id[eeh->m_id] + " 服务将在 1 秒内被销毁";
                 
-                signal(SIGALRM, EEHNS::signal_release);
+                signal(SIGALRM, tcw::signal_release);
                 alarm(2);
-                EEHDBUG(eeh->logger, FUNC, "pid %d would be destructed in 2 seconds", getpid());
+                Dbug(eeh->logger, FUNC, "pid %d would be destructed in 2 seconds", getpid());
                 
                 tobicp = bomb;
                 totype = BIC_TYPE_S2P_BOMBER;
             }
             break;
             default:
-                EEHERRO(eeh->logger, FUNC, "undefined or unhandled msg(%d)", (int)mtype);
+                Erro(eeh->logger, FUNC, "undefined or unhandled msg(%d)", (int)mtype);
         }
         /** try send message if needed */
         try {
             if (send_message(totype, tosid, tobicp, args) == 0) {
-                EEHDBUG(eeh->logger, FUNC, "pushed msg(type=%d) to que and forward to %s",
+                Dbug(eeh->logger, FUNC, "pushed msg(type=%d) to que and forward to %s",
                                             totype, eeh->m_services_id[tosid].c_str());
             }
         }
         catch(std::exception& e) {
-            EEHERRO(eeh->logger, FUNC, "an exception occurs: %s", e.what());
+            Erro(eeh->logger, FUNC, "an exception occurs: %s", e.what());
         }
     }
 

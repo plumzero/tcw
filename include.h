@@ -1,6 +1,6 @@
 
-#ifndef __INCLUDE_MADOLCHE_QUEEN_TIARAMISU_H__
-#define __INCLUDE_MADOLCHE_QUEEN_TIARAMISU_H__
+#ifndef __TCW_INCLUDE_H__
+#define __TCW_INCLUDE_H__
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,7 +52,7 @@ typedef struct __attribute__ ((__packed__)) {
     uint64_t    pholder;            /** placeholder */
 } NegoHeader;
 
-namespace EEHNS
+namespace tcw
 {
     typedef int FD_t;
     typedef int ID_t;
@@ -137,7 +137,7 @@ namespace
     
 };
 
-#define EEHLOG(logger, l, t, ...)                   \
+#define __LOG(logger, l, t, ...)                   \
     do {                                            \
         logger->log_out(LOG_LEVEL_ ## l,            \
                         LOG_TYPE_ ## t,             \
@@ -145,27 +145,27 @@ namespace
                         __VA_ARGS__);               \
     } while (0)
 
-#define EEHERRO(logger, type, fmt, ...)             \
+#define Erro(logger, type, fmt, ...)             \
     do {                                            \
-        EEHLOG(logger, ERRO, type, "%4d " fmt "\n", \
+        __LOG(logger, ERRO, type, "%4d " fmt "\n", \
                     __LINE__, ##__VA_ARGS__);       \
     } while (0)
 
-#define EEHWARN(logger, type, fmt, ...)             \
+#define Warn(logger, type, fmt, ...)             \
     do {                                            \
-        EEHLOG(logger, WARN, type, "%4d " fmt "\n", \
+        __LOG(logger, WARN, type, "%4d " fmt "\n", \
                     __LINE__, ##__VA_ARGS__);       \
     } while (0)
 
-#define EEHINFO(logger, type, fmt, ...)             \
+#define Info(logger, type, fmt, ...)             \
     do {                                            \
-        EEHLOG(logger, INFO, type, "%4d " fmt "\n", \
+        __LOG(logger, INFO, type, "%4d " fmt "\n", \
                     __LINE__, ##__VA_ARGS__);       \
     } while (0)
 
-#define EEHDBUG(logger, type, fmt, ...)             \
+#define Dbug(logger, type, fmt, ...)             \
     do {                                            \
-        EEHLOG(logger, DBUG, type, "%4d " fmt "\n", \
+        __LOG(logger, DBUG, type, "%4d " fmt "\n", \
                     __LINE__, ##__VA_ARGS__);       \
     } while (0)
     
@@ -177,6 +177,7 @@ namespace
 
 #define ERRO_FD  stderr
 #define INFO_FD  stdout
+#define DBUG_FD  stdout
 
 #define _ECHO(type, format, ...)              \
     do {                                      \
@@ -189,18 +190,4 @@ namespace
                 getpid(), "[" #type "] ", __LINE__, ##__VA_ARGS__);        \
     } while (0)
 
-
-#define _DEBUG(type, format, ...)             \
-    do {                                      \
-        fprintf(type, format, ##__VA_ARGS__); \
-    } while (0)
-
-#define DBUG_FD  stdout
-
-#define DBUG(format, ...)                                            \
-    do {                                                             \
-        _DEBUG(DBUG_FD, "%u %s %3d " format "\n",                    \
-                    getpid(), "[DBUG] ", __LINE__, ##__VA_ARGS__);   \
-    } while (0)
-
-#endif // !__INCLUDE_MADOLCHE_QUEEN_TIARAMISU_H__
+#endif // !__TCW_INCLUDE_H__

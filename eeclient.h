@@ -1,21 +1,21 @@
 
-#ifndef __Epoll_Ev_CLIENT_H__
-#define __Epoll_Ev_CLIENT_H__
+#ifndef __TCW_CLIENT_H__
+#define __TCW_CLIENT_H__
 
 #include "include.h"
 #include "eemodule.h"
 #include "eehelper.h"
 
-namespace EEHNS
+namespace tcw
 {
     typedef enum {
-        EEH_TYPE_TCP        = 1 << 0,
-        EEH_TYPE_UDP        = 1 << 1,
-        EEH_TYPE_PIPE       = 1 << 2,
-        EEH_TYPE_FILE       = 1 << 3,
+        CLIENT_TYPE_TCP        = 1 << 0,
+        CLIENT_TYPE_UDP        = 1 << 1,
+        CLIENT_TYPE_PIPE       = 1 << 2,
+        CLIENT_TYPE_FILE       = 1 << 3,
         
-        EEH_TYPE_ALL        = -1,
-    } EEHType;
+        CLIENT_TYPE_ALL        = -1,
+    } ClientType;
     
     typedef enum {
         DO_NONE        = 0 << 0,
@@ -38,7 +38,7 @@ namespace EEHNS
     public:
         ID_t                id;
         FD_t                fd;
-        EEHType             type;
+        ClientType             type;
         struct epoll_event  ev;
         std::string         host;
         PORT_t              port;
@@ -49,7 +49,7 @@ namespace EEHNS
         
         bool                is_server;          /** only for tcp server. whether is server or not */
         std::list<EClient*> clients;            /** only for tcp server. if as a server, this store its clients */
-        ee_event_actions_t  clients_do;         /** only for tcp server. its clients would do */
+        event_actions_t  clients_do;         /** only for tcp server. its clients would do */
 
         std::function<ssize_t(int, void*, size_t, void *)>          read_callback;
         std::function<ssize_t(int, const void *, size_t, void *)>   write_callback;
@@ -60,11 +60,11 @@ namespace EEHNS
         BaseClient(const BaseClient &&) = delete;
         BaseClient &operator=(const BaseClient &&) = delete;
         virtual ~BaseClient();
-        explicit BaseClient(EEHType t);
-        void set_actions(ee_event_actions_t actions);
+        explicit BaseClient(ClientType t);
+        void set_actions(event_actions_t actions);
     };
     
-    class TcpClient : public BaseClient
+    class TcpClient final : public BaseClient
     {
     public:
         TcpClient();
@@ -72,14 +72,14 @@ namespace EEHNS
         virtual ~TcpClient();
     };
 
-    class UdpClient : public BaseClient
+    class UdpClient final : public BaseClient
     {
     public:
         UdpClient();
         virtual ~UdpClient();
     };
 
-    class PipeClient : public BaseClient
+    class PipeClient final : public BaseClient
     {
     public:
         PipeClient() = delete;
@@ -87,7 +87,7 @@ namespace EEHNS
         virtual ~PipeClient();
     };
 
-    class FileClient : public BaseClient
+    class FileClient final : public BaseClient
     {
     public:
         FileClient();
@@ -95,4 +95,4 @@ namespace EEHNS
     };
 };
 
-#endif // ! __Epoll_Ev_CLIENT_H__
+#endif // ! __TCW_CLIENT_H__
