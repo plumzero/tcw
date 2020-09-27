@@ -196,7 +196,7 @@
 
 
 ----
-~*穿越之海，跳下去就穿越的那种*~
+*穿越之海，跳下去就穿越的那种*
 <h1 align="center">
     <img width="700" height="988" src="chuanyuezhihai.jpg">
 </h1>
