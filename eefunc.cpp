@@ -31,36 +31,31 @@ int send_message(const int32_t mtype, const uint64_t tosid, BIC_BASE* tobicp, vo
     if (mtype == BIC_TYPE_NONE || ! tobicp) {
         return -1;
     }
-    
-    ECHO(INFO, "tosid=%lu, toservice=%s", tosid, eeh->m_services_id[tosid].c_str());
-    
+        
     std::string tomsg;
     BIC_HEADER tobich(eeh->m_id, tosid, (BICTYPE)mtype);
     BIC_MESSAGE tobicm(&tobich, tobicp);
     tobicm.Serialize(&tomsg);
     
-    ECHO(INFO, "tomsg.size=%lu, tomsg=%s", tomsg.size(), tomsg.c_str());
-
     std::string tostream;
     add_header(&tostream, tomsg);
     if (tobicp != nullptr) {
         delete tobicp;
     }
+
     int tofd{0};
     if (eeh->m_pipe_pairs.find(eeh->m_id) != eeh->m_pipe_pairs.end()) {
         tofd = eeh->m_pipe_pairs[eeh->m_id].second;
     } else {
         throw std::runtime_error("pipe pair not found");
     }
-    
+
     EEHNS::BaseClient* tobc = dynamic_cast<EEHNS::BaseClient*>(eeh->m_clients[tofd]);
     if (! tobc) {
         throw std::runtime_error("could not find the client");
     }
-    
-    eeh->m_linker_queues[tobc->sid].push(tostream);
 
-    ECHO(INFO, "tobc=%p, tofd=%d, tobc->sid=%lu, linker_queues.size=%lu", tobc, tobc->fd, tobc->sid, eeh->m_linker_queues.size());
+    eeh->m_linker_queues[tobc->sid].push(tostream);
 
     eeh->EEH_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
 
@@ -352,8 +347,7 @@ void* server_function(void* args)
             } else {
                 // do nothing
             }
-            ECHO(INFO, "%s 生成一条消息，准备发往 %s 服务",
-                        eeh->m_services_id[eeh->m_id].c_str(), eeh->m_services_id[eeh->m_id].c_str());
+            ECHO(INFO, "%s 生成一条起动消息", eeh->m_services_id[eeh->m_id].c_str());
         }
         
         srand(time(nullptr));
@@ -411,7 +405,8 @@ void* server_function(void* args)
                 tobicp = bicsumon;
                 totype = BIC_TYPE_P2S_SUMMON;
                 
-                ECHO(INFO, "tosid=%lu, toservice=%s", tosid, eeh->m_services_id[tosid].c_str());
+                ECHO(INFO, "%s 发送给 %s 服务一条消息(type=%d)", eeh->m_services_id[eeh->m_id].c_str(), 
+                            eeh->m_services_id[tosid].c_str(), totype);
             }
             break;
             case BIC_TYPE_S2P_MONSTER:
@@ -421,15 +416,6 @@ void* server_function(void* args)
                 
                 bicm.ExtractPayload(msg);
                 
-                ECHO(INFO, "BIC_MONSTER.name:        %s", bicp.name.c_str());
-                ECHO(INFO, "BIC_MONSTER.type:        %s", bicp.type.c_str());
-                ECHO(INFO, "BIC_MONSTER.attribute:   %s", bicp.attribute.c_str());
-                ECHO(INFO, "BIC_MONSTER.race:        %s", bicp.race.c_str());
-                ECHO(INFO, "BIC_MONSTER.level:       %u", bicp.level);
-                ECHO(INFO, "BIC_MONSTER.attack:      %u", bicp.attack);
-                ECHO(INFO, "BIC_MONSTER.defense:     %u", bicp.defense);
-                ECHO(INFO, "BIC_MONSTER.description: %s", bicp.description.c_str());
-                
                 EEHDBUG(eeh->logger, FUNC, "BIC_MONSTER.name:        %s", bicp.name.c_str());
                 EEHDBUG(eeh->logger, FUNC, "BIC_MONSTER.type:        %s", bicp.type.c_str());
                 EEHDBUG(eeh->logger, FUNC, "BIC_MONSTER.attribute:   %s", bicp.attribute.c_str());
@@ -438,6 +424,9 @@ void* server_function(void* args)
                 EEHDBUG(eeh->logger, FUNC, "BIC_MONSTER.attack:      %u", bicp.attack);
                 EEHDBUG(eeh->logger, FUNC, "BIC_MONSTER.defense:     %u", bicp.defense);
                 EEHDBUG(eeh->logger, FUNC, "BIC_MONSTER.description: %s", bicp.description.c_str());
+                
+                ECHO(INFO, "%s 收到来自 %s 服务的消息(type=%d)，一个测试流程结束。", eeh->m_services_id[eeh->m_id].c_str(), 
+                            eeh->m_services_id[tosid].c_str(), BIC_TYPE_S2P_MONSTER);
                 
                 // BIC_BOMBER* bicbomber = new BIC_BOMBER();
                 // bicbomber->service_name = "销毁 " + eeh->m_services_id[iterTo->first]  + " 服务";
@@ -485,6 +474,25 @@ void* client_function(void* args)
     EEHNS::EpollEvHandler *eeh = (EEHNS::EpollEvHandler *)args;
 
     while (true) {
+        {
+            // sleep(1);
+            // BIC_HEADER tobich(eeh->m_id, eeh->m_id, BIC_TYPE_P2P_START);
+            // BIC_P2P_START bicstart;
+            // bicstart.is_start = true;
+            // bicstart.information = "create a message and ready to send";
+            // BIC_MESSAGE tobicm(&tobich, &bicstart);
+            // std::string tomsg;
+            // tobicm.Serialize(&tomsg);
+            // /** try lock */
+            // std::unique_lock<std::mutex> guard(eeh->m_mutex, std::defer_lock);
+            // if (guard.try_lock()) {
+                // eeh->m_messages.push(std::move(tomsg));
+            // } else {
+                // // do nothing
+            // }
+            // ECHO(INFO, "%s 生成一条消息，准备发往 %s 服务",
+                        // eeh->m_services_id[eeh->m_id].c_str(), eeh->m_services_id[eeh->m_id].c_str());
+        }
         /** wait for the message to deal with */
         std::unique_lock<std::mutex> guard(eeh->m_mutex);
         if (! eeh->m_cond.wait_for(guard, std::chrono::seconds(2), [&eeh](){ return ! eeh->m_messages.empty(); })) {
@@ -509,16 +517,36 @@ void* client_function(void* args)
         BICTYPE totype{BIC_TYPE_NONE};
         /** deal with the message, defined by programmer */
         switch (mtype) {
+            case BIC_TYPE_P2P_START:
+            {                
+                BIC_MONSTER* monster = new BIC_MONSTER();
+                monster->name = eeh->m_services_id[eeh->m_id];
+                monster->type = "service";
+                monster->attribute = "process";
+                monster->race = "Fairy";
+                monster->level = 4;
+                monster->attack = 2200;
+                monster->defense = 2100;
+                monster->description = "当前的服务名称是 " + eeh->m_services_id[eeh->m_id];
+
+                auto iterTo = std::find_if(eeh->m_services_id.begin(), eeh->m_services_id.end(),
+                        [](decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "POLICY"; });
+                if (iterTo == eeh->m_services_id.end()) {
+                    EEHERRO(eeh->logger, FUNC, "could not find service id");
+                    return nullptr;
+                }
+                
+                totype = BIC_TYPE_S2P_MONSTER;
+                tosid = iterTo->first;
+                tobicp = monster;                
+            }
+            break;
             case BIC_TYPE_P2S_SUMMON:
             {
                 BIC_SUMMON bic;
                 BIC_MESSAGE bicsummon(nullptr, &bic);
                 
                 bicsummon.ExtractPayload(msg);
-                
-                ECHO(INFO, "BIC_SUMMON.info:  %s", bic.info.c_str());
-                ECHO(INFO, "BIC_SUMMON.sno:   %s", bic.sno.c_str());
-                ECHO(INFO, "BIC_SUMMON.code:  %lu", bic.code);
                 
                 EEHDBUG(eeh->logger, FUNC, "BIC_SUMMON.info:  %s", bic.info.c_str());
                 EEHDBUG(eeh->logger, FUNC, "BIC_SUMMON.sno:   %s", bic.sno.c_str());
@@ -536,6 +564,10 @@ void* client_function(void* args)
                 
                 tobicp = monster;
                 totype = BIC_TYPE_S2P_MONSTER;
+                
+                ECHO(INFO, "%s 收到消息(type=%d)，并发回给 %s 服务一条消息(type=%d)",
+                            eeh->m_services_id[eeh->m_id].c_str(), BIC_TYPE_P2S_SUMMON,
+                            eeh->m_services_id[tosid].c_str(), totype);
             }
             break;
             case BIC_TYPE_P2S_BOMBER:

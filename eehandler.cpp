@@ -181,6 +181,8 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
             m_linkers_actions[section] = child_callback_module;
         } else if (as == "client" && on) {
             m_linkers_actions[section] = daemon_callback_module;
+        } else if (as == "child" && on) {
+            m_linkers_actions[section] = child_callback_module;
         }
     });
     // find specified service whether exist or not(specified_service="" means as daemon)
@@ -284,9 +286,9 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
             return EEH_ERROR;
         }
         
+        m_services_id[hash_id] = iterIni->first;
         EEHDBUG(logger, HAND, "section %s's service id is: %lu", iterIni->first.c_str(), hash_id);
 
-        m_services_id[hash_id] = iterIni->first;
         if (iterIni->first == specified_service) {
             m_id = hash_id;
         }
@@ -313,6 +315,8 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
                 EEHWARN(logger, HAND, "hash_id(%lu) already exist", hash_id);
                 return EEH_ERROR;
             }
+            
+            m_services_id[hash_id] = itKV->second;
             
             EEHDBUG(logger, HAND, "server %s's service id is: %lu", itKV->second.c_str(), hash_id);
         }
@@ -379,7 +383,7 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
             if (as == "daemon") {
                 // do nothing
             } else if (as == "server") {
-                EClient* ec_listen = EEH_TCP_listen(host, port, iterId->first, m_linkers_actions[section]);
+                EClient* ec_listen = EEH_TCP_listen(host, port, iterId->first, m_linkers_actions[m_services_id[m_daemon_id]]);
                 if (! ec_listen) {
                     EEHERRO(logger, HAND, "EEH_TCP_listen failed");
                     return EEH_ERROR;
@@ -389,10 +393,9 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
                     return EEH_ERROR;
                 }
                 m_heartbeats[iterId->first] = now_time();
-                ECHO(DBUG, "~~~~~~~~~~> sid=%lu", iterId->first);
                 EEHDBUG(logger, HAND, "%s as a %s listened on %s:%d",
                                         section.c_str(), as.c_str(), host.c_str(), port);
-            } else if (as == "client") {                
+            } else if (as == "client") {
                 EClient* ec_client = EEH_TCP_connect(host, port, iterId->first);
                 if (! ec_client) {
                     EEHERRO(logger, HAND, "EEH_TCP_connect failed");
@@ -409,7 +412,6 @@ EEHErrCode EpollEvHandler::EEH_init(const std::string& conf, const std::string& 
                                         section.c_str(), as.c_str(), host.c_str(), port);
             } else if (as == "child") {
                 m_heartbeats[iterId->first] = now_time();
-                ECHO(DBUG, "~~~~~~~~~~> sid=%lu", iterId->first);
                 EEHDBUG(logger, HAND, "%s would as a %s created by daemon", section.c_str(), as.c_str());
             }
         }           
@@ -916,7 +918,7 @@ EClient* EpollEvHandler::EEH_TCP_connect(std::string remote_ip, PORT_t remote_po
     header.ver[1] = (uint8_t)'s';
     header.bodysize = 0;
     header.pholder = sid;
-    
+        
     ssize_t nh = write(cfd, &header, NEGOHSIZE);
     if (nh != sizeof(NegoHeader)) {
         EEHERRO(logger, HAND, "write 'NegoHeader' failed(ret=%ld)", nh);
@@ -944,8 +946,8 @@ EClient* EpollEvHandler::EEH_TCP_connect(std::string remote_ip, PORT_t remote_po
         return nullptr;
     }
     
-    EEHINFO(logger, HAND, "tcp client finished to deal with connecting to remote service(sid=%lu)", header.pholder);
-    ECHO(INFO, "tcp client finished to deal with connecting to remote service(sid=%lu)", header.pholder);
+    EEHINFO(logger, HAND, "tcp client finished to deal with connecting to remote service(fd=%d, sid=%lu)", cfd, header.pholder);
+    ECHO(INFO, "tcp client finished to deal with connecting to remote service(fd=%d, sid=%lu)", cfd, header.pholder);
     
     BaseClient *tc = new TcpClient(cfd, remote_ip, remote_port);
     if (! tc)
@@ -1023,7 +1025,6 @@ std::pair<EClient*, EClient*> EpollEvHandler::EEH_PIPE_create(FD_t rfd, FD_t wfd
     wpc->sid = sid;
     
     if (m_is_daemon) {
-        ECHO(DBUG, "~~~~~~~~~~> sid=%lu", sid);
         m_heartbeats[sid] = now_time();
     }
     

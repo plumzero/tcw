@@ -25,8 +25,6 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
         from_outward = false;
     }
     
-    ECHO(DBUG, "====> from_outward=%d, eeh->m_olinkers.size=%lu", from_outward, eeh->m_olinkers.size());
-
     char hbuf[NEGOHSIZE];
     ssize_t nh = read(fd, hbuf, NEGOHSIZE);
     if (nh != NEGOHSIZE) {
@@ -57,7 +55,7 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
     if (rbuf) {
         free(rbuf);
     }
-
+    
     /** CRC32 check */
     if (crc32calc(msg.c_str(), msg.size()) != ntohl(header.crc32)) {
         EEHERRO(eeh->logger, MODU, "crc32 check error");
@@ -86,7 +84,6 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
     decltype (std::declval<std::map<EEHNS::FD_t, EEHNS::SID_t>>().begin()) iterTo;
     int tofd = -1;
     if (from_outward) {
-        ECHO(DBUG, "====> from outward to internal");
         /** socket connect: recv */
         iterTo = std::find_if(eeh->m_ilinkers.begin(), eeh->m_ilinkers.end(),
                                 [&bich](decltype(*eeh->m_ilinkers.begin())& ele){
@@ -95,9 +92,7 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
         if (iterTo != eeh->m_ilinkers.end()) {
             tofd = iterTo->first;
         }
-    } else {
-        ECHO(DBUG, "====> from internal to internal or outward");
-   
+    } else {   
         iterTo = std::find_if(eeh->m_ilinkers.begin(), eeh->m_ilinkers.end(),
                                 [&bich](decltype(*eeh->m_ilinkers.begin())& ele){
             return ele.second == bich.orient;
@@ -107,11 +102,9 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
             tofd = iterTo->first;
         } else {
             /** socket connect: send  load balance */
-            ECHO(DBUG, "====> from internal to outward(m_olinkers=%lu)", eeh->m_olinkers.size());
             /** load balance */
             if (! eeh->m_olinkers.empty()) {
                 size_t idx = rand() % eeh->m_olinkers.size();
-                ECHO(DBUG, "====> load balance idx=%lu", idx);
                 for (iterTo = eeh->m_olinkers.begin(); iterTo != eeh->m_olinkers.end(); iterTo++) {
                     if (idx-- == 0) {
                         break;
@@ -125,15 +118,17 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
                     return -1;
                 }
                 
-                ECHO(DBUG, "====> ====>");
                 return 0;
             }
         }
     }
 
     if (tofd <= 0) {
+        /**
+         * maybe enter here if peer is closed suddenly while transferring.
+         * we tolerate this exception.
+         */
         EEHERRO(eeh->logger, MODU, "could not find fd to write");
-        ECHO(DBUG, "XXXX ====> could not find fd to write");
         return -1;
     }
 
@@ -141,8 +136,6 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
     if (! tobc) {
         return -1;
     }
-
-    ECHO(DBUG, "====> tobc=%p, tofd=%d, tosid=%lu, msg=%s", tobc, tofd, tobc->sid, msg.c_str());
     
     /** recover it to the original message(header + BIC_MESSAGE) */
     eeh->m_linker_queues[tobc->sid].emplace(std::string(hbuf, hbuf + sizeof(hbuf)) + msg);
@@ -378,15 +371,6 @@ int child_timer_callback(void *args, void *userp)
         add_header(&tostream, tomsg);
 
         eeh->m_linker_queues[bc->sid].push(tostream);
-        ECHO(DBUG, "---->bc->sid=%lu eeh->m_heartbeats.size=%lu", bc->sid, eeh->m_heartbeats.size());
-        for (const auto & it : eeh->m_linker_queues) {
-            ECHO(DBUG, "----> sid=%lu size=%lu", it.first, it.second.size());
-        }
-        for (const auto & it : eeh->m_heartbeats) {
-            ECHO(DBUG, "----> sid=%lu time=%lu", it.first, it.second);
-        }
-        
-        // 打印 m_linker_queues 内容
 
         EEHDBUG(eeh->logger, MODU, "pushed msg(type=%d, len=%lu, from=%s) to que(ownby=%s, size=%lu) and heartbeat to %s", 
                                     BIC_TYPE_GUARDRAGON, tostream.size(), eeh->m_services_id[tobich.origin].c_str(),
