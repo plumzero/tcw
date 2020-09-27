@@ -1,15 +1,15 @@
 cmake_minimum_required(VERSION 2.8.0)
 
-project("eeh" C CXX)
+project("tcw" C CXX)
 
 #
 # Version
 #
-set(eeh_VERSION_MAJOR 3)
-set(eeh_VERSION_MINOR 1.0)
-set(eeh_VERSION ${eeh_VERSION_MAJOR}.${eeh_VERSION_MINOR})
-set(PACKAGE_VERSION ${eeh_VERSION})
-set(VERSION "${eeh_VERSION}")
+set(tcw_VERSION_MAJOR 3)
+set(tcw_VERSION_MINOR 1.0)
+set(tcw_VERSION ${tcw_VERSION_MAJOR}.${tcw_VERSION_MINOR})
+set(PACKAGE_VERSION ${tcw_VERSION})
+set(VERSION "${tcw_VERSION}")
 
 #
 # if u wanna release, do like this `cmake -DCMAKE_BUILD_TYPE=Release`

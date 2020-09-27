@@ -31,7 +31,7 @@ namespace tcw
         std::map<FD_t, SID_t>                               m_listeners;
     public:
         static std::map<std::string, event_actions_t>    m_linkers_actions;  /** 服务名称, 执行动作 */
-        static std::map<std::string, std::function<void*(void*)>>   m_linkers_func;
+        static std::map<std::string, std::function<int(void*)>>   m_linkers_func;
         static bool                                         m_is_running;
         std::string                                         m_conf_name;        /** 记录配置名称 */
         SID_t                                               m_daemon_id;        /** 守护进程 id */
@@ -59,7 +59,7 @@ namespace tcw
         std::mutex                                          m_mutex;
         std::condition_variable                             m_cond;
     public:
-        static RetCode tcw_register_service(const std::string& service, void* func(void*));
+        static RetCode tcw_register_service(const std::string& service, int func(void*));
         RetCode tcw_init(const std::string& conf, const std::string& service = "");
         void tcw_destroy();
         RetCode tcw_add(EClient *ec);

@@ -42,11 +42,11 @@ void signal_release(int signum)
 }
     
 std::map<std::string, event_actions_t>           EventHandler::m_linkers_actions{};
-std::map<std::string, std::function<void*(void*)>>  EventHandler::m_linkers_func{};
+std::map<std::string, std::function<int(void*)>>  EventHandler::m_linkers_func{};
 
 bool EventHandler::m_is_running = false;
 
-RetCode EventHandler::tcw_register_service(const std::string& service, void* func(void*))
+RetCode EventHandler::tcw_register_service(const std::string& service, int func(void*))
 {
     m_linkers_func[service] = std::bind(func, std::placeholders::_1);
 

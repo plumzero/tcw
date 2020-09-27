@@ -10,13 +10,13 @@ int check_message(const std::string& msg, uint64_t* fromsid, uint64_t* tosid, in
 int send_message(const int32_t mtype, const uint64_t tosid, BIC_BASE* tobicp, void* args);
 
 /** test function */
-void* server_function(void* args);
-void* client_function(void* args);
+int server_function(void* args);
+int client_function(void* args);
 
 /** IPC between sub process */
-void* step_1_function(void* args);
-void* step_2_function(void* args);
-void* step_3_function(void* args);
+int step_1_function(void* args);
+int step_2_function(void* args);
+int step_3_function(void* args);
 
 
 #endif // ! __TCW_SERVICE_H__

@@ -62,7 +62,7 @@ int send_message(const int32_t mtype, const uint64_t tosid, BIC_BASE* tobicp, vo
     return 0;
 }
 
-void* step_1_function(void* args)
+int step_1_function(void* args)
 {
     tcw::EventHandler *eeh = (tcw::EventHandler *)args;
     
@@ -160,10 +160,10 @@ void* step_1_function(void* args)
         }
     }
 
-    return nullptr;
+    return 0;
 }
 
-void* step_2_function(void* args)
+int step_2_function(void* args)
 {
     tcw::EventHandler *eeh = (tcw::EventHandler *)args;
     
@@ -241,10 +241,10 @@ void* step_2_function(void* args)
         }
     }
 
-    return nullptr;
+    return 0;
 }
 
-void* step_3_function(void* args)
+int step_3_function(void* args)
 {
     tcw::EventHandler *eeh = (tcw::EventHandler *)args;
     
@@ -323,10 +323,10 @@ void* step_3_function(void* args)
         }
     }
 
-    return nullptr;
+    return 0;
 }
 
-void* server_function(void* args)
+int server_function(void* args)
 {
     tcw::EventHandler *eeh = (tcw::EventHandler *)args;
 
@@ -359,14 +359,14 @@ void* server_function(void* args)
                     [](decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "MADOLCHE"; });
             if (iterTo == eeh->m_services_id.end()) {
                 Erro(eeh->logger, FUNC, "could not find service id");
-                return nullptr;
+                return -1;
             }
         } else {
             iterTo = std::find_if(eeh->m_services_id.begin(), eeh->m_services_id.end(),
                     [](decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "GIMMICK_PUPPET"; });
             if (iterTo == eeh->m_services_id.end()) {
                 Erro(eeh->logger, FUNC, "could not find service id");
-                return nullptr;
+                return -1;
             }
         }
         
@@ -466,10 +466,10 @@ void* server_function(void* args)
         }
     }
 
-    return nullptr;
+    return 0;
 }
 
-void* client_function(void* args)
+int client_function(void* args)
 {
     tcw::EventHandler *eeh = (tcw::EventHandler *)args;
 
@@ -533,7 +533,7 @@ void* client_function(void* args)
                         [](decltype(*eeh->m_services_id.begin())& ele){ return ele.second == "POLICY"; });
                 if (iterTo == eeh->m_services_id.end()) {
                     Erro(eeh->logger, FUNC, "could not find service id");
-                    return nullptr;
+                    return -1;
                 }
                 
                 totype = BIC_TYPE_S2P_MONSTER;
@@ -611,5 +611,5 @@ void* client_function(void* args)
         }
     }
 
-    return nullptr;
+    return 0;
 }
