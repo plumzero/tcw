@@ -608,6 +608,16 @@ RetCode EventHandler::tcw_del(EClient *ec)
         /** an exception occurs, but do nothing */
     }
     
+    for (auto & ele : m_route_fd) {
+        decltype(ele.second.begin()) itFd;
+        for (itFd = ele.second.begin(); itFd != ele.second.end(); itFd++) {
+            if (*itFd == bc->fd) {
+                ele.second.erase(itFd);
+                break;
+            }
+        }
+    }
+
     if (m_pipe_pairs.erase(bc->sid) == 1) {
         
     } else {
