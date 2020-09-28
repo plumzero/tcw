@@ -80,6 +80,7 @@ RetCode EventHandler::tcw_init(const std::string& conf, const std::string& servi
     /** [1.1] do some clear */
     m_listeners.clear();
     m_clients.clear();
+    m_route_fd.clear();
 
     /** [2] check conf and service's setting */
     // read conf
@@ -438,6 +439,7 @@ void EventHandler::tcw_destroy()
     m_ilinkers.clear();
     m_olinkers.clear();
     m_pipe_pairs.clear();
+    m_route_fd.clear();
     
     for (auto iter_m = m_clients.begin(); iter_m != m_clients.end(); iter_m++) {
         if (iter_m->first > 0) {

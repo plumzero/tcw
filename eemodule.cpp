@@ -92,6 +92,7 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
         if (iterTo != eeh->m_ilinkers.end()) {
             tofd = iterTo->first;
         }
+        eeh->m_route_fd[bich.origin].insert(fd);
     } else {   
         iterTo = std::find_if(eeh->m_ilinkers.begin(), eeh->m_ilinkers.end(),
                                 [&bich](decltype(*eeh->m_ilinkers.begin())& ele){
@@ -103,14 +104,30 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
         } else {
             /** socket connect: send  load balance */
             /** load balance */
-            if (! eeh->m_olinkers.empty()) {
+            if (! eeh->m_route_fd[bich.orient].empty()) {
+                size_t idx = rand() % eeh->m_route_fd[bich.orient].size();
+                auto itProxy = eeh->m_route_fd[bich.orient].begin();
+                for ( ; itProxy != eeh->m_route_fd[bich.orient].end(); itProxy++) {
+                    if (idx-- == 0) {
+                        break;
+                    }
+                }
+                if (itProxy != eeh->m_route_fd[bich.orient].end()) {
+                    tofd = *itProxy;
+                }
+            } else if (! eeh->m_olinkers.empty()) {
                 size_t idx = rand() % eeh->m_olinkers.size();
                 for (iterTo = eeh->m_olinkers.begin(); iterTo != eeh->m_olinkers.end(); iterTo++) {
                     if (idx-- == 0) {
                         break;
                     }
                 }
-                tofd = iterTo->first;
+                if (iterTo != eeh->m_olinkers.end()) {
+                    tofd = iterTo->first;
+                    eeh->m_route_fd[bich.orient].insert(tofd);
+                }
+            }
+            if (tofd > 0) {
                 std::string smsg = std::string(hbuf, hbuf + sizeof(hbuf)) + msg;
                 size_t nt = write(tofd, smsg.c_str(), smsg.size());
                 if (nt != smsg.size()) {
