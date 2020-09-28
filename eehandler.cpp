@@ -609,12 +609,10 @@ RetCode EventHandler::tcw_del(EClient *ec)
     }
     
     for (auto & ele : m_route_fd) {
-        decltype(ele.second.begin()) itFd;
-        for (itFd = ele.second.begin(); itFd != ele.second.end(); itFd++) {
-            if (*itFd == bc->fd) {
-                ele.second.erase(itFd);
-                break;
-            }
+        if (ele.second.erase(bc->fd) == 1) {
+
+        } else {
+            /** an exception occurs, but do nothing */
         }
     }
 
