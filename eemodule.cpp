@@ -91,8 +91,8 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
         });
         if (iterTo != eeh->m_ilinkers.end()) {
             tofd = iterTo->first;
+            eeh->m_route_fd[bich.origin].insert(fd);
         }
-        eeh->m_route_fd[bich.origin].insert(fd);
     } else {   
         iterTo = std::find_if(eeh->m_ilinkers.begin(), eeh->m_ilinkers.end(),
                                 [&bich](decltype(*eeh->m_ilinkers.begin())& ele){
