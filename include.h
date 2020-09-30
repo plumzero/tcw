@@ -180,15 +180,20 @@ namespace
 #define INFO_FD  stdout
 #define DBUG_FD  stdout
 
+#define ERRO_COLOR   "\033[31m"
+#define INFO_COLOR   "\033[32m"
+#define DBUG_COLOR   "\033[34m"
+#define END_COLOR    "\033[0m"
+
 #define _ECHO(type, format, ...)              \
     do {                                      \
         fprintf(type, format, ##__VA_ARGS__); \
     } while (0)
 
-#define ECHO(type, format, ...)                                            \
-    do {                                                                   \
-        _ECHO(type ## _FD, "%u %s %3d " format "\n",                       \
-                getpid(), "[" #type "] ", __LINE__, ##__VA_ARGS__);        \
+#define ECHO(type, format, ...)                                                 \
+    do {                                                                        \
+        _ECHO(type ## _FD, "%u %s %4d " type ## _COLOR format "\n" END_COLOR,   \
+                getpid(), "[" #type "] ", __LINE__, ##__VA_ARGS__);             \
     } while (0)
 
 #endif // !__TCW_INCLUDE_H__
