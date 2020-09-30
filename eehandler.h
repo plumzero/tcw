@@ -30,7 +30,7 @@ namespace tcw
         int                                                 m_epi;
         std::map<FD_t, SID_t>                               m_listeners;
     public:
-        static std::map<std::string, event_actions_t>    m_linkers_actions;     /** service name, actions */
+        static std::map<std::string, event_actions_t>       m_linkers_actions;  /** service name, actions */
         static std::map<std::string, std::function<int(void*)>>   m_linkers_func;
         static bool                                         m_is_running;
         std::string                                         m_conf_name;
@@ -67,7 +67,7 @@ namespace tcw
         
         // TCP handler
         EClient* tcw_tcp_listen(std::string bind_ip, PORT_t service_port, SID_t sid, event_actions_t clients_action);
-        EClient* tcw_tcp__accept(EListener *el);
+        EClient* tcw_tcp_accept(EListener *el);
         EClient* tcw_tcp_connect(std::string remote_ip, PORT_t remote_port, SID_t sid);
         // Pipe handler
         std::pair<EClient*, EClient*> tcw_pipe_create(FD_t rfd, FD_t wfd, SID_t sid);

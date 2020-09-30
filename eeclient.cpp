@@ -34,11 +34,11 @@ namespace tcw
     }
     /** TcpClient */
     TcpClient::TcpClient() 
-        : BaseClient(CLIENT_TYPE_TCP)
+        : BaseClient(TYPE_TCP)
     {
     }
     TcpClient::TcpClient(FD_t fd, std::string host, PORT_t port, bool is_server)
-        : BaseClient(CLIENT_TYPE_TCP) 
+        : BaseClient(TYPE_TCP) 
     {
         this->fd = fd;
         this->host = host;
@@ -51,7 +51,7 @@ namespace tcw
     }
     /** UdpClient */
     UdpClient::UdpClient() 
-        : BaseClient(CLIENT_TYPE_UDP)
+        : BaseClient(TYPE_UDP)
     {
     }
     UdpClient::~UdpClient()
@@ -60,7 +60,7 @@ namespace tcw
     }
     /** PipeClient */
     PipeClient::PipeClient(FD_t fd)
-        : BaseClient(CLIENT_TYPE_PIPE)
+        : BaseClient(TYPE_PIPE)
     {
         this->fd = fd;  
     }
@@ -70,7 +70,7 @@ namespace tcw
     }
     /** FileClient */
     FileClient::FileClient() 
-        : BaseClient(CLIENT_TYPE_FILE)
+        : BaseClient(TYPE_FILE)
     {
     }
     FileClient::~FileClient()

@@ -278,10 +278,6 @@ RetCode EventHandler::tcw_init(const std::string& conf, const std::string& servi
         std::string hex = bin2hex(std::string(sha1hash, sha1hash + sizeof(uint64_t)));
         hash_id = hex2integral<uint64_t>(hex);
         
-        if (hash_id < HASH_ID_RESERVE_ZONE) {
-            Warn(logger, HAND, "hash_id(%lu) is small than %lu", hash_id, HASH_ID_RESERVE_ZONE);
-            return ERROR;
-        }
         if (m_services_id.find(hash_id) != m_services_id.end()) {
             Warn(logger, HAND, "hash_id(%lu) already exist", hash_id);
             return ERROR;
@@ -307,11 +303,7 @@ RetCode EventHandler::tcw_init(const std::string& conf, const std::string& servi
         
             hex = bin2hex(std::string(sha1hash, sha1hash + sizeof(uint64_t)));
             hash_id = hex2integral<uint64_t>(hex);
-            
-            if (hash_id < HASH_ID_RESERVE_ZONE) {
-                Warn(logger, HAND, "hash_id(%lu) is small than %lu", hash_id, HASH_ID_RESERVE_ZONE);
-                return ERROR;
-            }
+
             if (m_services_id.find(hash_id) != m_services_id.end()) {
                 Warn(logger, HAND, "hash_id(%lu) already exist", hash_id);
                 return ERROR;
@@ -551,12 +543,12 @@ RetCode EventHandler::tcw_del(EClient *ec)
         /** an exception occurs, but do nothing */
     }
 
-    if (bc->type == CLIENT_TYPE_TCP) {
+    if (bc->type == TYPE_TCP) {
         if (bc->is_server) {    /** as server */
             for (auto iter_l = bc->clients.begin(); iter_l != bc->clients.end(); iter_l++) {
                 BaseClient *bcc = dynamic_cast<BaseClient*>(*iter_l);
                 if (bcc) {
-                    bcc->sid = ROVER_ID;
+                    /** do nothing */
                 } else {
                     /** an exception occurs, but do nothing */
                 }
@@ -568,33 +560,7 @@ RetCode EventHandler::tcw_del(EClient *ec)
                 /** an exception occurs, but do nothing */
             }
         } else {    /** as connect client */
-            if (bc->sid != ROVER_ID) {
-                FD_t sfd = 0;
-                for (auto iter_l = m_listeners.begin(); iter_l != m_listeners.end(); iter_l++) {
-                    if (iter_l->second == bc->sid) {
-                        sfd = iter_l->first;
-                        break;
-                    }
-                }
-                if (sfd > 0) {
-                    BaseClient *bcs = dynamic_cast<BaseClient*>(m_clients[sfd]);
-                    if (! bcs) {
-                        Erro(logger, HAND, "unexcepted logical fatal occurred");
-                        return ERROR;
-                    }
-
-                    std::list<EClient*>::iterator iter_find = std::find(bcs->clients.begin(), bcs->clients.end(), ec);
-                    if (iter_find != bcs->clients.end()) {
-                        bcs->clients.erase(iter_find);
-                    } else {
-                        // Dbug(logger, HAND, "could not find it");
-                    }
-                } else {
-                    Info(logger, HAND, "eclient(%p, fd=%d) is an active connect client", bc, bc->fd);
-                }
-            } else {
-                // Dbug(logger, HAND, "tcp rover or other client, delete directly");
-            }
+            /** do nothing */
         }
     } else {
         // Dbug(logger, HAND, "other eeh type");
@@ -751,7 +717,7 @@ EClient* EventHandler::tcw_tcp_listen(std::string bind_ip, PORT_t service_port,
     return tc;
 }
 
-EClient* EventHandler::tcw_tcp__accept(EListener *el)
+EClient* EventHandler::tcw_tcp_accept(EListener *el)
 {
     if (! el)
         return nullptr;
@@ -1263,7 +1229,7 @@ void EventHandler::tcw_run()
                                 bc, bc->id, bc->fd, bc->type, bc->is_server, what);
 
             if (what & (EPOLLHUP|EPOLLERR)) {
-                if (bc->type == CLIENT_TYPE_TCP || bc->type == CLIENT_TYPE_PIPE) {
+                if (bc->type == TYPE_TCP || bc->type == TYPE_PIPE) {
                     /** end of peer closed and there is no need to exist. */
                     bc->action = DO_CLOSE;
                 }
@@ -1285,7 +1251,7 @@ void EventHandler::tcw_run()
             }
             
             if (bc->action == DO_ACCEPT) {
-                EClient *ec = tcw_tcp__accept(m_clients[bc->fd]);
+                EClient *ec = tcw_tcp_accept(m_clients[bc->fd]);
                 if (ec) {
                     if (tcw_add(ec) != OK) {
                         Erro(logger, HAND, "failed to add eclient");

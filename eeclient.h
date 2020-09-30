@@ -9,12 +9,12 @@
 namespace tcw
 {
     typedef enum {
-        CLIENT_TYPE_TCP        = 1 << 0,
-        CLIENT_TYPE_UDP        = 1 << 1,
-        CLIENT_TYPE_PIPE       = 1 << 2,
-        CLIENT_TYPE_FILE       = 1 << 3,
+        TYPE_TCP        = 1 << 0,
+        TYPE_UDP        = 1 << 1,
+        TYPE_PIPE       = 1 << 2,
+        TYPE_FILE       = 1 << 3,
         
-        CLIENT_TYPE_ALL        = -1,
+        TYPE_ALL        = -1,
     } ClientType;
     
     typedef enum {
@@ -38,7 +38,7 @@ namespace tcw
     public:
         ID_t                id;
         FD_t                fd;
-        ClientType             type;
+        ClientType          type;
         struct epoll_event  ev;
         std::string         host;
         PORT_t              port;
@@ -49,7 +49,7 @@ namespace tcw
         
         bool                is_server;          /** only for tcp server. whether is server or not */
         std::list<EClient*> clients;            /** only for tcp server. if as a server, this store its clients */
-        event_actions_t  clients_do;         /** only for tcp server. its clients would do */
+        event_actions_t     clients_do;         /** only for tcp server. its clients would do */
 
         std::function<ssize_t(int, void*, size_t, void *)>          read_callback;
         std::function<ssize_t(int, const void *, size_t, void *)>   write_callback;

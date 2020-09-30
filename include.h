@@ -40,10 +40,6 @@
 #include <mutex>
 #include <condition_variable>
 
-/** heading direction of bic message or as a ec service type */
-#define  HASH_ID_RESERVE_ZONE   10000000L
-#define  ROVER_ID               0x01
-
 typedef struct __attribute__ ((__packed__)) {
     uint8_t     ver[2];             /** 0-major 1-revised */
     uint16_t    bodysize;           /** payload size */
