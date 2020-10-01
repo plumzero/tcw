@@ -5,11 +5,14 @@
 #include "include.h"
 #include "eeclient.h"
 #include "eemodule.h"
+#include "eehelper.h"
 #include "tortellini.h"
 
 /** policy: read actively and write passively */
 
-#define EPOLL_MAX_NUM       12
+#define EPOLL_MAX_NUM           256
+#define HEART_BEAT_INTERVAL     1
+#define HEART_BEAT_OFFLINE      4
 
 namespace tcw
 {   
@@ -45,6 +48,7 @@ namespace tcw
         /** queues between two process (writing queues for m_ilinkers and m_olinkers) */
         std::map<SID_t, std::queue<std::string>>            m_linker_queues;    /** service id，queue for writing */
         std::map<SID_t, uint64_t>                           m_heartbeats;
+        std::map<SID_t, BitRing<HEART_BEAT_OFFLINE>>        m_hb_offline;
         std::map<pid_t, std::string>                        m_info_process;     /** pid, service name(use for dealing with zombie process) */
         std::unordered_map<SID_t, std::set<FD_t>>           m_route_fd;         /** used at tcp server side, key is the sid that orient to from tcp server, val is fd to remote proxy/client  */
         Logger*                                             logger;

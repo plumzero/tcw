@@ -65,8 +65,10 @@ int send_message(const int32_t mtype, const uint64_t tosid, BIC_BASE* tobicp, vo
 int step_1_function(void* args)
 {
     tcw::EventHandler *eeh = (tcw::EventHandler *)args;
-    
+        
+    while (true) {
     {
+        sleep(1);
         BIC_HEADER tobich(eeh->m_id, eeh->m_id, BIC_TYPE_A2A_START);
         BIC_A2A_START bicstart;
         bicstart.is_start = true;
@@ -85,8 +87,6 @@ int step_1_function(void* args)
                     eeh->m_services_id[eeh->m_id].c_str(), eeh->m_services_id[eeh->m_id].c_str());
         
     }
-    
-    while (true) {
         /** wait for the message to deal with */
         std::unique_lock<std::mutex> guard(eeh->m_mutex);
         if (! eeh->m_cond.wait_for(guard, std::chrono::seconds(2), [&eeh](){ return ! eeh->m_messages.empty(); })) {

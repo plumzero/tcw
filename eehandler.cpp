@@ -284,7 +284,7 @@ RetCode EventHandler::tcw_init(const std::string& conf, const std::string& servi
         }
         
         m_services_id[hash_id] = iterIni->first;
-        Dbug(logger, HAND, "section %s's service id is: %lu", iterIni->first.c_str(), hash_id);
+        Info(logger, HAND, "section %s's service id is: %lu", iterIni->first.c_str(), hash_id);
 
         if (iterIni->first == specified_service) {
             m_id = hash_id;
@@ -311,7 +311,7 @@ RetCode EventHandler::tcw_init(const std::string& conf, const std::string& servi
             
             m_services_id[hash_id] = itKV->second;
             
-            Dbug(logger, HAND, "server %s's service id is: %lu", itKV->second.c_str(), hash_id);
+            Info(logger, HAND, "server %s's service id is: %lu", itKV->second.c_str(), hash_id);
         }
     }
     
@@ -345,7 +345,7 @@ RetCode EventHandler::tcw_init(const std::string& conf, const std::string& servi
                 if (key == "listen" || key == "connect") addr = m_ini[section][key] | "";
                 if (key == "on") on = m_ini[section][key] | false;
             }
-            Dbug(logger, HAND, "%s's info(as=%s, addr=%s, on=%d)", section.c_str(), as.c_str(), addr.c_str(), on);
+            Info(logger, HAND, "%s's info(as=%s, addr=%s, on=%d)", section.c_str(), as.c_str(), addr.c_str(), on);
 
             if (! on) {
                 continue;
@@ -371,7 +371,7 @@ RetCode EventHandler::tcw_init(const std::string& conf, const std::string& servi
                 Erro(logger, HAND, "could not find %s's id", section.c_str());
                 return ERROR;
             }
-            Dbug(logger, HAND, "%s's id is %lu", section.c_str(), iterId->first);
+            Info(logger, HAND, "%s's id is %lu", section.c_str(), iterId->first);
 
             if (as == "daemon") {
                 // do nothing
@@ -386,8 +386,7 @@ RetCode EventHandler::tcw_init(const std::string& conf, const std::string& servi
                     return ERROR;
                 }
                 m_heartbeats[iterId->first] = now_time();
-                Dbug(logger, HAND, "%s as a %s listened on %s:%d",
-                                        section.c_str(), as.c_str(), host.c_str(), port);
+                Info(logger, HAND, "%s as a %s listened on %s:%d", section.c_str(), as.c_str(), host.c_str(), port);
             } else if (as == "client") {
                 EClient* ec_client = tcw_tcp_connect(host, port, iterId->first);
                 if (! ec_client) {
@@ -401,11 +400,10 @@ RetCode EventHandler::tcw_init(const std::string& conf, const std::string& servi
                 }
                 
                 dynamic_cast<BaseClient*>(ec_client)->set_actions(m_linkers_actions[m_services_id[m_daemon_id]]);
-                Dbug(logger, HAND, "%s as a %s connected to %s:%d",
-                                        section.c_str(), as.c_str(), host.c_str(), port);
+                Info(logger, HAND, "%s as a %s connected to %s:%d", section.c_str(), as.c_str(), host.c_str(), port);
             } else if (as == "child") {
                 m_heartbeats[iterId->first] = now_time();
-                Dbug(logger, HAND, "%s would as a %s created by daemon", section.c_str(), as.c_str());
+                Info(logger, HAND, "%s would as a %s created by daemon", section.c_str(), as.c_str());
             }
         }           
     } else {
@@ -1117,8 +1115,19 @@ RetCode EventHandler::tcw_guard_child()
         uint64_t now  = now_time();
         uint64_t last = ele.second;
         SID_t    sid  = ele.first;
+
+        if (m_hb_offline.find(sid) == m_hb_offline.end()) {
+            m_hb_offline[sid] = BitRing<HEART_BEAT_OFFLINE>();
+        }
+
+        uint64_t interval = (HEART_BEAT_INTERVAL * 1.3) * 1000;
+        if (now - last > interval) {
+            m_hb_offline[sid].set();
+        } else {
+            m_hb_offline[sid].unset();
+        }
         
-        if (now - last < 4 * 1000) {
+        if (m_hb_offline[sid].ratio() < 0.99) {
             continue;
         }
         
@@ -1197,19 +1206,28 @@ RetCode EventHandler::tcw_guard_child()
 
 void EventHandler::tcw_run()
 {
+    m_is_running = true;
+
+    if (m_is_daemon) {
+        std::thread guard_and_clear([this](){
+            while (m_is_running) {
+                tcw_clear_zombie();
+                tcw_guard_child();
+
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+            }
+        });
+        guard_and_clear.detach();
+    }
+
     struct epoll_event *evs = (struct epoll_event*)calloc(1, sizeof(struct epoll_event) * EPOLL_MAX_NUM);
     if (! evs) {
         return ;
     }
-
-    m_is_running = true;
-                    
+                   
     int i, res;
     while (m_is_running) 
-    {
-        tcw_clear_zombie();
-        tcw_guard_child();
-        
+    {        
         Info(logger, HAND, "epi(%d) waiting: %lu cs(%lu ls, %lu ils, %lu ols, %lu pps)", 
             m_epi, m_clients.size(), m_listeners.size(), m_ilinkers.size(), m_olinkers.size(), m_pipe_pairs.size());
         res = epoll_wait(m_epi, evs, EPOLL_MAX_NUM, 1000);

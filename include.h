@@ -39,6 +39,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <bitset>
 
 typedef struct __attribute__ ((__packed__)) {
     uint8_t     ver[2];             /** 0-major 1-revised */

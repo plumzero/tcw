@@ -367,7 +367,7 @@ int child_timer_callback(void *args, void *userp)
     }
 
     if (eeh->m_ilinkers.find(bc->fd) != eeh->m_ilinkers.end()) {
-        if (now_time() - bc->heartbeat < 1000) {
+        if (now_time() - bc->heartbeat < HEART_BEAT_INTERVAL * 1000) {
             return 0;
         }
         bc->heartbeat = now_time();
