@@ -17,6 +17,8 @@ uint32_t crc32calc(const char *buf, size_t size);
 uint32_t crc32calc(std::string fname);
 
 /** add NegoHeader */
+void add_header(std::string* tostream, const uint16_t msgid, const uint64_t origin, const uint64_t orient, const std::string& msg);
+
 template<typename T>
 size_t add_header(std::string *out, T val, size_t size);
 

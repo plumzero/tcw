@@ -107,6 +107,21 @@ uint32_t crc32calc(std::string fname)
 }
 
 /** add NegoHeader */
+void add_header(std::string* tostream, const uint16_t msgid, const uint64_t origin, const uint64_t orient, const std::string& msg)
+{
+    NegoHeader header;
+    
+    memset(&header, 0, sizeof(header));
+
+    header.crc32 = htonl(crc32calc(msg.c_str(), msg.size()));
+    header.bodysize = msg.size();
+    header.msgid = msgid;
+    header.origin = origin;
+    header.orient = orient;
+    
+    tostream->assign(std::string((const char *)&header, sizeof(header)) + msg);
+}
+
 template<>
 size_t add_header(std::string *out, const char *body, size_t bodysize)
 {

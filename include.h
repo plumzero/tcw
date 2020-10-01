@@ -42,9 +42,11 @@
 #include <bitset>
 
 typedef struct __attribute__ ((__packed__)) {
-    uint8_t     ver[2];             /** 0-major 1-revised */
-    uint16_t    bodysize;           /** payload size */
+    uint8_t     ver[3];             /** 0-major 1-minor 2-revised */
+    uint8_t     orthocode;
     uint32_t    crc32;
+    uint16_t    bodysize;           /** payload size */
+    uint16_t    msgid;
     uint64_t    origin;
     uint64_t    orient;
     uint64_t    pholder;            /** placeholder */

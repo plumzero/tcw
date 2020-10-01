@@ -36,6 +36,15 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
     memcpy(&header, hbuf, NEGOHSIZE);
 
     size_t bodysize = ntohs(header.bodysize);
+    if (bodysize == 0) {
+        ECHO(DBUG, "====> maybe a heartbeat");
+        ECHO(DBUG, "====> header: ver[0]=%c,ver[1]=%c,bodysize=%lu,origin=%lu,orient=%lu", header.ver[0], header.ver[1], bodysize, header.origin, header.orient);
+        eeh->m_heartbeats[bc->sid] = now_time();
+        return 0;
+    }
+
+    ECHO(DBUG, "----> header: ver[0]=%c,ver[1]=%c,bodysize=%lu,origin=%lu,orient=%lu", header.ver[0], header.ver[1], bodysize, header.origin, header.orient);
+
 
     char *rbuf = (char *)calloc(1, bodysize);
     if (! rbuf) {
@@ -66,6 +75,8 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
     BIC_MESSAGE bicmh(&bich, nullptr);
     bicmh.ExtractHeader(msg.c_str());
 
+    ECHO(DBUG, "----> origin=%lu(%s),orient=%lu(%s)", bich.origin, eeh->m_services_id[bich.origin].c_str(), bich.orient, eeh->m_services_id[bich.orient].c_str());
+
     if (bich.type == BIC_TYPE_GUARDRAGON) {
         BIC_GUARDRAGON bicguard;
         BIC_MESSAGE bicmguard(nullptr, &bicguard);
@@ -77,9 +88,9 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
         return 0;
     }
 
-    Dbug(eeh->logger, MODU, "origin=%s, orient=%s, type=%d, from_outward=%d",
+    Dbug(eeh->logger, MODU, "origin=%s, orient=%s, from_outward=%d",
                                 eeh->m_services_id[bich.origin].c_str(), 
-                                eeh->m_services_id[bich.orient].c_str(), bich.type, from_outward);
+                                eeh->m_services_id[bich.orient].c_str(), from_outward);
 
     decltype (std::declval<std::map<tcw::FD_t, tcw::SID_t>>().begin()) iterTo;
     int tofd = -1;
@@ -310,7 +321,8 @@ ssize_t child_read_callback(int fd, void *buf, size_t size, void *userp)
 
     /** received it and do nothing, instead of passing it to application layer. */
     std::unique_lock<std::mutex> guard(eeh->m_mutex);   /** locked passively */
-    eeh->m_messages.push(std::move(msg));
+    eeh->m_messages.push(std::string(hbuf, hbuf + sizeof(hbuf)) + std::move(msg));
+    // eeh->m_messages.push(std::move(msg));
     eeh->m_cond.notify_one();
 
     Dbug(eeh->logger, MODU, "notified to deal with msg queue(size=%lu)", eeh->m_messages.size());
@@ -372,27 +384,52 @@ int child_timer_callback(void *args, void *userp)
         }
         bc->heartbeat = now_time();
         
-        BIC_HEADER tobich(eeh->m_id, eeh->m_daemon_id, BIC_TYPE_GUARDRAGON);
-        BIC_GUARDRAGON tobicp;
-        tobicp.biubiu = "Hello World, I am " + eeh->m_services_id[eeh->m_id];
-        BIC_MESSAGE tobicm(&tobich, &tobicp);
+        // BIC_HEADER tobich(eeh->m_id, eeh->m_daemon_id, BIC_TYPE_GUARDRAGON);
+        // BIC_GUARDRAGON tobicp;
+        // tobicp.biubiu = "Hello World, I am " + eeh->m_services_id[eeh->m_id];
+        // BIC_MESSAGE tobicm(&tobich, &tobicp);
 
-        std::string tomsg;
-        tobicm.Serialize(&tomsg);
+        // std::string tomsg;
+        // tobicm.Serialize(&tomsg);
 
-        std::string tostream;
-        if (tomsg.empty()) {
-            Erro(eeh->logger, MODU, "msg size is 0");
-            return -1;
+        // std::string tostream;
+        // if (tomsg.empty()) {
+        //     Erro(eeh->logger, MODU, "msg size is 0");
+        //     return -1;
+        // }
+
+        NegoHeader header;
+        
+        header.ver[0] = (uint8_t)'h';
+        header.ver[1] = (uint8_t)'b';
+        header.bodysize = htons(0);
+        header.origin = eeh->m_id;
+        header.orient = eeh->m_daemon_id;
+        header.crc32 = htonl(0);
+        
+        std::string tostream(std::string((const char *)&header, NEGOHSIZE));
+
+        {
+            NegoHeader header_1;
+            memset(&header_1, 0, sizeof(header_1));
+            header_1.ver[0] = (uint8_t)'h';
+            header_1.ver[1] = (uint8_t)'b';
+            header_1.bodysize = htons(0);
+            header_1.origin = eeh->m_id;
+            header_1.orient = eeh->m_daemon_id;
+
+            ECHO(DBUG, "header_1: bodysize=%d,origin=%lu,orient=%lu", header_1.bodysize, header_1.origin, header_1.orient);
         }
-        add_header(&tostream, tomsg);
 
         eeh->m_linker_queues[bc->sid].push(tostream);
 
-        Dbug(eeh->logger, MODU, "pushed msg(type=%d, len=%lu, from=%s) to que(ownby=%s, size=%lu) and heartbeat to %s", 
-                                    BIC_TYPE_GUARDRAGON, tostream.size(), eeh->m_services_id[tobich.origin].c_str(),
+        // ECHO(DBUG, "bc->sid=%lu", bc->sid);
+        // ECHO(DBUG, "tobich.origin=%lu(%s),tobich.orient=%lu(%s)", tobich.origin, eeh->m_services_id[tobich.origin].c_str(), tobich.orient, eeh->m_services_id[tobich.orient].c_str());
+
+        Dbug(eeh->logger, MODU, "pushed msg(len=%lu, from=%s) to que(ownby=%s, size=%lu) and heartbeat to %s", 
+                                    tostream.size(), eeh->m_services_id[eeh->m_id].c_str(),
                                     eeh->m_services_id[bc->sid].c_str(), eeh->m_linker_queues[bc->sid].size(),
-                                    eeh->m_services_id[tobich.orient].c_str());
+                                    eeh->m_services_id[eeh->m_daemon_id].c_str());
         
         eeh->tcw_mod(bc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
     }
