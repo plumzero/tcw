@@ -5,31 +5,12 @@
 #include "include.h"
 
 /** CRC32 caculate */
-template<typename T>
-uint32_t crc32calc(T val, size_t size);
-
-template<>
-uint32_t crc32calc(const unsigned char *buf, size_t size);
-
-template<>
 uint32_t crc32calc(const char *buf, size_t size);
-
-uint32_t crc32calc(std::string fname);
 
 /** add NegoHeader */
 void add_header(std::string* tostream, const uint16_t msgid, const uint64_t origin, const uint64_t orient, const std::string& msg);
 
-template<typename T>
-size_t add_header(std::string *out, T val, size_t size);
-
-template<>
-size_t add_header(std::string *out, const char *body, size_t bodysize);
-
-template<>
-size_t add_header(std::string *out, const unsigned char *body, size_t bodysize);
-
-size_t add_header(std::string *out, const std::string &body);
-
+/** current time(milliseconds) */
 uint64_t now_time();
 
 namespace tcw

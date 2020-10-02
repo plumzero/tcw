@@ -205,45 +205,6 @@ int daemon_timer_callback(void *args, void *userp)
 {   
     (void) args;
     (void) userp;
-
-    // tcw::EventHandler *eeh = (tcw::EventHandler *)userp;
-
-    // tcw::BaseClient *bc = dynamic_cast<tcw::BaseClient*>((tcw::EClient*)args);
-    // if (! bc) {
-        // return -1;
-    // }
-    
-    // if (eeh->m_olinkers.find(bc->fd) != eeh->m_olinkers.end()) {    /** guard heartbeat */
-        // if (now_time() - bc->heartbeat >= 1000) {
-            // bc->heartbeat = now_time();
-
-            // BIC_HEADER tobich(eeh->m_id, bc->sid, BIC_TYPE_GUARDRAGON);
-            // BIC_GUARDRAGON tobicp;
-            // tobicp.biubiu = "Hello World, I am " + eeh->m_services_id[eeh->m_id];;
-            // BIC_MESSAGE tobicm(&tobich, &tobicp);
-
-            // std::string tomsg;
-            // tobicm.Serialize(&tomsg);
-
-            // std::string tostream;
-            // if (tomsg.empty()) {
-                // Erro(eeh->logger, MODU, "msg size is 0");
-                // return -1;
-            // }
-            // add_header(&tostream, tomsg);
-
-            // eeh->m_linker_queues[bc->sid].push(tostream);
-            
-            // Dbug(eeh->logger, MODU, "pushed msg(type=%d, len=%lu, from=%s) to que(ownby=%s, size=%lu) and heartbeat to %s", 
-                                        // BIC_TYPE_GUARDRAGON, tostream.size(), eeh->m_services_id[tobich.origin].c_str(),
-                                        // eeh->m_services_id[bc->sid].c_str(), eeh->m_linker_queues[bc->sid].size(),
-                                        // eeh->m_services_id[tobich.orient].c_str());
-            
-            // eeh->tcw_mod(bc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
-        // }
-    // } else {
-        // // do nothing
-    // }
     
     return 0;
 }

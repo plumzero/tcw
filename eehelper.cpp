@@ -1,7 +1,6 @@
 
 #include "eehelper.h"
 
-/** CRC32 caculate */
 static const unsigned int crc32tab[] = {
     0x00000000L, 0x77073096L, 0xee0e612cL, 0x990951baL,
     0x076dc419L, 0x706af48fL, 0xe963a535L, 0x9e6495a3L,
@@ -69,8 +68,7 @@ static const unsigned int crc32tab[] = {
     0xb40bbe37L, 0xc30c8ea1L, 0x5a05df1bL, 0x2d02ef8dL
 };
 
-template<>
-uint32_t crc32calc(const unsigned char *buf, size_t size)
+uint32_t crc32calc(const char *buf, size_t size)
 {
     uint32_t i, crc;
     crc = 0xFFFFFFFF;
@@ -81,32 +79,6 @@ uint32_t crc32calc(const unsigned char *buf, size_t size)
     return crc^0xFFFFFFFF;
 }
 
-template<>
-uint32_t crc32calc(const char *buf, size_t size)
-{
-    return crc32calc(reinterpret_cast<const unsigned char*>(buf), size);
-}
-
-uint32_t crc32calc(std::string fname)
-{
-    std::ifstream ifs;
-    
-    ifs.open(fname.c_str(), std::ifstream::in | std::ifstream::binary);
-    if (! ifs.is_open()) {
-        fprintf(stderr, "open(\"%s\"): %s", fname.c_str(), strerror(errno));
-        return (uint32_t)-1;
-    }
-    
-    std::ostringstream oss;
-    std::string strStream;
-    
-    oss << ifs.rdbuf();
-    strStream.assign(oss.str());
-    
-    return crc32calc(strStream.c_str(), strStream.size());
-}
-
-/** add NegoHeader */
 void add_header(std::string* tostream, const uint16_t msgid, const uint64_t origin, const uint64_t orient, const std::string& msg)
 {
     NegoHeader header;
@@ -120,32 +92,6 @@ void add_header(std::string* tostream, const uint16_t msgid, const uint64_t orig
     header.orient = orient;
     
     tostream->assign(std::string((const char *)&header, sizeof(header)) + msg);
-}
-
-template<>
-size_t add_header(std::string *out, const char *body, size_t bodysize)
-{
-    NegoHeader header;
-    
-    header.ver[0] = 3;
-    header.ver[1] = 9;
-    header.bodysize = htons(bodysize);
-    header.crc32 = htonl(crc32calc(body, bodysize));
-    
-    out->assign(std::string((const char *)&header, NEGOHSIZE) + std::string(body, bodysize));
-    
-    return out->size();
-}
-
-template<>
-size_t add_header(std::string *out, const unsigned char *body, size_t bodysize)
-{
-    return add_header(out, reinterpret_cast<const char *>(body), bodysize);
-}
-
-size_t add_header(std::string *out, const std::string &body)
-{
-    return add_header(out, body.c_str(), body.size());
 }
 
 uint64_t now_time()
