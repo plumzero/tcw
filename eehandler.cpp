@@ -47,14 +47,7 @@ std::map<std::string, std::function<void(const uint16_t, const uint64_t, uint64_
 
 bool EventHandler::m_is_running = false;
 
-RetCode EventHandler::tcw_register_service(const std::string& service, int func(void*))
-{
-    m_linkers_func[service] = std::bind(func, std::placeholders::_1);
-
-    return OK;
-}
-
-RetCode EventHandler::tcw_register_service_2(const std::string& service, void func(const uint16_t, const uint64_t, const uint64_t, const std::string&, void*))
+RetCode EventHandler::tcw_register_service(const std::string& service, void func(const uint16_t, const uint64_t, const uint64_t, const std::string&, void*))
 {
     using namespace std::placeholders;
     m_service_callback[service] = std::bind(func, _1, _2, _3, _4, _5);

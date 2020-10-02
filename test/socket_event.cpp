@@ -1,8 +1,8 @@
 
-#include "include.h"
 #include "eehandler.h"
-#include "eemodule.h"
-#include "eefunc.h"
+#include "eelog.h"
+#include "bic.h"
+#include "msgid.h"
 
 const std::string INI_STRING = R"INI(
 
@@ -51,6 +51,8 @@ service=POLICY
 
 )INI";
 
+void client_function(const uint16_t msgid, const uint64_t origin, const uint64_t orient, const std::string& msg, void* arg);
+
 int main(int argc, char *argv[])
 {
     (void) argc;
@@ -85,4 +87,98 @@ int main(int argc, char *argv[])
     eeh.tcw_destroy();
     
     return 0;
+}
+
+
+void client_function(const uint16_t msgid, const uint64_t origin, const uint64_t orient, const std::string& msg, void* arg)
+{
+    // (void) origin;
+    (void) orient;
+    tcw::EventHandler *eeh = (tcw::EventHandler *)arg;
+    /** deal with the message, defined by programmer */
+    switch (msgid) {
+        case BIC_TYPE_P2P_START:
+        {
+            BIC_MONSTER bic_monster;
+            bic_monster.name = eeh->m_services_id[eeh->m_id];
+            bic_monster.type = "service";
+            bic_monster.attribute = "process";
+            bic_monster.race = "Fairy";
+            bic_monster.level = 4;
+            bic_monster.attack = 2200;
+            bic_monster.defense = 2100;
+            bic_monster.description = "当前的服务名称是 " + eeh->m_services_id[eeh->m_id];
+
+            std::string tomsg;
+            bic_monster.Serialize(&tomsg);
+
+            uint16_t tomsgid = BIC_TYPE_S2P_MONSTER;
+            uint64_t tosid = eeh->tcw_get_sid("POLICY");
+
+            eeh->tcw_send_message(tomsgid, tosid, tomsg);            
+        }
+        break;
+        case BIC_TYPE_P2S_SUMMON:
+        {
+            BIC_SUMMON bic;
+            bic.Structuralize(msg);
+            
+            Dbug(eeh->logger, FUNC, "BIC_SUMMON.info:  %s",  bic.info.c_str());
+            Dbug(eeh->logger, FUNC, "BIC_SUMMON.sno:   %s",  bic.sno.c_str());
+            Dbug(eeh->logger, FUNC, "BIC_SUMMON.code:  %lu", bic.code);
+            
+            BIC_MONSTER bic_monster;
+            bic_monster.name = eeh->m_services_id[eeh->m_id];
+            bic_monster.type = "service";
+            bic_monster.attribute = "process";
+            bic_monster.race = "Fairy";
+            bic_monster.level = 4;
+            bic_monster.attack = 2200;
+            bic_monster.defense = 2100;
+            bic_monster.description = "当前的服务名称是 " + eeh->m_services_id[eeh->m_id];
+            
+            std::string tomsg;
+            bic_monster.Serialize(&tomsg);
+
+            uint16_t tomsgid = BIC_TYPE_S2P_MONSTER;
+            uint64_t tosid = origin;
+            
+            eeh->tcw_send_message(tomsgid, tosid, tomsg);
+            ECHO(INFO, "%s 收到消息(type=%d)，并发回给 %s 服务一条消息(type=%d)",
+                        eeh->m_services_id[eeh->m_id].c_str(), BIC_TYPE_P2S_SUMMON,
+                        eeh->m_services_id[tosid].c_str(), tomsgid);
+        }
+        break;
+        case BIC_TYPE_P2S_BOMBER:
+        {
+            BIC_BOMBER bic;
+            bic.Structuralize(msg);
+            
+            Dbug(eeh->logger, FUNC, "BIC_BOMBER.service_name: %s", bic.service_name.c_str());
+            Dbug(eeh->logger, FUNC, "BIC_BOMBER.service_type: %d", bic.service_type);
+            Dbug(eeh->logger, FUNC, "BIC_BOMBER.kill:         %s", bic.kill ? "true" : "false");
+            
+            BIC_BOMBER bic_bomb;
+            bic_bomb.service_name = bic.service_name;
+            bic_bomb.service_type = bic.service_type;
+            bic_bomb.kill = bic.kill;
+            bic_bomb.rescode = 1;
+            bic_bomb.receipt = eeh->m_services_id[eeh->m_id] + " 服务将在 1 秒内被销毁";
+            
+            std::string tomsg;
+            bic_bomb.Serialize(&tomsg);
+
+            uint16_t tomsgid = BIC_TYPE_S2P_BOMBER;
+            uint64_t tosid = origin;
+
+            eeh->tcw_send_message(tomsgid, tosid, tomsg);
+
+            signal(SIGALRM, tcw::signal_release);
+            alarm(2);
+            Dbug(eeh->logger, FUNC, "pid %d would be destructed in 2 seconds", getpid());
+        }
+        break;
+        default:
+            Erro(eeh->logger, FUNC, "undefined or unhandled msg(%d)", (int)msgid);
+    }
 }

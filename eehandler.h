@@ -59,8 +59,7 @@ namespace tcw
         std::mutex                                          m_mutex;
         std::condition_variable                             m_cond;
     public:
-        static RetCode tcw_register_service(const std::string& service, int func(void*));
-        static RetCode tcw_register_service_2(const std::string& service, void func(const uint16_t, const uint64_t, const uint64_t, const std::string&, void* arg));
+        static RetCode tcw_register_service(const std::string& service, void func(const uint16_t, const uint64_t, const uint64_t, const std::string&, void* arg));
         RetCode tcw_init(const std::string& conf, const std::string& service = "");
         void tcw_destroy();
         RetCode tcw_add(EClient *ec);
