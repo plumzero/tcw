@@ -35,6 +35,7 @@ namespace tcw
     public:
         static std::map<std::string, event_actions_t>       m_linkers_actions;  /** service name, actions */
         static std::map<std::string, std::function<int(void*)>>   m_linkers_func;
+        static std::map<std::string, std::function<void(const uint16_t, const uint64_t, uint64_t, const std::string&, void*)>> m_service_callback;
         static bool                                         m_is_running;
         std::string                                         m_conf_name;
         SID_t                                               m_daemon_id;
@@ -59,6 +60,7 @@ namespace tcw
         std::condition_variable                             m_cond;
     public:
         static RetCode tcw_register_service(const std::string& service, int func(void*));
+        static RetCode tcw_register_service_2(const std::string& service, void func(const uint16_t, const uint64_t, const uint64_t, const std::string&, void* arg));
         RetCode tcw_init(const std::string& conf, const std::string& service = "");
         void tcw_destroy();
         RetCode tcw_add(EClient *ec);
@@ -68,6 +70,9 @@ namespace tcw
         void tcw_clear_zombie();
         RetCode tcw_guard_child();
         void tcw_rebuild_child(int rfd, int wfd, const std::string& conf, const std::string& specified_service, const SID_t daemon_id);
+        RetCode tcw_check_message(const std::string& stream, uint16_t* msgid, uint64_t* origin, uint64_t* orient, std::string* msg);
+        RetCode tcw_send_message(const uint16_t msgid, const uint64_t tosid, const std::string& msg);
+        uint64_t tcw_get_sid(const std::string& service);   /** interface for testing */
         
         // TCP handler
         EClient* tcw_tcp_listen(std::string bind_ip, PORT_t service_port, SID_t sid, event_actions_t clients_action);

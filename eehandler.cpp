@@ -43,12 +43,21 @@ void signal_release(int signum)
     
 std::map<std::string, event_actions_t>           EventHandler::m_linkers_actions{};
 std::map<std::string, std::function<int(void*)>>  EventHandler::m_linkers_func{};
+std::map<std::string, std::function<void(const uint16_t, const uint64_t, uint64_t, const std::string&, void*)>> EventHandler::m_service_callback{};
 
 bool EventHandler::m_is_running = false;
 
 RetCode EventHandler::tcw_register_service(const std::string& service, int func(void*))
 {
     m_linkers_func[service] = std::bind(func, std::placeholders::_1);
+
+    return OK;
+}
+
+RetCode EventHandler::tcw_register_service_2(const std::string& service, void func(const uint16_t, const uint64_t, const uint64_t, const std::string&, void*))
+{
+    using namespace std::placeholders;
+    m_service_callback[service] = std::bind(func, _1, _2, _3, _4, _5);
 
     return OK;
 }
@@ -1094,10 +1103,42 @@ void EventHandler::tcw_rebuild_child(int rfd, int wfd,
     
     eeh.m_info_process[getpid()] = specified_service;
     
-    if (m_linkers_func.find(specified_service) != m_linkers_func.end()) {
+    // if (m_linkers_func.find(specified_service) != m_linkers_func.end()) {
+    //     std::string service{specified_service};
+    //     ECHO(INFO, "service(name=%s, id=%lu) is starting...", specified_service.c_str(), eeh.m_id);
+    //     std::thread th(m_linkers_func[specified_service], &eeh);
+    //     th.detach();
+    // }
+
+    if (m_service_callback.find(specified_service) != m_service_callback.end()) {
         std::string service{specified_service};
         ECHO(INFO, "service(name=%s, id=%lu) is starting...", specified_service.c_str(), eeh.m_id);
-        std::thread th(m_linkers_func[specified_service], &eeh);
+        std::thread th([&eeh, specified_service](){
+            while (true) {
+                /** wait for the message to deal with */
+                std::unique_lock<std::mutex> guard(eeh.m_mutex);
+                if (! eeh.m_cond.wait_for(guard, std::chrono::seconds(2), [&eeh](){ return ! eeh.m_messages.empty(); })) {
+                    Dbug(eeh.logger, HAND, "thread msg queue is empty");
+                    continue;
+                }
+                Dbug(eeh.logger, HAND, "deal with thread msg queue(size=%lu)", eeh.m_messages.size());
+                
+                std::string stream = std::move(eeh.m_messages.front());
+                eeh.m_messages.pop();
+                guard.unlock();
+
+                uint16_t msgid = 0;
+                uint64_t origin = 0;
+                uint64_t orient = 0;
+                std::string msg;
+                if (eeh.tcw_check_message(stream, &msgid, &origin, &orient, &msg) != OK) {
+                    Erro(eeh.logger, HAND, "err msg(stream.size=%lu,msgid=%u,origin=%lu,orient=%lu,msg.size=%lu)",
+                                            stream.size(), msgid, origin, orient, msg.size());
+                    continue;
+                }
+                m_service_callback[specified_service](msgid, origin, orient, msg, &eeh);
+            }
+        });
         th.detach();
     }
     
@@ -1306,6 +1347,86 @@ void EventHandler::tcw_run()
     }
     
     if (evs) free(evs);
+}
+
+RetCode EventHandler::tcw_check_message(const std::string& stream, uint16_t* msgid, uint64_t* origin, uint64_t* orient, std::string* msg)
+{
+    if (stream.size() <= sizeof(NegoHeader)) {
+        return ERROR;
+    }
+
+    NegoHeader header;
+    memcpy(&header, stream.c_str(), sizeof(NegoHeader));
+
+    if (m_id != header.orient) {
+        return ERROR;
+    }
+
+    *msgid = ntohs(header.msgid);
+    *origin = header.origin;
+    *orient = header.orient;
+
+    size_t bodysize = ntohs(header.bodysize);
+
+    msg->assign(stream.c_str() + sizeof(NegoHeader), bodysize);
+
+    return OK;
+}
+
+RetCode EventHandler::tcw_send_message(const uint16_t msgid, const uint64_t tosid, const std::string& msg)
+{
+    std::string tostream;
+
+    if (tosid == 0) {
+        Erro(logger, HAND, "tosid(%lu) is illegal", tosid);
+        return ERROR;
+    }
+    add_header(&tostream, msgid, m_id, tosid, msg);
+
+    int tofd = 0;
+    if (m_id != m_daemon_id) {
+        if (m_pipe_pairs.find(m_id) != m_pipe_pairs.end()) {
+            tofd = m_pipe_pairs[m_id].second;
+        } else {
+            Erro(logger, HAND, "pipe pair not found");
+            return ERROR;
+        }
+    } else {
+        auto iterIn = std::find_if(m_ilinkers.begin(), m_ilinkers.end(), [&tosid](decltype(*m_ilinkers.begin())& ele){ return ele.second == tosid; });
+        if (iterIn != m_ilinkers.end()) {
+            tofd = iterIn->first;
+        } else {
+            auto iterOut = std::find_if(m_olinkers.begin(), m_olinkers.end(), [&tosid](decltype(*m_olinkers.begin())& ele){ return ele.second == tosid; });
+            if (iterOut != m_olinkers.end()) {
+                tofd = iterOut->first;
+            } else {
+                Erro(logger, HAND, "this exception deserves an attention");
+            }
+        }
+    }
+
+    tcw::BaseClient* tobc = dynamic_cast<tcw::BaseClient*>(m_clients[tofd]);
+    if (! tobc) {
+        Erro(logger, HAND, "could not find the client");
+        return ERROR;
+    }
+
+    m_linker_queues[tobc->sid].push(tostream);
+
+    tcw_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
+
+    return OK;
+}
+
+uint64_t EventHandler::tcw_get_sid(const std::string& service)
+{
+    auto iterTo = std::find_if(m_services_id.begin(), m_services_id.end(),
+            [service](decltype(*m_services_id.begin())& ele){ return ele.second == service; });
+    if (iterTo == m_services_id.end()) {
+        return 0;
+    } else {
+        return iterTo->first;
+    }
 }
 
 }
