@@ -178,10 +178,12 @@ namespace
 #define ERRO_FD  stderr
 #define INFO_FD  stdout
 #define DBUG_FD  stdout
+#define WARN_FD  stdout
 
 #define ERRO_COLOR   "\033[31m"
 #define INFO_COLOR   "\033[32m"
 #define DBUG_COLOR   "\033[34m"
+#define WARN_COLOR   "\033[35m"
 #define END_COLOR    "\033[0m"
 
 #define _ECHO(type, format, ...)              \

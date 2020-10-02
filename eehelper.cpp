@@ -114,8 +114,8 @@ void add_header(std::string* tostream, const uint16_t msgid, const uint64_t orig
     memset(&header, 0, sizeof(header));
 
     header.crc32 = htonl(crc32calc(msg.c_str(), msg.size()));
-    header.bodysize = msg.size();
-    header.msgid = msgid;
+    header.bodysize = htons(msg.size());
+    header.msgid = htons(msgid);
     header.origin = origin;
     header.orient = orient;
     

@@ -8,7 +8,7 @@
 int check_message(const std::string& stream, uint16_t* msgid, uint64_t* origin, uint64_t* orient, std::string* msg, void* args)
 {
     tcw::EventHandler *eeh = (tcw::EventHandler *)args;
-    
+
     if (stream.size() <= sizeof(NegoHeader)) {
         return -1;
     }
@@ -27,7 +27,7 @@ int check_message(const std::string& stream, uint16_t* msgid, uint64_t* origin, 
     size_t bodysize = ntohs(header.bodysize);
 
     msg->assign(stream.c_str() + sizeof(NegoHeader), bodysize);
-    
+
     return 0;
 }
 
@@ -116,7 +116,7 @@ int step_1_function(void* args)
                 
                 Dbug(eeh->logger, FUNC, "BIC_A2A_START.is_start: %d", bic.is_start);
                 Dbug(eeh->logger, FUNC, "BIC_A2A_START.information: %s", bic.information.c_str());
-                
+
                 BIC_A2B_BETWEEN bic_a2b;
                 bic_a2b.send = true;
                 bic_a2b.information = "send command to NEXT service";

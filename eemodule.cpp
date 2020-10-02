@@ -1,7 +1,6 @@
 
 #include "eemodule.h"
 #include "eehandler.h"
-#include "bic.h"
 #include "eehelper.h"
 #include "eelog.h"
 
@@ -17,7 +16,6 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
         return -1;
     }
     
-    Dbug(eeh->logger, MODU, "do read from ec(%p, t=%d, s=%s)", bc, bc->type, eeh->m_services_id[bc->sid].c_str());
     bool from_outward = false;
     if (eeh->m_olinkers.find(fd) != eeh->m_olinkers.end()) {
         from_outward = true;
@@ -35,16 +33,18 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
     NegoHeader header;
     memcpy(&header, hbuf, NEGOHSIZE);
 
+    uint64_t origin = header.origin;
+    uint64_t orient = header.orient;
     size_t bodysize = ntohs(header.bodysize);
-    if (bodysize == 0) {
-        ECHO(DBUG, "====> maybe a heartbeat");
-        ECHO(DBUG, "====> header: ver[0]=%c,ver[1]=%c,bodysize=%lu,origin=%lu,orient=%lu", header.ver[0], header.ver[1], bodysize, header.origin, header.orient);
-        eeh->m_heartbeats[bc->sid] = now_time();
+    if (bodysize == 0 && orient == eeh->m_id) {
+        if (header.ver[0] == (uint8_t)'h' && header.ver[1] == (uint8_t)'b') {
+            Info(eeh->logger, MODU, "receive heartbeat from %s(sid=%lu)", eeh->m_services_id[origin].c_str(), origin);
+            eeh->m_heartbeats[bc->sid] = now_time();
+        }
         return 0;
     }
 
-    ECHO(DBUG, "----> header: ver[0]=%c,ver[1]=%c,bodysize=%lu,origin=%lu,orient=%lu", header.ver[0], header.ver[1], bodysize, header.origin, header.orient);
-
+    uint16_t msgid = ntohs(header.msgid);
 
     char *rbuf = (char *)calloc(1, bodysize);
     if (! rbuf) {
@@ -71,43 +71,26 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
         return -1;
     }
 
-    BIC_HEADER  bich;
-    BIC_MESSAGE bicmh(&bich, nullptr);
-    bicmh.ExtractHeader(msg.c_str());
-
-    ECHO(DBUG, "----> origin=%lu(%s),orient=%lu(%s)", bich.origin, eeh->m_services_id[bich.origin].c_str(), bich.orient, eeh->m_services_id[bich.orient].c_str());
-
-    if (bich.type == BIC_TYPE_GUARDRAGON) {
-        BIC_GUARDRAGON bicguard;
-        BIC_MESSAGE bicmguard(nullptr, &bicguard);
-        
-        bicmguard.ExtractPayload(msg);
-        Dbug(eeh->logger, MODU, "BIC_GUARDRAGON.heartbeat: %lu", bicguard.heartbeat);
-        Dbug(eeh->logger, MODU, "BIC_GUARDRAGON.biubiu:    %s",  bicguard.biubiu.c_str());
-        eeh->m_heartbeats[bc->sid] = now_time();
-        return 0;
-    }
-
-    Dbug(eeh->logger, MODU, "origin=%s, orient=%s, from_outward=%d",
-                                eeh->m_services_id[bich.origin].c_str(), 
-                                eeh->m_services_id[bich.orient].c_str(), from_outward);
+    Dbug(eeh->logger, MODU, "msgid=%u, origin=%s, orient=%s, from_outward=%d",
+                                msgid, eeh->m_services_id[origin].c_str(), 
+                                eeh->m_services_id[orient].c_str(), from_outward);
 
     decltype (std::declval<std::map<tcw::FD_t, tcw::SID_t>>().begin()) iterTo;
     int tofd = -1;
     if (from_outward) {
         /** socket connect: recv */
         iterTo = std::find_if(eeh->m_ilinkers.begin(), eeh->m_ilinkers.end(),
-                                [&bich](decltype(*eeh->m_ilinkers.begin())& ele){
-            return ele.second == bich.orient;
+                                [&orient](decltype(*eeh->m_ilinkers.begin())& ele){
+            return ele.second == orient;
         });
         if (iterTo != eeh->m_ilinkers.end()) {
             tofd = iterTo->first;
-            eeh->m_route_fd[bich.origin].insert(fd);
+            eeh->m_route_fd[origin].insert(fd);
         }
     } else {   
         iterTo = std::find_if(eeh->m_ilinkers.begin(), eeh->m_ilinkers.end(),
-                                [&bich](decltype(*eeh->m_ilinkers.begin())& ele){
-            return ele.second == bich.orient;
+                                [&orient](decltype(*eeh->m_ilinkers.begin())& ele){
+            return ele.second == orient;
         });
         /** ipc between internal child process */
         if (iterTo != eeh->m_ilinkers.end()) {
@@ -115,15 +98,15 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
         } else {
             /** socket connect: send  load balance */
             /** load balance */
-            if (! eeh->m_route_fd[bich.orient].empty()) {
-                size_t idx = rand() % eeh->m_route_fd[bich.orient].size();
-                auto itProxy = eeh->m_route_fd[bich.orient].begin();
-                for ( ; itProxy != eeh->m_route_fd[bich.orient].end(); itProxy++) {
+            if (! eeh->m_route_fd[orient].empty()) {
+                size_t idx = rand() % eeh->m_route_fd[orient].size();
+                auto itProxy = eeh->m_route_fd[orient].begin();
+                for ( ; itProxy != eeh->m_route_fd[orient].end(); itProxy++) {
                     if (idx-- == 0) {
                         break;
                     }
                 }
-                if (itProxy != eeh->m_route_fd[bich.orient].end()) {
+                if (itProxy != eeh->m_route_fd[orient].end()) {
                     tofd = *itProxy;
                 }
             } else if (! eeh->m_olinkers.empty()) {
@@ -135,7 +118,7 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
                 }
                 if (iterTo != eeh->m_olinkers.end()) {
                     tofd = iterTo->first;
-                    eeh->m_route_fd[bich.orient].insert(tofd);
+                    eeh->m_route_fd[orient].insert(tofd);
                 }
             }
             if (tofd > 0) {
@@ -164,14 +147,14 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
     if (! tobc) {
         return -1;
     }
-    
+
     /** recover it to the original message(header + BIC_MESSAGE) */
     eeh->m_linker_queues[tobc->sid].emplace(std::string(hbuf, hbuf + sizeof(hbuf)) + msg);
 
-    Dbug(eeh->logger, MODU, "pushed msg(type=%d, len=%lu, from=%s) to que(ownby=%s, size=%lu) and forward to %s", 
-                                bich.type, msg.size(), eeh->m_services_id[bich.origin].c_str(),
+    Dbug(eeh->logger, MODU, "pushed msg(len=%lu, from=%s) to que(ownby=%s, size=%lu) and forward to %s", 
+                                msg.size(), eeh->m_services_id[origin].c_str(),
                                 eeh->m_services_id[tobc->sid].c_str(), eeh->m_linker_queues[tobc->sid].size(),
-                                eeh->m_services_id[bich.orient].c_str());
+                                eeh->m_services_id[orient].c_str());
 
     eeh->tcw_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
 
@@ -383,48 +366,18 @@ int child_timer_callback(void *args, void *userp)
             return 0;
         }
         bc->heartbeat = now_time();
-        
-        // BIC_HEADER tobich(eeh->m_id, eeh->m_daemon_id, BIC_TYPE_GUARDRAGON);
-        // BIC_GUARDRAGON tobicp;
-        // tobicp.biubiu = "Hello World, I am " + eeh->m_services_id[eeh->m_id];
-        // BIC_MESSAGE tobicm(&tobich, &tobicp);
-
-        // std::string tomsg;
-        // tobicm.Serialize(&tomsg);
-
-        // std::string tostream;
-        // if (tomsg.empty()) {
-        //     Erro(eeh->logger, MODU, "msg size is 0");
-        //     return -1;
-        // }
 
         NegoHeader header;
-        
         header.ver[0] = (uint8_t)'h';
         header.ver[1] = (uint8_t)'b';
         header.bodysize = htons(0);
         header.origin = eeh->m_id;
         header.orient = eeh->m_daemon_id;
         header.crc32 = htonl(0);
-        
+
         std::string tostream(std::string((const char *)&header, NEGOHSIZE));
 
-        {
-            NegoHeader header_1;
-            memset(&header_1, 0, sizeof(header_1));
-            header_1.ver[0] = (uint8_t)'h';
-            header_1.ver[1] = (uint8_t)'b';
-            header_1.bodysize = htons(0);
-            header_1.origin = eeh->m_id;
-            header_1.orient = eeh->m_daemon_id;
-
-            ECHO(DBUG, "header_1: bodysize=%d,origin=%lu,orient=%lu", header_1.bodysize, header_1.origin, header_1.orient);
-        }
-
         eeh->m_linker_queues[bc->sid].push(tostream);
-
-        // ECHO(DBUG, "bc->sid=%lu", bc->sid);
-        // ECHO(DBUG, "tobich.origin=%lu(%s),tobich.orient=%lu(%s)", tobich.origin, eeh->m_services_id[tobich.origin].c_str(), tobich.orient, eeh->m_services_id[tobich.orient].c_str());
 
         Dbug(eeh->logger, MODU, "pushed msg(len=%lu, from=%s) to que(ownby=%s, size=%lu) and heartbeat to %s", 
                                     tostream.size(), eeh->m_services_id[eeh->m_id].c_str(),
