@@ -148,7 +148,7 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
         return -1;
     }
 
-    /** recover it to the original message(header + BIC_MESSAGE) */
+    /** recover it to the original message(header + msg) */
     eeh->m_linker_queues[tobc->sid].emplace(std::string(hbuf, hbuf + sizeof(hbuf)) + msg);
 
     Dbug(eeh->logger, MODU, "pushed msg(len=%lu, from=%s) to que(ownby=%s, size=%lu) and forward to %s", 
@@ -266,7 +266,6 @@ ssize_t child_read_callback(int fd, void *buf, size_t size, void *userp)
     /** received it and do nothing, instead of passing it to application layer. */
     std::unique_lock<std::mutex> guard(eeh->m_mutex);   /** locked passively */
     eeh->m_messages.push(std::string(hbuf, hbuf + sizeof(hbuf)) + std::move(msg));
-    // eeh->m_messages.push(std::move(msg));
     eeh->m_cond.notify_one();
 
     Dbug(eeh->logger, MODU, "notified to deal with msg queue(size=%lu)", eeh->m_messages.size());
@@ -298,7 +297,9 @@ ssize_t child_write_callback(int fd, const void *buf, size_t count, void *userp)
     Dbug(eeh->logger, MODU, "do write to ec(%p, t=%d, s=%s, queue_size=%lu)", 
                                 bc, bc->type,
                                 eeh->m_services_id[sid].c_str(), eeh->m_linker_queues[sid].size());
-        
+    
+    std::unique_lock<std::mutex> guard(eeh->m_mutex);
+    eeh->m_cond.wait(guard, [&eeh](){ return ! eeh->m_linker_queues.empty(); });
     while (eeh->m_linker_queues[sid].size() > 0) {        
         std::string msg(eeh->m_linker_queues[sid].front());
         size_t nt = write(fd, msg.c_str(), msg.size());
@@ -310,6 +311,7 @@ ssize_t child_write_callback(int fd, const void *buf, size_t count, void *userp)
         
         Dbug(eeh->logger, MODU, "forwarded msg(len=%lu) to peer end of ec(%p, t=%d)", nt, bc, bc->type);
     }
+    guard.unlock();
     
     return 0;
 }

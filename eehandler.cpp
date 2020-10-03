@@ -259,7 +259,6 @@ RetCode EventHandler::tcw_init(const std::string& conf, const std::string& servi
     logger->log_set_global_level(loglevel);
     logger->log_set_level(LOG_TYPE_HAND, loglevel);
     logger->log_set_level(LOG_TYPE_MODU, loglevel);
-    logger->log_set_level(LOG_TYPE_FUNC, loglevel);
     logger->log_set_level(LOG_TYPE_TEST, loglevel);
 
     /** [4] caculate each service's sha1 id */
@@ -1096,13 +1095,6 @@ void EventHandler::tcw_rebuild_child(int rfd, int wfd,
     
     eeh.m_info_process[getpid()] = specified_service;
     
-    // if (m_linkers_func.find(specified_service) != m_linkers_func.end()) {
-    //     std::string service{specified_service};
-    //     ECHO(INFO, "service(name=%s, id=%lu) is starting...", specified_service.c_str(), eeh.m_id);
-    //     std::thread th(m_linkers_func[specified_service], &eeh);
-    //     th.detach();
-    // }
-
     if (m_service_callback.find(specified_service) != m_service_callback.end()) {
         std::string service{specified_service};
         ECHO(INFO, "service(name=%s, id=%lu) is starting...", specified_service.c_str(), eeh.m_id);
@@ -1111,10 +1103,8 @@ void EventHandler::tcw_rebuild_child(int rfd, int wfd,
                 /** wait for the message to deal with */
                 std::unique_lock<std::mutex> guard(eeh.m_mutex);
                 if (! eeh.m_cond.wait_for(guard, std::chrono::seconds(2), [&eeh](){ return ! eeh.m_messages.empty(); })) {
-                    Dbug(eeh.logger, HAND, "thread msg queue is empty");
                     continue;
                 }
-                Dbug(eeh.logger, HAND, "deal with thread msg queue(size=%lu)", eeh.m_messages.size());
                 
                 std::string stream = std::move(eeh.m_messages.front());
                 eeh.m_messages.pop();
@@ -1404,8 +1394,14 @@ RetCode EventHandler::tcw_send_message(const uint16_t msgid, const uint64_t tosi
         return ERROR;
     }
 
-    m_linker_queues[tobc->sid].push(tostream);
-
+    if (m_id != m_daemon_id) {
+        std::unique_lock<std::mutex> guard(m_mutex);
+        m_linker_queues[tobc->sid].push(tostream);
+        m_cond.notify_one();
+    } else {
+        m_linker_queues[tobc->sid].push(tostream);
+    }
+    
     tcw_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
 
     return OK;

@@ -123,9 +123,9 @@ void client_function(const uint16_t msgid, const uint64_t origin, const uint64_t
             BIC_SUMMON bic;
             bic.Structuralize(msg);
             
-            Dbug(eeh->logger, FUNC, "BIC_SUMMON.info:  %s",  bic.info.c_str());
-            Dbug(eeh->logger, FUNC, "BIC_SUMMON.sno:   %s",  bic.sno.c_str());
-            Dbug(eeh->logger, FUNC, "BIC_SUMMON.code:  %lu", bic.code);
+            Dbug(eeh->logger, TEST, "BIC_SUMMON.info:  %s",  bic.info.c_str());
+            Dbug(eeh->logger, TEST, "BIC_SUMMON.sno:   %s",  bic.sno.c_str());
+            Dbug(eeh->logger, TEST, "BIC_SUMMON.code:  %lu", bic.code);
             
             BIC_MONSTER bic_monster;
             bic_monster.name = eeh->m_services_id[eeh->m_id];
@@ -154,9 +154,9 @@ void client_function(const uint16_t msgid, const uint64_t origin, const uint64_t
             BIC_BOMBER bic;
             bic.Structuralize(msg);
             
-            Dbug(eeh->logger, FUNC, "BIC_BOMBER.service_name: %s", bic.service_name.c_str());
-            Dbug(eeh->logger, FUNC, "BIC_BOMBER.service_type: %d", bic.service_type);
-            Dbug(eeh->logger, FUNC, "BIC_BOMBER.kill:         %s", bic.kill ? "true" : "false");
+            Dbug(eeh->logger, TEST, "BIC_BOMBER.service_name: %s", bic.service_name.c_str());
+            Dbug(eeh->logger, TEST, "BIC_BOMBER.service_type: %d", bic.service_type);
+            Dbug(eeh->logger, TEST, "BIC_BOMBER.kill:         %s", bic.kill ? "true" : "false");
             
             BIC_BOMBER bic_bomb;
             bic_bomb.service_name = bic.service_name;
@@ -175,10 +175,10 @@ void client_function(const uint16_t msgid, const uint64_t origin, const uint64_t
 
             signal(SIGALRM, tcw::signal_release);
             alarm(2);
-            Dbug(eeh->logger, FUNC, "pid %d would be destructed in 2 seconds", getpid());
+            Dbug(eeh->logger, TEST, "pid %d would be destructed in 2 seconds", getpid());
         }
         break;
         default:
-            Erro(eeh->logger, FUNC, "undefined or unhandled msg(%d)", (int)msgid);
+            Erro(eeh->logger, TEST, "undefined or unhandled msg(%d)", (int)msgid);
     }
 }

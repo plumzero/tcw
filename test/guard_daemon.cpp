@@ -76,16 +76,20 @@ int main(int argc, char *argv[])
         ECHO(DBUG, "thread(tid=%lu) sleep for 6 seconds and wait for child process start", (uint64_t)pthread_self());
         sleep(6);
 
-        uint64_t tosid = eeh.tcw_get_sid("STEP-1");
-        BIC_A2A_START bicstart;
-        bicstart.is_start = true;
-        bicstart.information = "create a message and ready to send";
+        int counter = 100;
+        while (counter--) {
+            uint64_t tosid = eeh.tcw_get_sid("STEP-1");
+            BIC_A2A_START bicstart;
+            bicstart.is_start = true;
+            bicstart.information = "create a message and ready to send";
 
-        std::string msg;
-        bicstart.Serialize(&msg);
+            std::string msg;
+            bicstart.Serialize(&msg);
 
-        ECHO(DBUG, "send a start message to(sid=%lu)", tosid);
-        eeh.tcw_send_message(BIC_TYPE_A2A_START, tosid, msg);
+            ECHO(DBUG, "send a start message to(sid=%lu)", tosid);
+            eeh.tcw_send_message(BIC_TYPE_A2A_START, tosid, msg);
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
     });
     th.detach();
 
