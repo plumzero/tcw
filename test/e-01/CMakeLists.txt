@@ -9,5 +9,11 @@ include_directories(SYSTEM ${rapidjson_INCLUDE})
 #
 # other source file depended by test
 #
-set(OTHERFILE bic.cpp)
+set(OTHERFILE msg.cpp)
 include_directories(.)
+
+#
+# build executable test
+#
+add_executable(test  test.cpp ${MANIFEST} ${OTHERFILE})
+target_link_libraries(test pthread)

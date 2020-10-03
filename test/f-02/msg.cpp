@@ -5,7 +5,7 @@
 void MSG_P2P_START::Serialize(std::string *s)
 {
     rapidjson::StringBuffer sb;
-    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(sb);
+    rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
 
     writer.StartObject();
 
@@ -30,7 +30,7 @@ void MSG_P2P_START::Structuralize(const std::string &s)
 void MSG_SUMMON::Serialize(std::string *s)
 {
     rapidjson::StringBuffer sb;
-    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(sb);
+    rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
 
     writer.StartObject();
 
@@ -57,7 +57,7 @@ void MSG_SUMMON::Structuralize(const std::string &s)
 void MSG_MONSTER::Serialize(std::string *s)
 {
     rapidjson::StringBuffer sb;
-    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(sb);
+    rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
 
     writer.StartObject();
 

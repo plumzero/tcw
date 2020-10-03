@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.8.0)
 #
 # Build Options
 #
-option(BUILD_e_01   "build executable e_01"     OFF)
+option(BUILD_e_01   "build executable e_01"     ON)
 option(BUILD_f_01   "build executable f_01"     ON)
 option(BUILD_f_02   "build executable f_01"     ON)
 

@@ -2,7 +2,7 @@
 #ifndef __RAJ_WRITER_PARSER_JSON_H__
 #define __RAJ_WRITER_PARSER_JSON_H__
 
-#include "rapidjson/prettywriter.h"
+#include "rapidjson/writer.h"
 #include "rapidjson/document.h"
 #include <string>
 #include <vector>

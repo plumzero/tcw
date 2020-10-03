@@ -5,7 +5,7 @@
 void MSG_A2A_START::Serialize(std::string *s)
 {
     rapidjson::StringBuffer sb;
-    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(sb);
+    rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
 
     writer.StartObject();
 
@@ -30,7 +30,7 @@ void MSG_A2A_START::Structuralize(const std::string &s)
 void MSG_A2B_BETWEEN::Serialize(std::string *s)
 {
     rapidjson::StringBuffer sb;
-    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(sb);
+    rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
 
     writer.StartObject();
 
@@ -55,7 +55,7 @@ void MSG_A2B_BETWEEN::Structuralize(const std::string &s)
 void MSG_B2C_BETWEEN::Serialize(std::string *s)
 {
     rapidjson::StringBuffer sb;
-    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(sb);
+    rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
 
     writer.StartObject();
 

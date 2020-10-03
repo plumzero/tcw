@@ -774,7 +774,7 @@ EClient* EventHandler::tcw_tcp_accept(EListener *el)
     NegoHeader header;
     memcpy(&header, buf, NEGOHSIZE);
     if (header.ver[0] == (uint8_t)'w' && header.ver[1] == (uint8_t)'s') {
-        csid = header.pholder;
+        csid = header.origin;
     } else {
         Erro(logger, HAND, "certain unexcepted error occured");
         return nullptr;
@@ -789,7 +789,7 @@ EClient* EventHandler::tcw_tcp_accept(EListener *el)
     header.ver[0] = (uint8_t)'o';
     header.ver[1] = (uint8_t)'k';
     header.bodysize = 0;
-    header.pholder = bl->sid;
+    header.origin = bl->sid;
         
     nh = write(cfd, &header, NEGOHSIZE);
     if (nh != sizeof(NegoHeader)) {
@@ -797,7 +797,7 @@ EClient* EventHandler::tcw_tcp_accept(EListener *el)
         return nullptr;
     }
         
-    Info(logger, HAND, "tcp server finished to deal with the connection with remote client(sid=%lu)", csid);
+    Info(logger, HAND, "tcp server finished to deal with the connection with remote client(fd=%d, sid=%lu)", cfd, csid);
     ECHO(INFO, "tcp server finished to deal with the connection with remote client(fd=%d, sid=%lu)", cfd, csid);
     
     on = 1;
@@ -892,7 +892,7 @@ EClient* EventHandler::tcw_tcp_connect(std::string remote_ip, PORT_t remote_port
     header.ver[0] = (uint8_t)'w';
     header.ver[1] = (uint8_t)'s';
     header.bodysize = 0;
-    header.pholder = sid;
+    header.origin = sid;
         
     ssize_t nh = write(cfd, &header, NEGOHSIZE);
     if (nh != sizeof(NegoHeader)) {
@@ -921,8 +921,8 @@ EClient* EventHandler::tcw_tcp_connect(std::string remote_ip, PORT_t remote_port
         return nullptr;
     }
     
-    Info(logger, HAND, "tcp client finished to deal with connecting to remote service(fd=%d, sid=%lu)", cfd, header.pholder);
-    ECHO(INFO, "tcp client finished to deal with connecting to remote service(fd=%d, sid=%lu)", cfd, header.pholder);
+    Info(logger, HAND, "tcp client finished to deal with connecting to remote service(fd=%d, sid=%lu)", cfd, header.origin);
+    ECHO(INFO, "tcp client finished to deal with connecting to remote service(fd=%d, sid=%lu)", cfd, header.origin);
     
     BaseClient *tc = new TcpClient(cfd, remote_ip, remote_port);
     if (! tc)

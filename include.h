@@ -49,7 +49,6 @@ typedef struct __attribute__ ((__packed__)) {
     uint16_t    msgid;
     uint64_t    origin;
     uint64_t    orient;
-    uint64_t    pholder;            /** placeholder */
 } NegoHeader;
 
 namespace tcw
