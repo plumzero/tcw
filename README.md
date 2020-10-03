@@ -55,7 +55,7 @@
 
 ## 其他
 
-[备忘](备忘.md)
+[备忘](doc/备忘.md)
 
 # TODO
 
@@ -75,5 +75,5 @@
 ----
 *穿越之海，跳下去就穿越的那种*
 <h1 align="center">
-    <img width="700" height="988" src="chuanyuezhihai.jpg">
+    <img width="700" height="988" src="doc/chuanyuezhihai.jpg">
 </h1>
