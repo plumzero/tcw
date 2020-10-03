@@ -1,8 +1,8 @@
 
 #include "eehandler.h"
 #include "eelog.h"
-#include "bic.h"
 #include "msgid.h"
+#include "msg.h"
 
 const std::string INI_STRING = R"INI(
 
@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
         int counter = 100;
         while (counter--) {
             uint64_t tosid = eeh.tcw_get_sid("STEP-1");
-            BIC_A2A_START bicstart;
+            MSG_A2A_START bicstart;
             bicstart.is_start = true;
             bicstart.information = "create a message and ready to send";
 
@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
             bicstart.Serialize(&msg);
 
             ECHO(DBUG, "send a start message to(sid=%lu)", tosid);
-            eeh.tcw_send_message(BIC_TYPE_A2A_START, tosid, msg);
+            eeh.tcw_send_message(MSG_ID_A2A_START, tosid, msg);
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     });
@@ -108,19 +108,19 @@ void step_1_function(const uint16_t msgid, const uint64_t origin, const uint64_t
     tcw::EventHandler *eeh = (tcw::EventHandler *)arg;
     /** deal with the message, defined by programmer */
     switch (msgid) {
-        case BIC_TYPE_A2A_START:
+        case MSG_ID_A2A_START:
         {
-            BIC_A2A_START bic;
+            MSG_A2A_START bic;
             bic.Structuralize(msg);
 
             Dbug(eeh->logger, TEST, "BIC_A2A_START.is_start: %d", bic.is_start);
             Dbug(eeh->logger, TEST, "BIC_A2A_START.information: %s", bic.information.c_str());
 
-            BIC_A2B_BETWEEN bic_a2b;
+            MSG_A2B_BETWEEN bic_a2b;
             bic_a2b.send = true;
             bic_a2b.information = "send command to NEXT service";
             
-            uint16_t tomsgid = BIC_TYPE_A2B_BETWEEN;
+            uint16_t tomsgid = MSG_ID_A2B_BETWEEN;
             uint64_t tosid = eeh->tcw_get_sid("STEP-2");
             std::string tomsg;
             bic_a2b.Serialize(&tomsg);
@@ -141,19 +141,19 @@ void step_2_function(const uint16_t msgid, const uint64_t origin, const uint64_t
     tcw::EventHandler *eeh = (tcw::EventHandler *)arg;
     /** deal with the message, defined by programmer */
     switch (msgid) {
-        case BIC_TYPE_A2B_BETWEEN:
+        case MSG_ID_A2B_BETWEEN:
         {
-            BIC_A2B_BETWEEN bic;
+            MSG_A2B_BETWEEN bic;
             bic.Structuralize(msg);
             
             Dbug(eeh->logger, TEST, "BIC_A2B_BETWEEN.send: %d", bic.send);
             Dbug(eeh->logger, TEST, "BIC_A2B_BETWEEN.information: %s", bic.information.c_str());
             
-            BIC_B2C_BETWEEN bic_b2c;
+            MSG_B2C_BETWEEN bic_b2c;
             bic_b2c.send = true;
             bic_b2c.information = "send command to NEXT service";
             
-            uint16_t tomsgid = BIC_TYPE_B2C_BETWEEN;
+            uint16_t tomsgid = MSG_ID_B2C_BETWEEN;
             uint64_t tosid = eeh->tcw_get_sid("STEP-3");
             std::string tomsg;
             bic_b2c.Serialize(&tomsg);
@@ -173,9 +173,9 @@ void step_3_function(const uint16_t msgid, const uint64_t origin, const uint64_t
     tcw::EventHandler *eeh = (tcw::EventHandler *)arg;
     /** deal with the message, defined by programmer */
     switch (msgid) {
-        case BIC_TYPE_B2C_BETWEEN:
+        case MSG_ID_B2C_BETWEEN:
         {
-            BIC_B2C_BETWEEN bic;
+            MSG_B2C_BETWEEN bic;
             bic.Structuralize(msg);
             
             Dbug(eeh->logger, TEST, "BIC_B2C_BETWEEN.send: %d", bic.send);

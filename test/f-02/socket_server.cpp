@@ -1,8 +1,8 @@
 
 #include "eehandler.h"
 #include "eelog.h"
-#include "bic.h"
 #include "msgid.h"
+#include "msg.h"
 
 const std::string INI_STRING = R"INI(
 
@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
         int counter = 100;
         while (counter--) {
             uint64_t tosid = eeh.tcw_get_sid("POLICY");
-            BIC_P2P_START bicstart;
+            MSG_P2P_START bicstart;
             bicstart.is_start = true;
             bicstart.information = "create a message and ready to send";
 
@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
             bicstart.Serialize(&msg);
 
             ECHO(INFO, "send a start message to(sid=%lu)", tosid);
-            eeh.tcw_send_message(BIC_TYPE_P2P_START, tosid, msg);
+            eeh.tcw_send_message(MSG_ID_P2P_START, tosid, msg);
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     });
@@ -108,9 +108,9 @@ void server_function(const uint16_t msgid, const uint64_t origin, const uint64_t
     tcw::EventHandler *eeh = (tcw::EventHandler *)arg;
     /** deal with the message, defined by programmer */
     switch (msgid) {
-        case BIC_TYPE_P2P_START:
+        case MSG_ID_P2P_START:
         {
-            BIC_SUMMON bic_summon;
+            MSG_SUMMON bic_summon;
             bic_summon.info = "召唤信息";
             bic_summon.sno = "ABAB-XYZ8";
             bic_summon.code = 12345678;
@@ -120,7 +120,7 @@ void server_function(const uint16_t msgid, const uint64_t origin, const uint64_t
 
             srand(time(nullptr));
 
-            uint16_t tomsgid = BIC_TYPE_P2S_SUMMON;
+            uint16_t tomsgid = MSG_ID_P2S_SUMMON;
             uint64_t tosid = 0;
 
             decltype(eeh->m_services_id.begin()) iterTo;
@@ -133,9 +133,9 @@ void server_function(const uint16_t msgid, const uint64_t origin, const uint64_t
             ECHO(INFO, "%s 发送给 %s 服务一条消息(type=%d)", eeh->m_services_id[eeh->m_id].c_str(), eeh->m_services_id[tosid].c_str(), tomsgid);
         }
         break;
-        case BIC_TYPE_S2P_MONSTER:
+        case MSG_ID_S2P_MONSTER:
         {
-            BIC_MONSTER bic;
+            MSG_MONSTER bic;
             bic.Structuralize(msg);
             
             Dbug(eeh->logger, TEST, "BIC_MONSTER.name:        %s", bic.name.c_str());
@@ -148,19 +148,7 @@ void server_function(const uint16_t msgid, const uint64_t origin, const uint64_t
             Dbug(eeh->logger, TEST, "BIC_MONSTER.description: %s", bic.description.c_str());
             
             ECHO(INFO, "%s 收到来自 %s 服务的消息(type=%d)，一个测试流程结束。", eeh->m_services_id[eeh->m_id].c_str(), 
-                        eeh->m_services_id[origin].c_str(), BIC_TYPE_S2P_MONSTER);
-        }
-        break;
-        case BIC_TYPE_S2P_BOMBER:
-        {
-            BIC_BOMBER bic;
-            bic.Structuralize(msg);
-            
-            Dbug(eeh->logger, TEST, "BIC_BOMBER.service_name: %s", bic.service_name.c_str());
-            Dbug(eeh->logger, TEST, "BIC_BOMBER.service_type: %d", bic.service_type);
-            Dbug(eeh->logger, TEST, "BIC_BOMBER.kill:         %s", bic.kill ? "true" : "false");
-            Dbug(eeh->logger, TEST, "BIC_BOMBER.rescode:      %d", bic.rescode);
-            Dbug(eeh->logger, TEST, "BIC_BOMBER.receipt:      %s", bic.receipt.c_str());
+                        eeh->m_services_id[origin].c_str(), MSG_ID_S2P_MONSTER);
         }
         break;
         default:
