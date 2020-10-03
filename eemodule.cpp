@@ -299,7 +299,9 @@ ssize_t child_write_callback(int fd, const void *buf, size_t count, void *userp)
                                 eeh->m_services_id[sid].c_str(), eeh->m_linker_queues[sid].size());
     
     std::unique_lock<std::mutex> guard(eeh->m_mutex);
-    eeh->m_cond.wait(guard, [&eeh](){ return ! eeh->m_linker_queues.empty(); });
+    if (! eeh->m_cond.wait_for(guard, std::chrono::seconds(1), [&eeh](){ return ! eeh->m_linker_queues.empty(); })) {
+        return 0;
+    }
     while (eeh->m_linker_queues[sid].size() > 0) {        
         std::string msg(eeh->m_linker_queues[sid].front());
         size_t nt = write(fd, msg.c_str(), msg.size());
