@@ -79,21 +79,6 @@ uint32_t crc32calc(const char *buf, size_t size)
     return crc^0xFFFFFFFF;
 }
 
-void add_header(std::string* tostream, const uint16_t msgid, const uint64_t origin, const uint64_t orient, const std::string& msg)
-{
-    NegoHeader header;
-    
-    memset(&header, 0, sizeof(header));
-
-    header.crc32 = htonl(crc32calc(msg.c_str(), msg.size()));
-    header.bodysize = htons(msg.size());
-    header.msgid = htons(msgid);
-    header.origin = origin;
-    header.orient = orient;
-    
-    tostream->assign(std::string((const char *)&header, sizeof(header)) + msg);
-}
-
 uint64_t now_time()
 {
     struct timeval tv;

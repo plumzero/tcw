@@ -7,11 +7,16 @@
 /** CRC32 caculate */
 uint32_t crc32calc(const char *buf, size_t size);
 
-/** add NegoHeader */
-void add_header(std::string* tostream, const uint16_t msgid, const uint64_t origin, const uint64_t orient, const std::string& msg);
-
 /** current time(milliseconds) */
 uint64_t now_time();
+
+#define ORTHOCODE(orthocode, msg, msgsize)      \
+    do {                                        \
+        uin8_t code = orthocode ^ 0;            \
+        for (size_t i = 0; i < msgsize; i++) {  \
+            msg[i] ^= code;                     \
+        }                                       \
+    } while (0)
 
 namespace tcw
 {

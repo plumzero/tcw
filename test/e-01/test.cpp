@@ -106,6 +106,11 @@ void  X_function(const uint16_t msgid, const uint64_t origin, const uint64_t ori
             MSG_START st_start;
             st_start.Structuralize(msg);
 
+            if (strcmp(st_start.information.c_str(), msg_x2x) != 0) {
+                ECHO(ERRO, "error occured(X->X).");
+                exit(-1);
+            }
+
             // ECHO(DBUG, "MSG_START.timestamp: %lu",  st_start.timestamp);
             // ECHO(DBUG, "MSG_START.information: %s", st_start.information.c_str());
 
@@ -126,6 +131,11 @@ void  X_function(const uint16_t msgid, const uint64_t origin, const uint64_t ori
         {
             MSG_Z2X st_z2x;
             st_z2x.Structuralize(msg);
+
+            if (strcmp(st_z2x.information.c_str(), msg_z2x) != 0) {
+                ECHO(ERRO, "error occured(Z->X).");
+                exit(-1);
+            }
 
             // ECHO(DBUG, "MSG_Z2X.count: %d",       st_z2x.count);
             // ECHO(DBUG, "MSG_Z2X.timestamp: %lu",  st_z2x.timestamp);
@@ -169,6 +179,11 @@ void Y_function(const uint16_t msgid, const uint64_t origin, const uint64_t orie
             MSG_X2Y st_x2y;
             st_x2y.Structuralize(msg);
             
+            if (strcmp(st_x2y.information.c_str(), msg_x2y) != 0) {
+                ECHO(ERRO, "error occured(X->Y).");
+                exit(-1);
+            }
+            
             // ECHO(DBUG, "MSG_X2Y.count: %d",       st_x2y.count);
             // ECHO(DBUG, "MSG_X2Y.timestamp: %lu",  st_x2y.timestamp);
             // ECHO(DBUG, "MSG_X2Y.information: %s", st_x2y.information.c_str());
@@ -201,6 +216,11 @@ void Z_function(const uint16_t msgid, const uint64_t origin, const uint64_t orie
         {
             MSG_Y2Z st_y2z;
             st_y2z.Structuralize(msg);
+
+            if (strcmp(st_y2z.information.c_str(), msg_y2z) != 0) {
+                ECHO(ERRO, "error occured(Y->Z).");
+                exit(-1);
+            }
             
             // ECHO(DBUG, "MSG_Y2Z.count: %d",       st_y2z.count);
             // ECHO(DBUG, "MSG_Y2Z.timestamp: %lu",  st_y2z.timestamp);

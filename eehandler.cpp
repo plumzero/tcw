@@ -1358,13 +1358,20 @@ RetCode EventHandler::tcw_check_message(const std::string& stream, uint16_t* msg
 
 RetCode EventHandler::tcw_send_message(const uint16_t msgid, const uint64_t tosid, const std::string& msg)
 {
-    std::string tostream;
-
     if (tosid == 0) {
         Erro(logger, HAND, "tosid(%lu) is illegal", tosid);
         return ERROR;
     }
-    add_header(&tostream, msgid, m_id, tosid, msg);
+
+    NegoHeader header;
+
+    header.crc32 = htonl(crc32calc(msg.c_str(), msg.size()));
+    header.bodysize = htons(msg.size());
+    header.msgid = htons(msgid);
+    header.origin = m_id;
+    header.orient = tosid;
+
+    std::string tostream(std::string((const char *)&header, sizeof(header)) + msg);
 
     int tofd = 0;
     if (m_id != m_daemon_id) {
