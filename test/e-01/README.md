@@ -1,9 +1,9 @@
 
 ## 测试环境
 
-VMware
-RHEL 7.5
-Intel(R) Core(TM) i5-6200U CPU @ 2.30GHz
+    VMware
+    RHEL 7.5
+    Intel(R) Core(TM) i5-6200U CPU @ 2.30GHz
 
 ## 测试记录
 
