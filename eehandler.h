@@ -70,7 +70,7 @@ namespace tcw
         RetCode tcw_guard_child();
         void tcw_rebuild_child(int rfd, int wfd, const std::string& conf, const std::string& specified_service, const SID_t daemon_id);
         RetCode tcw_check_message(const std::string& stream, uint16_t* msgid, uint64_t* origin, uint64_t* orient, std::string* msg);
-        RetCode tcw_send_message(const uint16_t msgid, const uint64_t tosid, const std::string& msg);
+        RetCode tcw_send_message(const uint16_t msgid, const uint64_t tosid, std::string& msg);
         uint64_t tcw_get_sid(const std::string& service);   /** interface for testing */
         
         // TCP handler

@@ -1352,11 +1352,13 @@ RetCode EventHandler::tcw_check_message(const std::string& stream, uint16_t* msg
     size_t bodysize = ntohs(header.bodysize);
 
     msg->assign(stream.c_str() + sizeof(NegoHeader), bodysize);
+    
+    ORTHOCODE(header.orthocode, *msg);
 
     return OK;
 }
 
-RetCode EventHandler::tcw_send_message(const uint16_t msgid, const uint64_t tosid, const std::string& msg)
+RetCode EventHandler::tcw_send_message(const uint16_t msgid, const uint64_t tosid, std::string& msg)
 {
     if (tosid == 0) {
         Erro(logger, HAND, "tosid(%lu) is illegal", tosid);
@@ -1365,12 +1367,13 @@ RetCode EventHandler::tcw_send_message(const uint16_t msgid, const uint64_t tosi
 
     NegoHeader header;
 
-    header.crc32 = htonl(crc32calc(msg.c_str(), msg.size()));
+    header.orthocode = rand() % 0xff;
     header.bodysize = htons(msg.size());
     header.msgid = htons(msgid);
     header.origin = m_id;
     header.orient = tosid;
 
+    ORTHOCODE(header.orthocode, msg);
     std::string tostream(std::string((const char *)&header, sizeof(header)) + msg);
 
     int tofd = 0;

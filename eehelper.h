@@ -4,18 +4,15 @@
 
 #include "include.h"
 
-/** CRC32 caculate */
-uint32_t crc32calc(const char *buf, size_t size);
-
 /** current time(milliseconds) */
 uint64_t now_time();
 
-#define ORTHOCODE(orthocode, msg, msgsize)      \
-    do {                                        \
-        uin8_t code = orthocode ^ 0;            \
-        for (size_t i = 0; i < msgsize; i++) {  \
-            msg[i] ^= code;                     \
-        }                                       \
+#define ORTHOCODE(orthocode, msg)                   \
+    do {                                            \
+        uint8_t code = (orthocode) ^ 0;             \
+        for (size_t i = 0; i < (msg).size(); i++) { \
+            (msg)[i] ^= code;                       \
+        }                                           \
     } while (0)
 
 namespace tcw

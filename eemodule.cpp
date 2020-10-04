@@ -65,12 +65,6 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
         free(rbuf);
     }
     
-    /** CRC32 check */
-    if (crc32calc(msg.c_str(), msg.size()) != ntohl(header.crc32)) {
-        Erro(eeh->logger, MODU, "crc32 check error");
-        return -1;
-    }
-
     Dbug(eeh->logger, MODU, "msgid=%u, origin=%s, orient=%s, from_outward=%d",
                                 msgid, eeh->m_services_id[origin].c_str(), 
                                 eeh->m_services_id[orient].c_str(), from_outward);
@@ -338,7 +332,6 @@ int child_timer_callback(void *args, void *userp)
         header.bodysize = htons(0);
         header.origin = eeh->m_id;
         header.orient = eeh->m_daemon_id;
-        header.crc32 = htonl(0);
 
         std::string tostream(std::string((const char *)&header, NEGOHSIZE));
 
