@@ -143,7 +143,7 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
     }
 
     /** recover it to the original message(header + msg) */
-    eeh->m_linker_queues[tobc->sid].emplace(std::string(hbuf, hbuf + sizeof(hbuf)) + msg);
+    eeh->m_linker_queues[tobc->sid].push(std::string(hbuf, hbuf + sizeof(hbuf)) + msg);
 
     Dbug(eeh->logger, MODU, "pushed msg(len=%lu, from=%s) to que(ownby=%s, size=%lu) and forward to %s", 
                                 msg.size(), eeh->m_services_id[origin].c_str(),
