@@ -13,12 +13,6 @@ LogLevel=DBUG
 LogDir=./
 LogSize=5
 
-; `on` means whether start this process or not
-; this would instruct current process to run as which behavior tagged by followed as-value:
-;   `daemon` means run as a daemon process
-;   `child`  means run as a child process created by a daemon
-;   `server` means run as a independent tcp server 
-;   `client` means run as a independent tcp client
 [GUARD-DAEMON]
 on=yes
 as=daemon
@@ -79,15 +73,15 @@ int main(int argc, char *argv[])
         int counter = 100;
         while (counter--) {
             uint64_t tosid = eeh.tcw_get_sid("STEP-1");
-            MSG_A2A_START bicstart;
-            bicstart.is_start = true;
-            bicstart.information = "create a message and ready to send";
+            MSG_P2A_START st_start;
+            st_start.is_start = true;
+            st_start.information = "create a message and ready to send";
 
             std::string msg;
-            bicstart.Serialize(&msg);
+            st_start.Serialize(&msg);
 
             ECHO(DBUG, "send a start message to(sid=%lu)", tosid);
-            eeh.tcw_send_message(MSG_ID_A2A_START, tosid, msg);
+            eeh.tcw_send_message(MSG_ID_P2A_START, tosid, msg);
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     });
@@ -108,22 +102,22 @@ void step_1_function(const uint16_t msgid, const uint64_t origin, const uint64_t
     tcw::EventHandler *eeh = (tcw::EventHandler *)arg;
     /** deal with the message, defined by programmer */
     switch (msgid) {
-        case MSG_ID_A2A_START:
+        case MSG_ID_P2A_START:
         {
-            MSG_A2A_START bic;
-            bic.Structuralize(msg);
+            MSG_P2A_START st_start;
+            st_start.Structuralize(msg);
 
-            Dbug(eeh->logger, TEST, "BIC_A2A_START.is_start: %d", bic.is_start);
-            Dbug(eeh->logger, TEST, "BIC_A2A_START.information: %s", bic.information.c_str());
+            Dbug(eeh->logger, TEST, "BIC_A2A_START.is_start: %d", st_start.is_start);
+            Dbug(eeh->logger, TEST, "BIC_A2A_START.information: %s", st_start.information.c_str());
 
-            MSG_A2B_BETWEEN bic_a2b;
-            bic_a2b.send = true;
-            bic_a2b.information = "send command to NEXT service";
+            MSG_A2B_BETWEEN st_a2b;
+            st_a2b.send = true;
+            st_a2b.information = "send command to NEXT service";
             
             uint16_t tomsgid = MSG_ID_A2B_BETWEEN;
             uint64_t tosid = eeh->tcw_get_sid("STEP-2");
             std::string tomsg;
-            bic_a2b.Serialize(&tomsg);
+            st_a2b.Serialize(&tomsg);
 
             eeh->tcw_send_message(tomsgid, tosid, tomsg);
             ECHO(INFO, "消息由 %s 服务向 %s 服务发送...", eeh->m_services_id[eeh->m_id].c_str(), eeh->m_services_id[tosid].c_str());
@@ -143,20 +137,20 @@ void step_2_function(const uint16_t msgid, const uint64_t origin, const uint64_t
     switch (msgid) {
         case MSG_ID_A2B_BETWEEN:
         {
-            MSG_A2B_BETWEEN bic;
-            bic.Structuralize(msg);
+            MSG_A2B_BETWEEN st_a2b;
+            st_a2b.Structuralize(msg);
             
-            Dbug(eeh->logger, TEST, "BIC_A2B_BETWEEN.send: %d", bic.send);
-            Dbug(eeh->logger, TEST, "BIC_A2B_BETWEEN.information: %s", bic.information.c_str());
+            Dbug(eeh->logger, TEST, "BIC_A2B_BETWEEN.send: %d", st_a2b.send);
+            Dbug(eeh->logger, TEST, "BIC_A2B_BETWEEN.information: %s", st_a2b.information.c_str());
             
-            MSG_B2C_BETWEEN bic_b2c;
-            bic_b2c.send = true;
-            bic_b2c.information = "send command to NEXT service";
+            MSG_B2C_BETWEEN st_b2c;
+            st_b2c.send = true;
+            st_b2c.information = "send command to NEXT service";
             
             uint16_t tomsgid = MSG_ID_B2C_BETWEEN;
             uint64_t tosid = eeh->tcw_get_sid("STEP-3");
             std::string tomsg;
-            bic_b2c.Serialize(&tomsg);
+            st_b2c.Serialize(&tomsg);
 
             eeh->tcw_send_message(tomsgid, tosid, tomsg);
             ECHO(INFO, "消息由 %s 服务向 %s 服务发送...", eeh->m_services_id[eeh->m_id].c_str(), eeh->m_services_id[tosid].c_str());
@@ -175,11 +169,11 @@ void step_3_function(const uint16_t msgid, const uint64_t origin, const uint64_t
     switch (msgid) {
         case MSG_ID_B2C_BETWEEN:
         {
-            MSG_B2C_BETWEEN bic;
-            bic.Structuralize(msg);
+            MSG_B2C_BETWEEN st_b2c;
+            st_b2c.Structuralize(msg);
             
-            Dbug(eeh->logger, TEST, "BIC_B2C_BETWEEN.send: %d", bic.send);
-            Dbug(eeh->logger, TEST, "BIC_B2C_BETWEEN.information: %s", bic.information.c_str());
+            Dbug(eeh->logger, TEST, "BIC_B2C_BETWEEN.send: %d", st_b2c.send);
+            Dbug(eeh->logger, TEST, "BIC_B2C_BETWEEN.information: %s", st_b2c.information.c_str());
             
             ECHO(INFO, "%s 接收到来自 %s 的消息，一个流程结束。", eeh->m_services_id[eeh->m_id].c_str(), eeh->m_services_id[origin].c_str());
         }

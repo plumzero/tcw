@@ -3,11 +3,11 @@
 
 #include <string>
 
-class MSG_A2A_START
+class MSG_P2A_START
 {
 public:
-    MSG_A2A_START() {}
-    ~MSG_A2A_START(){}
+    MSG_P2A_START() {}
+    ~MSG_P2A_START(){}
     void Serialize(std::string *s);
     void Structuralize(const std::string &s);
 public:

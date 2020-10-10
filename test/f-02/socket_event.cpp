@@ -10,7 +10,7 @@ const std::string INI_STRING = R"INI(
 
 ; DBUF INFO WARN ERRO
 LogLevel=DBUG
-LogDir=/tmp
+LogDir=./
 LogSize=5
 
 [TRANSFER]
@@ -97,7 +97,7 @@ void client_function(const uint16_t msgid, const uint64_t origin, const uint64_t
     tcw::EventHandler *eeh = (tcw::EventHandler *)arg;
     /** deal with the message, defined by programmer */
     switch (msgid) {
-        case MSG_ID_P2S_SUMMON:
+        case MSG_ID_S2E_SUMMON:
         {
             MSG_SUMMON bic;
             bic.Structuralize(msg);
@@ -119,12 +119,12 @@ void client_function(const uint16_t msgid, const uint64_t origin, const uint64_t
             std::string tomsg;
             bic_monster.Serialize(&tomsg);
 
-            uint16_t tomsgid = MSG_ID_S2P_MONSTER;
+            uint16_t tomsgid = MSG_ID_E2S_MONSTER;
             uint64_t tosid = origin;
             
             eeh->tcw_send_message(tomsgid, tosid, tomsg);
             ECHO(INFO, "%s 收到消息(type=%d)，并发回给 %s 服务一条消息(type=%d)",
-                        eeh->m_services_id[eeh->m_id].c_str(), MSG_ID_P2S_SUMMON,
+                        eeh->m_services_id[eeh->m_id].c_str(), MSG_ID_S2E_SUMMON,
                         eeh->m_services_id[tosid].c_str(), tomsgid);
         }
         break;

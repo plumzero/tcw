@@ -166,7 +166,7 @@ RetCode EventHandler::tcw_init(const std::string& conf, const std::string& servi
         ECHO(ERRO, "%s's 'connect' key is insufficient", iterFind->first.c_str());
         return ERROR;
     }
-    // check each service(`client` not include) which on=yes whether has its corresponding actions
+    // set each service(`client` not include) which on=yes with its corresponding actions
     std::for_each(m_ini.begin(), m_ini.end(), [this](decltype(*m_ini.begin())& ele) {
         std::string key, as, section = ele.first;
         bool on;
@@ -280,7 +280,7 @@ RetCode EventHandler::tcw_init(const std::string& conf, const std::string& servi
         hash_id = hex2integral<uint64_t>(hex);
         
         if (m_services_id.find(hash_id) != m_services_id.end()) {
-            Warn(logger, HAND, "hash_id(%lu) already exist", hash_id);
+            Erro(logger, HAND, "hash_id(%lu) already exist", hash_id);
             return ERROR;
         }
         
@@ -306,7 +306,7 @@ RetCode EventHandler::tcw_init(const std::string& conf, const std::string& servi
             hash_id = hex2integral<uint64_t>(hex);
 
             if (m_services_id.find(hash_id) != m_services_id.end()) {
-                Warn(logger, HAND, "hash_id(%lu) already exist", hash_id);
+                Erro(logger, HAND, "hash_id(%lu) already exist", hash_id);
                 return ERROR;
             }
             

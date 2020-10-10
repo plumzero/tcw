@@ -73,12 +73,12 @@ int main(int argc, char *argv[])
         sleep(6);
 
         uint64_t tosid = eeh.tcw_get_sid("X");
-        MSG_START bicstart;
-        bicstart.timestamp = now_time();
-        bicstart.information = msg_x2x;
+        MSG_START st_start;
+        st_start.timestamp = now_time();
+        st_start.information = msg_x2x;
 
         std::string msg;
-        bicstart.Serialize(&msg);
+        st_start.Serialize(&msg);
 
         ECHO(DBUG, "send a start message to(sid=%lu)", tosid);
         eeh.tcw_send_message(MSG_ID_START, tosid, msg);

@@ -2,7 +2,7 @@
 #include "msg.h"
 #include "raj.h"
 
-void MSG_A2A_START::Serialize(std::string *s)
+void MSG_P2A_START::Serialize(std::string *s)
 {
     rapidjson::StringBuffer sb;
     rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
@@ -17,7 +17,7 @@ void MSG_A2A_START::Serialize(std::string *s)
     s->assign(sb.GetString(), sb.GetSize());
 }
 
-void MSG_A2A_START::Structuralize(const std::string &s)
+void MSG_P2A_START::Structuralize(const std::string &s)
 {
     rapidjson::Document doc;
 

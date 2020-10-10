@@ -3,11 +3,11 @@
 
 #include <string>
 
-class MSG_P2P_START
+class MSG_P2S_START
 {
 public:
-    MSG_P2P_START() {}
-    ~MSG_P2P_START(){}
+    MSG_P2S_START() {}
+    ~MSG_P2S_START(){}
     void Serialize(std::string *s);
     void Structuralize(const std::string &s);
 public:

@@ -10,17 +10,11 @@ const std::string INI_STRING = R"INI(
 
 ; DBUF INFO WARN ERRO
 LogLevel=DBUG
-LogDir=/tmp
+LogDir=./
 LogSize=5
 
 [TRANSFER]
-; `on` means whether start this process or not
 on=no
-; this would instruct current process to run as which behavior tagged by followed as-value:
-;   `daemon` means run as a daemon process
-;   `child`  means run as a child process created by a daemon
-;   `server` means run as a independent tcp server 
-;   `client` means run as a independent tcp client
 as=daemon
 
 [DAEMON]
@@ -80,15 +74,15 @@ int main(int argc, char *argv[])
         int counter = 100;
         while (counter--) {
             uint64_t tosid = eeh.tcw_get_sid("POLICY");
-            MSG_P2P_START bicstart;
-            bicstart.is_start = true;
-            bicstart.information = "create a message and ready to send";
+            MSG_P2S_START st_start;
+            st_start.is_start = true;
+            st_start.information = "create a message and ready to send";
 
             std::string msg;
-            bicstart.Serialize(&msg);
+            st_start.Serialize(&msg);
 
             ECHO(INFO, "send a start message to(sid=%lu)", tosid);
-            eeh.tcw_send_message(MSG_ID_P2P_START, tosid, msg);
+            eeh.tcw_send_message(MSG_ID_P2S_START, tosid, msg);
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     });
@@ -108,19 +102,19 @@ void server_function(const uint16_t msgid, const uint64_t origin, const uint64_t
     tcw::EventHandler *eeh = (tcw::EventHandler *)arg;
     /** deal with the message, defined by programmer */
     switch (msgid) {
-        case MSG_ID_P2P_START:
+        case MSG_ID_P2S_START:
         {
-            MSG_SUMMON bic_summon;
-            bic_summon.info = "召唤信息";
-            bic_summon.sno = "ABAB-XYZ8";
-            bic_summon.code = 12345678;
+            MSG_SUMMON st_summon;
+            st_summon.info = "召唤信息";
+            st_summon.sno = "ABAB-XYZ8";
+            st_summon.code = 12345678;
             
             std::string tomsg;
-            bic_summon.Serialize(&tomsg);
+            st_summon.Serialize(&tomsg);
 
             srand(time(nullptr));
 
-            uint16_t tomsgid = MSG_ID_P2S_SUMMON;
+            uint16_t tomsgid = MSG_ID_S2E_SUMMON;
             uint64_t tosid = 0;
 
             decltype(eeh->m_services_id.begin()) iterTo;
@@ -133,22 +127,22 @@ void server_function(const uint16_t msgid, const uint64_t origin, const uint64_t
             ECHO(INFO, "%s 发送给 %s 服务一条消息(type=%d)", eeh->m_services_id[eeh->m_id].c_str(), eeh->m_services_id[tosid].c_str(), tomsgid);
         }
         break;
-        case MSG_ID_S2P_MONSTER:
+        case MSG_ID_E2S_MONSTER:
         {
-            MSG_MONSTER bic;
-            bic.Structuralize(msg);
+            MSG_MONSTER st_monster;
+            st_monster.Structuralize(msg);
             
-            Dbug(eeh->logger, TEST, "BIC_MONSTER.name:        %s", bic.name.c_str());
-            Dbug(eeh->logger, TEST, "BIC_MONSTER.type:        %s", bic.type.c_str());
-            Dbug(eeh->logger, TEST, "BIC_MONSTER.attribute:   %s", bic.attribute.c_str());
-            Dbug(eeh->logger, TEST, "BIC_MONSTER.race:        %s", bic.race.c_str());
-            Dbug(eeh->logger, TEST, "BIC_MONSTER.level:       %u", bic.level);
-            Dbug(eeh->logger, TEST, "BIC_MONSTER.attack:      %u", bic.attack);
-            Dbug(eeh->logger, TEST, "BIC_MONSTER.defense:     %u", bic.defense);
-            Dbug(eeh->logger, TEST, "BIC_MONSTER.description: %s", bic.description.c_str());
+            Dbug(eeh->logger, TEST, "MSG_MONSTER.name:        %s", st_monster.name.c_str());
+            Dbug(eeh->logger, TEST, "MSG_MONSTER.type:        %s", st_monster.type.c_str());
+            Dbug(eeh->logger, TEST, "MSG_MONSTER.attribute:   %s", st_monster.attribute.c_str());
+            Dbug(eeh->logger, TEST, "MSG_MONSTER.race:        %s", st_monster.race.c_str());
+            Dbug(eeh->logger, TEST, "MSG_MONSTER.level:       %u", st_monster.level);
+            Dbug(eeh->logger, TEST, "MSG_MONSTER.attack:      %u", st_monster.attack);
+            Dbug(eeh->logger, TEST, "MSG_MONSTER.defense:     %u", st_monster.defense);
+            Dbug(eeh->logger, TEST, "MSG_MONSTER.description: %s", st_monster.description.c_str());
             
             ECHO(INFO, "%s 收到来自 %s 服务的消息(type=%d)，一个测试流程结束。", eeh->m_services_id[eeh->m_id].c_str(), 
-                        eeh->m_services_id[origin].c_str(), MSG_ID_S2P_MONSTER);
+                        eeh->m_services_id[origin].c_str(), MSG_ID_E2S_MONSTER);
         }
         break;
         default:
