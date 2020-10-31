@@ -29,6 +29,7 @@
 
 ## 开源支持
 - [tortellini](https://github.com/Qix-/tortellini)
+- [concurrentqueue](https://github.com/cameron314/concurrentqueue)
 
 ## 说明
 

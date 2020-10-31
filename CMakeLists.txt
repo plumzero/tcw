@@ -44,7 +44,7 @@ include_directories(SYSTEM ${concurrentqueue_INCLUDE})
 #
 include("${PROJECT_SOURCE_DIR}/cmake/manifest.cmake")
 
-include_directories(.)
+include_directories(src)
 
 if (BUILD_TESTS)
     add_subdirectory(tests)

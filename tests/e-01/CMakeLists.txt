@@ -15,5 +15,5 @@ include_directories(.)
 #
 # build executable test
 #
-add_executable(test  test.cpp ${MANIFEST} ${OTHERFILE})
-target_link_libraries(test pthread)
+add_executable(etest  etest.cpp ${MANIFEST} ${OTHERFILE})
+target_link_libraries(etest pthread)
