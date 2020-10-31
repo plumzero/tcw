@@ -6,7 +6,9 @@
 #include "eeclient.h"
 #include "eemodule.h"
 #include "eehelper.h"
+
 #include "tortellini.h"
+#include "concurrentqueue/blockingconcurrentqueue.h"
 
 /** policy: read actively and write passively */
 

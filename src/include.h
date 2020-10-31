@@ -38,8 +38,6 @@
 #include <thread>
 #include <bitset>
 
-#include "concurrentqueue/blockingconcurrentqueue.h"
-
 typedef struct __attribute__ ((__packed__)) {
     uint8_t     ver[3];             /** 0-major 1-minor 2-revised */
     uint8_t     orthocode;
