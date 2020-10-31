@@ -12,10 +12,10 @@ set(PACKAGE_VERSION ${tcw_VERSION})
 set(VERSION "${tcw_VERSION}")
 
 #
-# if u wanna release, do like this `cmake -DCMAKE_BUILD_TYPE=Release`
+# if u wanna debug, do like this `cmake -DCMAKE_BUILD_TYPE=Debug`
 #
 if (NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Debug)
+    set(CMAKE_BUILD_TYPE Release)
 endif()
 
 #
@@ -34,6 +34,12 @@ include("${PROJECT_SOURCE_DIR}/cmake/configuration.cmake")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/modules")
 
 #
+# Concurrentqueue module Required
+#
+find_package(concurrentqueue REQUIRED)
+include_directories(SYSTEM ${concurrentqueue_INCLUDE})
+
+#
 # Build
 #
 include("${PROJECT_SOURCE_DIR}/cmake/manifest.cmake")
@@ -41,5 +47,5 @@ include("${PROJECT_SOURCE_DIR}/cmake/manifest.cmake")
 include_directories(.)
 
 if (BUILD_TESTS)
-    add_subdirectory(test)
+    add_subdirectory(tests)
 endif()

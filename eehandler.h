@@ -13,6 +13,7 @@
 #define EPOLL_MAX_NUM           256
 #define HEART_BEAT_INTERVAL     1
 #define HEART_BEAT_OFFLINE      4
+#define QUEUE_SIZE              1024
 
 namespace tcw
 {   
@@ -47,7 +48,7 @@ namespace tcw
         std::map<FD_t, SID_t>                               m_olinkers;         /** outward write linker map */
         std::map<SID_t, std::pair<FD_t, FD_t>>              m_pipe_pairs;       /** pipes pair(may not used temporarily) */
         /** queues between two process (writing queues for m_ilinkers and m_olinkers) */
-        std::map<SID_t, std::queue<std::string>>            m_linker_queues;    /** service id，queue for writing */
+        std::map<SID_t, moodycamel::BlockingConcurrentQueue<std::string>> m_linker_queues;
         std::map<SID_t, uint64_t>                           m_heartbeats;
         std::map<SID_t, BitRing<HEART_BEAT_OFFLINE>>        m_hb_offline;
         std::map<pid_t, std::string>                        m_info_process;     /** pid, service name(use for dealing with zombie process) */
@@ -55,9 +56,7 @@ namespace tcw
         Logger*                                             logger;
         tortellini::ini                                     m_ini;
         /** queues between IO thread and user-service thread */
-        std::queue<std::string>                             m_messages;
-        std::mutex                                          m_mutex;
-        std::condition_variable                             m_cond;
+        moodycamel::BlockingConcurrentQueue<std::string>    m_messages;
     public:
         static RetCode tcw_register_service(const std::string& service, void func(const uint16_t, const uint64_t, const uint64_t, const std::string&, void* arg));
         RetCode tcw_init(const std::string& conf, const std::string& service = "");

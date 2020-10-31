@@ -31,15 +31,14 @@
 #include <map>
 #include <set>
 #include <unordered_map>
-#include <queue>
 #include <utility>
 #include <functional>
 #include <algorithm>
 #include <chrono>
 #include <thread>
-#include <mutex>
-#include <condition_variable>
 #include <bitset>
+
+#include "concurrentqueue/blockingconcurrentqueue.h"
 
 typedef struct __attribute__ ((__packed__)) {
     uint8_t     ver[3];             /** 0-major 1-minor 2-revised */

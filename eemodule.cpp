@@ -143,11 +143,14 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
     }
 
     /** recover it to the original message(header + msg) */
-    eeh->m_linker_queues[tobc->sid].push(std::string(hbuf, hbuf + sizeof(hbuf)) + msg);
+    if (! eeh->m_linker_queues[tobc->sid].try_enqueue(std::string(hbuf, hbuf + sizeof(hbuf)) + msg)) {
+        Erro(eeh->logger, MODU, "enqueue failed");
+        return -1;
+    }
 
     Dbug(eeh->logger, MODU, "pushed msg(len=%lu, from=%s) to que(ownby=%s, size=%lu) and forward to %s", 
                                 msg.size(), eeh->m_services_id[origin].c_str(),
-                                eeh->m_services_id[tobc->sid].c_str(), eeh->m_linker_queues[tobc->sid].size(),
+                                eeh->m_services_id[tobc->sid].c_str(), eeh->m_linker_queues[tobc->sid].size_approx(),
                                 eeh->m_services_id[orient].c_str());
 
     eeh->tcw_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
@@ -179,16 +182,16 @@ ssize_t daemon_write_callback(int fd, const void *buf, size_t count, void *userp
     }
         
     Dbug(eeh->logger, MODU, "do write to ec(%p, t=%d, s=%s, queue_size=%lu)", 
-                    bc, bc->type, eeh->m_services_id[sid].c_str(), eeh->m_linker_queues[sid].size());
+                    bc, bc->type, eeh->m_services_id[sid].c_str(), eeh->m_linker_queues[sid].size_approx());
 
-    while (eeh->m_linker_queues[sid].size() > 0) {
-        std::string msg(eeh->m_linker_queues[sid].front());
+    while (eeh->m_linker_queues[sid].size_approx() > 0) {
+        std::string msg;
+        eeh->m_linker_queues[sid].try_dequeue(msg);
         size_t nt = write(fd, msg.c_str(), msg.size());
         if (nt != msg.size()) {
             Erro(eeh->logger, MODU, "write: %s", strerror(errno));
             return -1;
         }
-        eeh->m_linker_queues[sid].pop();
         Dbug(eeh->logger, MODU, "forwarded msg(len=%lu) to peer end of ec(%p, t=%d)", nt, bc, bc->type);
     }
     
@@ -258,11 +261,9 @@ ssize_t child_read_callback(int fd, void *buf, size_t size, void *userp)
     Dbug(eeh->logger, MODU, "received msg(len=%lu)", msg.size());
 
     /** received it and do nothing, instead of passing it to application layer. */
-    std::unique_lock<std::mutex> guard(eeh->m_mutex);   /** locked passively */
-    eeh->m_messages.push(std::string(hbuf, hbuf + sizeof(hbuf)) + std::move(msg));
-    eeh->m_cond.notify_one();
+    eeh->m_messages.try_enqueue(std::string(hbuf, hbuf + sizeof(hbuf)) + std::move(msg));
 
-    Dbug(eeh->logger, MODU, "notified to deal with msg queue(size=%lu)", eeh->m_messages.size());
+    Dbug(eeh->logger, MODU, "notified to deal with msg queue(size=%lu)", eeh->m_messages.size_approx());
 
     return 0; 
 }
@@ -290,24 +291,19 @@ ssize_t child_write_callback(int fd, const void *buf, size_t count, void *userp)
     
     Dbug(eeh->logger, MODU, "do write to ec(%p, t=%d, s=%s, queue_size=%lu)", 
                                 bc, bc->type,
-                                eeh->m_services_id[sid].c_str(), eeh->m_linker_queues[sid].size());
+                                eeh->m_services_id[sid].c_str(), eeh->m_linker_queues[sid].size_approx());
     
-    std::unique_lock<std::mutex> guard(eeh->m_mutex);
-    if (! eeh->m_cond.wait_for(guard, std::chrono::seconds(1), [&eeh](){ return ! eeh->m_linker_queues.empty(); })) {
-        return 0;
-    }
-    while (eeh->m_linker_queues[sid].size() > 0) {        
-        std::string msg(eeh->m_linker_queues[sid].front());
+    while (eeh->m_linker_queues[sid].size_approx() > 0) {        
+        std::string msg;
+        eeh->m_linker_queues[sid].try_dequeue(msg);
         size_t nt = write(fd, msg.c_str(), msg.size());
         if (nt != msg.size()) {
             Erro(eeh->logger, MODU, "write: %s", strerror(errno));
             return -1;
         }
-        eeh->m_linker_queues[sid].pop();
         
         Dbug(eeh->logger, MODU, "forwarded msg(len=%lu) to peer end of ec(%p, t=%d)", nt, bc, bc->type);
     }
-    guard.unlock();
     
     return 0;
 }
@@ -335,11 +331,14 @@ int child_timer_callback(void *args, void *userp)
 
         std::string tostream(std::string((const char *)&header, NEGOHSIZE));
 
-        eeh->m_linker_queues[bc->sid].push(tostream);
+        if(! eeh->m_linker_queues[bc->sid].try_enqueue(tostream)) {
+            Erro(eeh->logger, MODU, "enqueue failed");
+            return -1;
+        }
 
         Dbug(eeh->logger, MODU, "pushed msg(len=%lu, from=%s) to que(ownby=%s, size=%lu) and heartbeat to %s", 
                                     tostream.size(), eeh->m_services_id[eeh->m_id].c_str(),
-                                    eeh->m_services_id[bc->sid].c_str(), eeh->m_linker_queues[bc->sid].size(),
+                                    eeh->m_services_id[bc->sid].c_str(), eeh->m_linker_queues[bc->sid].size_approx(),
                                     eeh->m_services_id[eeh->m_daemon_id].c_str());
         
         eeh->tcw_mod(bc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);

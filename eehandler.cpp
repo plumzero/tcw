@@ -827,8 +827,8 @@ EClient* EventHandler::tcw_tcp_accept(EListener *el)
     bl->clients.push_back(tc);
     
     m_olinkers[tc->fd] = tc->sid;
-    
-    m_linker_queues.insert(std::make_pair(tc->sid, std::queue<std::string>()));
+
+    m_linker_queues.insert(std::make_pair(tc->sid, moodycamel::BlockingConcurrentQueue<std::string>(QUEUE_SIZE)));
     
     Info(logger, HAND, "eclient(%p, id=%d, fd=%d) as TCP client(%s:%d) connected.", 
                     tc, tc->id, tc->fd, tc->host.c_str(), tc->port);
@@ -942,7 +942,7 @@ EClient* EventHandler::tcw_tcp_connect(std::string remote_ip, PORT_t remote_port
 
     m_olinkers[tc->fd] = tc->sid;
     
-    m_linker_queues.insert(std::make_pair(tc->sid, std::queue<std::string>()));
+    m_linker_queues.insert(std::make_pair(tc->sid, moodycamel::BlockingConcurrentQueue<std::string>(QUEUE_SIZE)));
     
     Info(logger, HAND, "eclient(%p, id=%d, fd=%d) as TCP client(%s:%d) connected.", 
                     tc, tc->id, tc->fd, tc->host.c_str(), tc->port);
@@ -1006,7 +1006,7 @@ std::pair<EClient*, EClient*> EventHandler::tcw_pipe_create(FD_t rfd, FD_t wfd, 
     m_ilinkers[wpc->fd] = wpc->sid;
     m_pipe_pairs[sid] = std::make_pair(rpc->fd, wpc->fd);
     
-    m_linker_queues.insert(std::make_pair(sid, std::queue<std::string>()));
+    m_linker_queues.insert(std::make_pair(sid, moodycamel::BlockingConcurrentQueue<std::string>(QUEUE_SIZE)));
     
     Info(logger, HAND, "eclient(%p, id=%d, fd=%d) as PIPE write client created.", wpc, wpc->id, wpc->fd);
     
@@ -1101,14 +1101,10 @@ void EventHandler::tcw_rebuild_child(int rfd, int wfd,
         std::thread th([&eeh, specified_service](){
             while (true) {
                 /** wait for the message to deal with */
-                std::unique_lock<std::mutex> guard(eeh.m_mutex);
-                if (! eeh.m_cond.wait_for(guard, std::chrono::seconds(2), [&eeh](){ return ! eeh.m_messages.empty(); })) {
+                std::string stream;
+                if (! eeh.m_messages.wait_dequeue_timed(stream, std::chrono::milliseconds(50))) {
                     continue;
                 }
-                
-                std::string stream = std::move(eeh.m_messages.front());
-                eeh.m_messages.pop();
-                guard.unlock();
 
                 uint16_t msgid = 0;
                 uint64_t origin = 0;
@@ -1404,12 +1400,9 @@ RetCode EventHandler::tcw_send_message(const uint16_t msgid, const uint64_t tosi
         return ERROR;
     }
 
-    if (m_id != m_daemon_id) {
-        std::unique_lock<std::mutex> guard(m_mutex);
-        m_linker_queues[tobc->sid].push(tostream);
-        m_cond.notify_one();
-    } else {
-        m_linker_queues[tobc->sid].push(tostream);
+    if (! m_linker_queues[tobc->sid].try_enqueue(tostream)) {
+        Erro(logger, HAND, "enqueue failed");
+        return ERROR;
     }
     
     tcw_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
