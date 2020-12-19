@@ -132,43 +132,68 @@ namespace
     
 };
 
-#define __LOG(logger, l, t, ...)                   \
-    do {                                            \
-        logger->log_out(LOG_LEVEL_ ## l,            \
-                        LOG_TYPE_ ## t,             \
-                        "[" # l "][" # t "] "       \
-                        __VA_ARGS__);               \
+#define _ECHO(type, format, ...)              \
+    do {                                      \
+        fprintf(type, format, ##__VA_ARGS__); \
     } while (0)
 
-#define Erro(logger, type, fmt, ...)             \
-    do {                                            \
-        __LOG(logger, ERRO, type, "%4d " fmt "\n", \
-                    __LINE__, ##__VA_ARGS__);       \
+#define ECHO(type, format, ...)                                                 \
+    do {                                                                        \
+        _ECHO(type ## _FD, "%u %s %4d " type ## _COLOR format "\n" END_COLOR,   \
+                getpid(), "[" #type "] ", __LINE__, ##__VA_ARGS__);             \
     } while (0)
 
-#define Warn(logger, type, fmt, ...)             \
-    do {                                            \
-        __LOG(logger, WARN, type, "%4d " fmt "\n", \
-                    __LINE__, ##__VA_ARGS__);       \
+#ifdef USE_LOG
+
+#   define __LOG(logger, l, t, ...)                     \
+        do {                                            \
+            logger->log_out(LOG_LEVEL_ ## l,            \
+                            LOG_TYPE_ ## t,             \
+                            "[" # l "][" # t "] "       \
+                            __VA_ARGS__);               \
+        } while (0)
+
+#   define Erro(logger, type, fmt, ...)                 \
+        do {                                            \
+            __LOG(logger, ERRO, type, "%4d " fmt "\n",  \
+                        __LINE__, ##__VA_ARGS__);       \
+        } while (0)
+
+#   define Warn(logger, type, fmt, ...)                 \
+        do {                                            \
+            __LOG(logger, WARN, type, "%4d " fmt "\n",  \
+                        __LINE__, ##__VA_ARGS__);       \
+        } while (0)
+
+#   define Info(logger, type, fmt, ...)                 \
+        do {                                            \
+            __LOG(logger, INFO, type, "%4d " fmt "\n",  \
+                        __LINE__, ##__VA_ARGS__);       \
+        } while (0)
+
+#   define Dbug(logger, type, fmt, ...)                 \
+        do {                                            \
+            __LOG(logger, DBUG, type, "%4d " fmt "\n",  \
+                        __LINE__, ##__VA_ARGS__);       \
+        } while (0)
+
+#else
+
+#define XECHO(type, format, ...)                                                \
+    do {                                                                        \
+        _ECHO(type, "%u %s %4d " format "\n" ,                                  \
+                getpid(), "[" #type "] ", __LINE__, ##__VA_ARGS__);             \
     } while (0)
 
-#define Info(logger, type, fmt, ...)             \
-    do {                                            \
-        __LOG(logger, INFO, type, "%4d " fmt "\n", \
-                    __LINE__, ##__VA_ARGS__);       \
-    } while (0)
+#   define COUT stdout
+#   define Erro(logger, type, fmt, ...) XECHO(COUT, fmt, ##__VA_ARGS__)
+#   define Warn(logger, type, fmt, ...) XECHO(COUT, fmt, ##__VA_ARGS__)
+#   define Info(logger, type, fmt, ...) XECHO(COUT, fmt, ##__VA_ARGS__)
+#   define Dbug(logger, type, fmt, ...) XECHO(COUT, fmt, ##__VA_ARGS__)
 
-#define Dbug(logger, type, fmt, ...)             \
-    do {                                            \
-        __LOG(logger, DBUG, type, "%4d " fmt "\n", \
-                    __LINE__, ##__VA_ARGS__);       \
-    } while (0)
-    
+#endif
 
 #define NEGOHSIZE           sizeof(NegoHeader)
-
-#define BUF1KSIZE        1024
-#define HEAPSIZE         4096
 
 #define ERRO_FD  stderr
 #define INFO_FD  stdout
@@ -180,16 +205,5 @@ namespace
 #define DBUG_COLOR   "\033[34m"
 #define WARN_COLOR   "\033[35m"
 #define END_COLOR    "\033[0m"
-
-#define _ECHO(type, format, ...)              \
-    do {                                      \
-        fprintf(type, format, ##__VA_ARGS__); \
-    } while (0)
-
-#define ECHO(type, format, ...)                                                 \
-    do {                                                                        \
-        _ECHO(type ## _FD, "%u %s %4d " type ## _COLOR format "\n" END_COLOR,   \
-                getpid(), "[" #type "] ", __LINE__, ##__VA_ARGS__);             \
-    } while (0)
 
 #endif // !__TCW_INCLUDE_H__

@@ -107,8 +107,8 @@ void step_1_function(const uint16_t msgid, const uint64_t origin, const uint64_t
             MSG_P2A_START st_start;
             st_start.Structuralize(msg);
 
-            Dbug(eeh->logger, TEST, "BIC_A2A_START.is_start: %d", st_start.is_start);
-            Dbug(eeh->logger, TEST, "BIC_A2A_START.information: %s", st_start.information.c_str());
+            ECHO(DBUG, "BIC_A2A_START.is_start: %d", st_start.is_start);
+            ECHO(DBUG, "BIC_A2A_START.information: %s", st_start.information.c_str());
 
             MSG_A2B_BETWEEN st_a2b;
             st_a2b.send = true;
@@ -124,7 +124,7 @@ void step_1_function(const uint16_t msgid, const uint64_t origin, const uint64_t
         }
         break;
         default:
-            Erro(eeh->logger, TEST, "undefined or unhandled msg(%d)", (int)msgid);
+            ECHO(ERRO, "undefined or unhandled msg(%d)", (int)msgid);
     }
 }
 
@@ -140,8 +140,8 @@ void step_2_function(const uint16_t msgid, const uint64_t origin, const uint64_t
             MSG_A2B_BETWEEN st_a2b;
             st_a2b.Structuralize(msg);
             
-            Dbug(eeh->logger, TEST, "BIC_A2B_BETWEEN.send: %d", st_a2b.send);
-            Dbug(eeh->logger, TEST, "BIC_A2B_BETWEEN.information: %s", st_a2b.information.c_str());
+            ECHO(DBUG, "BIC_A2B_BETWEEN.send: %d", st_a2b.send);
+            ECHO(DBUG, "BIC_A2B_BETWEEN.information: %s", st_a2b.information.c_str());
             
             MSG_B2C_BETWEEN st_b2c;
             st_b2c.send = true;
@@ -157,7 +157,7 @@ void step_2_function(const uint16_t msgid, const uint64_t origin, const uint64_t
         }
         break;
         default:
-            Erro(eeh->logger, TEST, "undefined or unhandled msg(%d)", (int)msgid);
+            ECHO(DBUG, "undefined or unhandled msg(%d)", (int)msgid);
     }
 }
 void step_3_function(const uint16_t msgid, const uint64_t origin, const uint64_t orient, const std::string& msg, void* arg)
@@ -172,13 +172,13 @@ void step_3_function(const uint16_t msgid, const uint64_t origin, const uint64_t
             MSG_B2C_BETWEEN st_b2c;
             st_b2c.Structuralize(msg);
             
-            Dbug(eeh->logger, TEST, "BIC_B2C_BETWEEN.send: %d", st_b2c.send);
-            Dbug(eeh->logger, TEST, "BIC_B2C_BETWEEN.information: %s", st_b2c.information.c_str());
+            ECHO(DBUG, "BIC_B2C_BETWEEN.send: %d", st_b2c.send);
+            ECHO(DBUG, "BIC_B2C_BETWEEN.information: %s", st_b2c.information.c_str());
             
             ECHO(INFO, "%s 接收到来自 %s 的消息，一个流程结束。", eeh->m_services_id[eeh->m_id].c_str(), eeh->m_services_id[origin].c_str());
         }
         break;
         default:
-            Erro(eeh->logger, TEST, "undefined or unhandled msg(%d)", (int)msgid);
+            ECHO(DBUG, "undefined or unhandled msg(%d)", (int)msgid);
     }
 }

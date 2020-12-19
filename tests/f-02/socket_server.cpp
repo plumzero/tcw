@@ -132,20 +132,20 @@ void server_function(const uint16_t msgid, const uint64_t origin, const uint64_t
             MSG_MONSTER st_monster;
             st_monster.Structuralize(msg);
             
-            Dbug(eeh->logger, TEST, "MSG_MONSTER.name:        %s", st_monster.name.c_str());
-            Dbug(eeh->logger, TEST, "MSG_MONSTER.type:        %s", st_monster.type.c_str());
-            Dbug(eeh->logger, TEST, "MSG_MONSTER.attribute:   %s", st_monster.attribute.c_str());
-            Dbug(eeh->logger, TEST, "MSG_MONSTER.race:        %s", st_monster.race.c_str());
-            Dbug(eeh->logger, TEST, "MSG_MONSTER.level:       %u", st_monster.level);
-            Dbug(eeh->logger, TEST, "MSG_MONSTER.attack:      %u", st_monster.attack);
-            Dbug(eeh->logger, TEST, "MSG_MONSTER.defense:     %u", st_monster.defense);
-            Dbug(eeh->logger, TEST, "MSG_MONSTER.description: %s", st_monster.description.c_str());
+            ECHO(DBUG, "MSG_MONSTER.name:        %s", st_monster.name.c_str());
+            ECHO(DBUG, "MSG_MONSTER.type:        %s", st_monster.type.c_str());
+            ECHO(DBUG, "MSG_MONSTER.attribute:   %s", st_monster.attribute.c_str());
+            ECHO(DBUG, "MSG_MONSTER.race:        %s", st_monster.race.c_str());
+            ECHO(DBUG, "MSG_MONSTER.level:       %u", st_monster.level);
+            ECHO(DBUG, "MSG_MONSTER.attack:      %u", st_monster.attack);
+            ECHO(DBUG, "MSG_MONSTER.defense:     %u", st_monster.defense);
+            ECHO(DBUG, "MSG_MONSTER.description: %s", st_monster.description.c_str());
             
             ECHO(INFO, "%s 收到来自 %s 服务的消息(type=%d)，一个测试流程结束。", eeh->m_services_id[eeh->m_id].c_str(), 
                         eeh->m_services_id[origin].c_str(), MSG_ID_E2S_MONSTER);
         }
         break;
         default:
-            Erro(eeh->logger, TEST, "undefined or unhandled msg(%d)", (int)msgid);
+            ECHO(ERRO, "undefined or unhandled msg(%d)", (int)msgid);
     }
 }

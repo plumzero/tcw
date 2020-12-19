@@ -233,6 +233,7 @@ RetCode EventHandler::tcw_init(const std::string& conf, const std::string& servi
         ECHO(INFO, "build service %s as child", specified_service.c_str());
     }
     /** [3] build log */
+#ifdef USE_LOG
     std::string logdir = m_ini[""]["LogDir"] | "./";
     uint32_t logsize = m_ini[""]["LogSize"] | (uint32_t)10;
     
@@ -260,6 +261,9 @@ RetCode EventHandler::tcw_init(const std::string& conf, const std::string& servi
     logger->log_set_level(LOG_TYPE_HAND, loglevel);
     logger->log_set_level(LOG_TYPE_MODU, loglevel);
     logger->log_set_level(LOG_TYPE_TEST, loglevel);
+#else
+    logger = nullptr;
+#endif
 
     /** [4] caculate each service's sha1 id */
     decltype(m_ini.begin()) iterIni;
@@ -454,7 +458,9 @@ void EventHandler::tcw_destroy()
 
     Info(logger, HAND, "eehandler destroyed.");
     
-    delete logger;
+    if (logger && logger->log_get_stream() != stdout) {
+        delete logger;
+    }
     logger = nullptr;
 }
 
@@ -496,10 +502,12 @@ RetCode EventHandler::tcw_mod(EClient *ec, OPTION_t op)
     
     if (bc->fd <= 0)
         return ERROR;
-    
+
+#ifdef DEBUG
     Info(logger, HAND, "eclient(%p, id=%d, fd=%d, t=%d) mod option(%d->%d).",
                                         bc, bc->id, bc->fd, bc->type, bc->ev.events, op);
-    
+#endif
+
     bc->ev.events = op;
             
     if (epoll_ctl(m_epi, EPOLL_CTL_MOD, bc->fd, &bc->ev) == -1) {
@@ -616,7 +624,7 @@ EClient* EventHandler::tcw_tcp_listen(std::string bind_ip, PORT_t service_port,
             /** It's an error return. If it already had, the client should not return with nullptr.
              *  But I think it should not via to here, so just do like this;
              */
-            Erro(logger, HAND, "server type(%d) exist!", sid);
+            Erro(logger, HAND, "server type(%lu) exist!", sid);
             return nullptr;
         }
     }
@@ -793,7 +801,7 @@ EClient* EventHandler::tcw_tcp_accept(EListener *el)
         
     nh = write(cfd, &header, NEGOHSIZE);
     if (nh != sizeof(NegoHeader)) {
-        Erro(logger, HAND, "write 'NegoHeader' failed(ret=%d)", nh);
+        Erro(logger, HAND, "write 'NegoHeader' failed(ret=%ld)", nh);
         return nullptr;
     }
         
@@ -1247,9 +1255,11 @@ void EventHandler::tcw_run()
                    
     int i, res;
     while (m_is_running) 
-    {        
+    {
+#ifdef DEBUG
         Info(logger, HAND, "epi(%d) waiting: %lu cs(%lu ls, %lu ils, %lu ols, %lu pps)", 
             m_epi, m_clients.size(), m_listeners.size(), m_ilinkers.size(), m_olinkers.size(), m_pipe_pairs.size());
+#endif
         res = epoll_wait(m_epi, evs, EPOLL_MAX_NUM, 1000);
         if (res == -1) {
             if (errno != EINTR)
@@ -1262,10 +1272,10 @@ void EventHandler::tcw_run()
             int what = evs[i].events;
             
             BaseClient *bc = dynamic_cast<BaseClient*>((BaseClient*)evs[i].data.ptr);
-            
+#ifdef DEBUG
             Info(logger, HAND, "eclient(%p, id=%d, fd=%d, t=%d, is_server=%d) would do action(%d)",
                                 bc, bc->id, bc->fd, bc->type, bc->is_server, what);
-
+#endif
             if (what & (EPOLLHUP|EPOLLERR)) {
                 if (bc->type == TYPE_TCP || bc->type == TYPE_PIPE) {
                     /** end of peer closed and there is no need to exist. */

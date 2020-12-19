@@ -102,9 +102,9 @@ void client_function(const uint16_t msgid, const uint64_t origin, const uint64_t
             MSG_SUMMON bic;
             bic.Structuralize(msg);
             
-            Dbug(eeh->logger, TEST, "BIC_SUMMON.info:  %s",  bic.info.c_str());
-            Dbug(eeh->logger, TEST, "BIC_SUMMON.sno:   %s",  bic.sno.c_str());
-            Dbug(eeh->logger, TEST, "BIC_SUMMON.code:  %lu", bic.code);
+            ECHO(DBUG, "BIC_SUMMON.info:  %s",  bic.info.c_str());
+            ECHO(DBUG, "BIC_SUMMON.sno:   %s",  bic.sno.c_str());
+            ECHO(DBUG, "BIC_SUMMON.code:  %lu", bic.code);
             
             MSG_MONSTER bic_monster;
             bic_monster.name = eeh->m_services_id[eeh->m_id];
@@ -129,6 +129,6 @@ void client_function(const uint16_t msgid, const uint64_t origin, const uint64_t
         }
         break;
         default:
-            Erro(eeh->logger, TEST, "undefined or unhandled msg(%d)", (int)msgid);
+            ECHO(ERRO, "undefined or unhandled msg(%d)", (int)msgid);
     }
 }

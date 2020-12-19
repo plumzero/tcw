@@ -141,7 +141,7 @@ void  X_function(const uint16_t msgid, const uint64_t origin, const uint64_t ori
             // ECHO(DBUG, "MSG_Z2X.timestamp: %lu",  st_z2x.timestamp);
             // ECHO(DBUG, "MSG_Z2X.information: %s", st_z2x.information.c_str());
 
-            if (st_z2x.count < 10000) {
+            if (st_z2x.count < 100000) {
                 MSG_X2Y st_x2y;
                 st_x2y.count = st_z2x.count + 1;
                 st_x2y.timestamp = st_z2x.timestamp;
@@ -163,7 +163,7 @@ void  X_function(const uint16_t msgid, const uint64_t origin, const uint64_t ori
         }
         break;
         default:
-            Erro(eeh->logger, TEST, "undefined or unhandled msg(%d)", (int)msgid);
+            ECHO(ERRO, "undefined or unhandled msg(%d)", (int)msgid);
     }
 }
 
@@ -202,7 +202,7 @@ void Y_function(const uint16_t msgid, const uint64_t origin, const uint64_t orie
         }
         break;
         default:
-            Erro(eeh->logger, TEST, "undefined or unhandled msg(%d)", (int)msgid);
+            ECHO(ERRO, "undefined or unhandled msg(%d)", (int)msgid);
     }
 }
 void Z_function(const uint16_t msgid, const uint64_t origin, const uint64_t orient, const std::string& msg, void* arg)
@@ -240,6 +240,6 @@ void Z_function(const uint16_t msgid, const uint64_t origin, const uint64_t orie
         }
         break;
         default:
-            Erro(eeh->logger, TEST, "undefined or unhandled msg(%d)", (int)msgid);
+            ECHO(ERRO, "undefined or unhandled msg(%d)", (int)msgid);
     }
 }

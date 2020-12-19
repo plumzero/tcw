@@ -65,9 +65,11 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
         free(rbuf);
     }
     
+#ifdef DEBUG
     Dbug(eeh->logger, MODU, "msgid=%u, origin=%s, orient=%s, from_outward=%d",
                                 msgid, eeh->m_services_id[origin].c_str(), 
                                 eeh->m_services_id[orient].c_str(), from_outward);
+#endif
 
     decltype (std::declval<std::map<tcw::FD_t, tcw::SID_t>>().begin()) iterTo;
     int tofd = -1;
@@ -148,10 +150,12 @@ ssize_t daemon_read_callback(int fd, void *buf, size_t size, void *userp)
         return -1;
     }
 
+#ifdef DEBUG
     Dbug(eeh->logger, MODU, "pushed msg(len=%lu, from=%s) to que(ownby=%s, size=%lu) and forward to %s", 
                                 msg.size(), eeh->m_services_id[origin].c_str(),
                                 eeh->m_services_id[tobc->sid].c_str(), eeh->m_linker_queues[tobc->sid].size_approx(),
                                 eeh->m_services_id[orient].c_str());
+#endif
 
     eeh->tcw_mod(tobc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
 
@@ -180,9 +184,11 @@ ssize_t daemon_write_callback(int fd, const void *buf, size_t count, void *userp
         Erro(eeh->logger, MODU, "an exceptions occurs");
         return -1;
     }
-        
+
+#ifdef DEBUG
     Dbug(eeh->logger, MODU, "do write to ec(%p, t=%d, s=%s, queue_size=%lu)", 
                     bc, bc->type, eeh->m_services_id[sid].c_str(), eeh->m_linker_queues[sid].size_approx());
+#endif
 
     while (eeh->m_linker_queues[sid].size_approx() > 0) {
         std::string msg;
@@ -192,7 +198,9 @@ ssize_t daemon_write_callback(int fd, const void *buf, size_t count, void *userp
             Erro(eeh->logger, MODU, "write: %s", strerror(errno));
             return -1;
         }
+#ifdef DEBUG
         Dbug(eeh->logger, MODU, "forwarded msg(len=%lu) to peer end of ec(%p, t=%d)", nt, bc, bc->type);
+#endif
     }
     
     return 0;
@@ -225,8 +233,10 @@ ssize_t child_read_callback(int fd, void *buf, size_t size, void *userp)
         return -1;
     }
     
+#ifdef DEBUG
     Dbug(eeh->logger, MODU, "do read from ec(%p, t=%d, s=%s)", bc, bc->type, eeh->m_services_id[bc->sid].c_str());
-    
+#endif
+
     char hbuf[NEGOHSIZE];
     ssize_t nh = read(fd, hbuf, NEGOHSIZE);
     if (nh != NEGOHSIZE) {
@@ -258,12 +268,16 @@ ssize_t child_read_callback(int fd, void *buf, size_t size, void *userp)
         free(rbuf);
     }
     
+#ifdef DEBUG
     Dbug(eeh->logger, MODU, "received msg(len=%lu)", msg.size());
+#endif
 
     /** received it and do nothing, instead of passing it to application layer. */
     eeh->m_messages.try_enqueue(std::string(hbuf, hbuf + sizeof(hbuf)) + std::move(msg));
 
+#ifdef DEBUG
     Dbug(eeh->logger, MODU, "notified to deal with msg queue(size=%lu)", eeh->m_messages.size_approx());
+#endif
 
     return 0; 
 }
@@ -289,10 +303,12 @@ ssize_t child_write_callback(int fd, const void *buf, size_t count, void *userp)
         return -1;
     }
     
+#ifdef DEBUG
     Dbug(eeh->logger, MODU, "do write to ec(%p, t=%d, s=%s, queue_size=%lu)", 
                                 bc, bc->type,
                                 eeh->m_services_id[sid].c_str(), eeh->m_linker_queues[sid].size_approx());
-    
+#endif
+
     while (eeh->m_linker_queues[sid].size_approx() > 0) {        
         std::string msg;
         eeh->m_linker_queues[sid].try_dequeue(msg);
@@ -301,8 +317,10 @@ ssize_t child_write_callback(int fd, const void *buf, size_t count, void *userp)
             Erro(eeh->logger, MODU, "write: %s", strerror(errno));
             return -1;
         }
-        
+
+#ifdef DEBUG
         Dbug(eeh->logger, MODU, "forwarded msg(len=%lu) to peer end of ec(%p, t=%d)", nt, bc, bc->type);
+#endif
     }
     
     return 0;
@@ -336,11 +354,12 @@ int child_timer_callback(void *args, void *userp)
             return -1;
         }
 
+#ifdef DEBUG
         Dbug(eeh->logger, MODU, "pushed msg(len=%lu, from=%s) to que(ownby=%s, size=%lu) and heartbeat to %s", 
                                     tostream.size(), eeh->m_services_id[eeh->m_id].c_str(),
                                     eeh->m_services_id[bc->sid].c_str(), eeh->m_linker_queues[bc->sid].size_approx(),
                                     eeh->m_services_id[eeh->m_daemon_id].c_str());
-        
+#endif
         eeh->tcw_mod(bc, EPOLLOUT | EPOLLHUP | EPOLLRDHUP);
     }
 

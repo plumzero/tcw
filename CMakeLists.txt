@@ -21,7 +21,12 @@ endif()
 #
 # Build Options
 #
-option(BUILD_TESTS  "Build all available test suites"    ON)
+option(BUILD_TESTS  "Build all available test suites"           ON)
+
+if (DEFINED USE_LOG)
+    message("use log. synchronous log supported only currently")
+    add_definitions(-DUSE_LOG)
+endif()
 
 #
 # Configuration

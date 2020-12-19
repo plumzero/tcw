@@ -63,6 +63,7 @@ public:
     void      log_init(void);
     void      log_free(void);
     int       log_open_stream(FILE* f);
+    inline FILE * log_get_stream() { return m_pFile; }
     void      log_set_global_level(uint32_t level);
     uint32_t  log_get_global_level(void);
     int       log_get_level(uint32_t logtype);

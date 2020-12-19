@@ -91,11 +91,6 @@ void Logger::log_set_global_level(uint32_t level)
     m_nLevel = (uint32_t)level;
 }
 
-uint32_t Logger::log_get_global_level(void)
-{
-    return m_nLevel;
-}
-
 int Logger::log_get_level(uint32_t logtype)
 {
     if (logtype >= m_nLogTypesSize)
